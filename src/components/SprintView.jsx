@@ -50,19 +50,12 @@ export default function SprintView({
   currency,
   syncSprint = () => {},
   deleteSprintFromSheet = () => {},
-  syncCallingLists = () => {}
+  syncCallingLists = () => {},
+  sprints = [],
+  setSprints,
+  callingLists = [],
+  setCallingLists
 }) {
-  // Repositories
-  const [sprints, setSprints] = useState(() => {
-    const data = localStorage.getItem('crm_sprints');
-    return data ? JSON.parse(data) : [];
-  });
-
-  const [callingLists, setCallingLists] = useState(() => {
-    const data = localStorage.getItem('crm_calling_lists');
-    return data ? JSON.parse(data) : [];
-  });
-
   const [activeSprintId, setActiveSprintId] = useState(() => {
     return localStorage.getItem('crm_active_sprint_id') || null;
   });
@@ -105,12 +98,10 @@ export default function SprintView({
   // Sync state helpers
   const saveSprintsToStorage = (updatedSprints) => {
     setSprints(updatedSprints);
-    localStorage.setItem('crm_sprints', JSON.stringify(updatedSprints));
   };
 
   const saveCallingListsToStorage = (updatedLists) => {
     setCallingLists(updatedLists);
-    localStorage.setItem('crm_calling_lists', JSON.stringify(updatedLists));
     // Sync all lists to Sheets so they're available on any device
     syncCallingLists(updatedLists);
   };

@@ -292,6 +292,16 @@ export default function App() {
     return saved ? JSON.parse(saved) : DEFAULT_WHATSAPP_TEMPLATES;
   });
 
+  const [sprints, setSprints] = useState(() => {
+    const saved = localStorage.getItem('crm_sprints');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [callingLists, setCallingLists] = useState(() => {
+    const saved = localStorage.getItem('crm_calling_lists');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Theme, Currency & Onboarding Wizard State
   const [theme, setTheme] = useState(() => localStorage.getItem('crm_theme') || 'dark');
   const [currency, setCurrency] = useState(() => localStorage.getItem('crm_currency') || 'USD');
@@ -318,6 +328,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('crm_wa_templates', JSON.stringify(whatsappTemplates));
   }, [whatsappTemplates]);
+
+  useEffect(() => {
+    localStorage.setItem('crm_sprints', JSON.stringify(sprints));
+  }, [sprints]);
+
+  useEffect(() => {
+    localStorage.setItem('crm_calling_lists', JSON.stringify(callingLists));
+  }, [callingLists]);
 
   useEffect(() => {
     localStorage.setItem('crm_active_pipeline_id', activePipelineId);
@@ -409,11 +427,11 @@ export default function App() {
           setPipelines(data.pipelines);
         }
         // Restore sprint data from sheet
-        if (data.sprints && data.sprints.length > 0) {
-          localStorage.setItem('crm_sprints', JSON.stringify(data.sprints));
+        if (data.sprints) {
+          setSprints(data.sprints);
         }
-        if (data.callingLists && data.callingLists.length > 0) {
-          localStorage.setItem('crm_calling_lists', JSON.stringify(data.callingLists));
+        if (data.callingLists) {
+          setCallingLists(data.callingLists);
         }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
@@ -923,6 +941,10 @@ export default function App() {
             syncSprint={syncSprint}
             deleteSprintFromSheet={deleteSprintFromSheet}
             syncCallingLists={syncCallingLists}
+            sprints={sprints}
+            setSprints={setSprints}
+            callingLists={callingLists}
+            setCallingLists={setCallingLists}
           />
         )}
 
