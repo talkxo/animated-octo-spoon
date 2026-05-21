@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Database, 
   MessageSquare, 
@@ -35,11 +35,28 @@ export default function SettingsView({
   setSyncMode,
   syncQueue = [],
   clearSyncQueue,
-  flushSyncQueue
+  flushSyncQueue,
+  theme
 }) {
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [qrKey, setQrKey] = useState(0);
+
+  useEffect(() => {
+    if (!sheetUrl) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setQrKey(k => k + 1);
+          return 300;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sheetUrl]);
 
   // Pipeline editing states
   const [editingPipelineId, setEditingPipelineId] = useState(null);
@@ -283,23 +300,48 @@ export default function SettingsView({
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block' }}>
                   <img 
+                    key={qrKey}
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                      window.location.origin + window.location.pathname + '?sheetUrl=' + encodeURIComponent(sheetUrl)
+                      window.location.origin + window.location.pathname + 
+                      '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
+                      '&currency=' + encodeURIComponent(currency) + 
+                      '&theme=' + encodeURIComponent(theme || 'dark')
                     )}`} 
                     alt="Scan to sync" 
                     style={{ width: '110px', height: '110px', display: 'block' }}
                   />
                 </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '200px' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', minWidth: '200px' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Scan this QR code using your phone's camera, or copy the direct access link below. It will open Pluto on your mobile and automatically fill the spreadsheet configuration!
+                    Scan this QR code using your phone's camera, or copy the direct access link below. It will open Pluto on your mobile, apply your current currency and theme preferences instantly, and configure the spreadsheet link automatically.
                   </div>
+                  
+                  {/* Heartbeat timer */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem', 
+                    fontSize: '0.725rem', 
+                    color: '#fbbf24', 
+                    background: 'rgba(251, 191, 36, 0.04)', 
+                    padding: '0.3rem 0.5rem', 
+                    borderRadius: '6px', 
+                    border: '1px solid rgba(251, 191, 36, 0.15)',
+                    width: 'fit-content'
+                  }}>
+                    <RefreshCw size={11} style={{ animation: 'spin 10s linear infinite' }} />
+                    <span>Sync Connection active • Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
+                  </div>
+
                   <button 
                     type="button" 
                     className="outcome-btn" 
                     style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', alignSelf: 'flex-start', display: 'flex', gap: '0.35rem', alignItems: 'center' }}
                     onClick={() => {
-                      const shareUrl = window.location.origin + window.location.pathname + '?sheetUrl=' + encodeURIComponent(sheetUrl);
+                      const shareUrl = window.location.origin + window.location.pathname + 
+                        '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
+                        '&currency=' + encodeURIComponent(currency) + 
+                        '&theme=' + encodeURIComponent(theme || 'dark');
                       navigator.clipboard.writeText(shareUrl);
                       alert('Mobile access link copied! Send this link to your mobile phone (e.g. via text/email) and log in.');
                     }}

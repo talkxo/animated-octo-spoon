@@ -398,6 +398,19 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const queryUrl = params.get('sheetUrl') || params.get('sheet');
+    const queryCurrency = params.get('currency');
+    const queryTheme = params.get('theme');
+
+    if (queryCurrency) {
+      setCurrency(queryCurrency);
+      localStorage.setItem('crm_currency', queryCurrency);
+    }
+    if (queryTheme) {
+      setTheme(queryTheme);
+      localStorage.setItem('crm_theme', queryTheme);
+      document.documentElement.setAttribute('data-theme', queryTheme);
+    }
+
     if (queryUrl) {
       localStorage.setItem('crm_pending_sheet_url', queryUrl);
       if (isLoggedIn && loggedInUser) {
@@ -407,7 +420,10 @@ export default function App() {
         localStorage.removeItem('crm_pending_sheet_url');
         syncDataFromSheet(queryUrl);
       }
-      // Clean query params from URL bar so it doesn't stay cluttered
+    }
+
+    // Clean query params from URL bar so it doesn't stay cluttered
+    if (queryUrl || queryCurrency || queryTheme) {
       try {
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
@@ -1095,6 +1111,7 @@ export default function App() {
               }
             }}
             flushSyncQueue={flushSyncQueue}
+            theme={theme}
           />
         )}
       </main>
