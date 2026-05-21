@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Phone, 
   PhoneCall,
@@ -604,6 +604,8 @@ export default function SprintView({
         return s;
       });
       saveSprintsToStorage(updatedSprints);
+      // Scroll back to top so user sees new contact
+      wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       handleCompleteSprint();
     }
@@ -626,6 +628,8 @@ export default function SprintView({
         return s;
       });
       saveSprintsToStorage(updatedSprints);
+      // Scroll back to top so user sees new contact
+      wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       handleCompleteSprint();
     }
@@ -643,8 +647,11 @@ export default function SprintView({
   // Lookup ongoing/suspended sprint if exists
   const ongoingSprint = sprints.find(s => s.id === activeSprintId && (s.status === 'active' || s.status === 'suspended'));
 
+  // Ref to scroll back to top on each lead transition
+  const wrapperRef = useRef(null);
+
   return (
-    <div className="sprint-view-wrapper">
+    <div className="sprint-view-wrapper" ref={wrapperRef}>
       
       {/* STEP 1: SETUP SCREEN */}
       {sprintState === 'setup' && (
