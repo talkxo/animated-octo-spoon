@@ -160,8 +160,10 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--safe-top) 1.25rem 0 1.25rem;
+  padding: 0 1.25rem;
+  padding-top: var(--safe-top);
   z-index: 10;
+  gap: 0.5rem;
 }
 
 @media (min-width: 769px) {
@@ -188,7 +190,6 @@ header > div:last-child {
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
-  overflow: hidden;
   flex-shrink: 1;
 }
 
@@ -211,6 +212,7 @@ header > div:last-child {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .logo-icon {
