@@ -670,10 +670,27 @@ main {
 /* Calling Sprint UI Styles */
 .sprint-view-wrapper {
   max-width: 600px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  box-sizing: border-box;
+}
+
+/* Responsive 2-col grid — stacks on mobile */
+.sprint-two-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 480px) {
+  .sprint-two-col {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
 }
 
 .setup-filter-row {

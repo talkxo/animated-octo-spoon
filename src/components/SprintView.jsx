@@ -713,7 +713,7 @@ export default function SprintView({
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div className="sprint-two-col">
               <div className="form-group">
                 <label className="form-label">Sprint Target Source</label>
                 <select 
@@ -761,7 +761,7 @@ export default function SprintView({
             </div>
 
             {newSprintSourceType === 'pipeline' && (
-              <div className="setup-filter-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div className="sprint-two-col">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Filter by Pipeline Stage</label>
                   <select 
