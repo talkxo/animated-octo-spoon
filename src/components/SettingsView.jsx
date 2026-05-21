@@ -13,7 +13,8 @@ import {
   RefreshCw,
   Sliders,
   Trash,
-  Smartphone
+  Smartphone,
+  Shield
 } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 
@@ -38,6 +39,7 @@ export default function SettingsView({
 }) {
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
+  const [showSecurityFaq, setShowSecurityFaq] = useState(false);
 
   // Pipeline editing states
   const [editingPipelineId, setEditingPipelineId] = useState(null);
@@ -336,6 +338,78 @@ export default function SettingsView({
             {copied ? <Check size={12} style={{ color: '#10b981' }} /> : <Copy size={12} />}
             <span>{copied ? 'Code copied!' : 'Copy Apps Script Code'}</span>
           </button>
+        </div>
+
+        {/* Security FAQ Section */}
+        <div style={{ marginTop: '0.85rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.85rem' }}>
+          <button
+            type="button"
+            onClick={() => setShowSecurityFaq(!showSecurityFaq)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-main)',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              cursor: 'pointer',
+              padding: 0,
+              width: '100%',
+              textAlign: 'left'
+            }}
+          >
+            <Shield size={14} style={{ color: 'var(--primary)' }} />
+            <span>🔒 Security, Privacy & Auth FAQ</span>
+            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {showSecurityFaq ? 'Hide ▲' : 'Show ▼'}
+            </span>
+          </button>
+          
+          {showSecurityFaq && (
+            <div style={{ 
+              marginTop: '0.65rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '0.75rem', 
+              fontSize: '0.75rem', 
+              color: 'var(--text-muted)', 
+              lineHeight: 1.45,
+              background: 'rgba(255, 255, 255, 0.01)',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-light)'
+            }}>
+              <div>
+                <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
+                  Is the Google "unverified app" screen safe?
+                </strong>
+                Yes. Google displays this standard warning for any custom Apps Script project hosted under your own personal Google Account. Since the script code is 100% open source and runs entirely within your own Google account, it is completely secure to authorize.
+              </div>
+              
+              <div>
+                <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
+                  Why is access set to "Anyone"?
+                </strong>
+                This setting allows Pluto (running locally in your browser) to sync data directly to your Sheet without a middleman server.
+              </div>
+              
+              <div>
+                <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
+                  Can anyone else access my data?
+                </strong>
+                Your Web App URL acts as a private API Key. As long as you do not share this URL, your data remains secure. Pluto saves this URL only in your browser's local storage; it is never transmitted to any third-party server.
+              </div>
+              
+              <div>
+                <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
+                  What files can the script access?
+                </strong>
+                The script is restricted to the specific spreadsheet file you created it in. It has no access to any other files in your Google Drive.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

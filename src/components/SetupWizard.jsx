@@ -13,7 +13,8 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  FileCode
+  FileCode,
+  Shield
 } from 'lucide-react';
 
 const APPS_SCRIPT_CODE = `/**
@@ -558,6 +559,31 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                 <div className="setup-deploy-step">
                   <span className="setup-deploy-step-number">4.</span>
                   <span>Click **Deploy**, click **Authorize Access** (sign in and click "Advanced → Go to Untitled Project (unsafe)"), and copy the resulting **Web App URL**!</span>
+                </div>
+              </div>
+
+              {/* Security Alert Box */}
+              <div style={{
+                marginTop: '0.85rem',
+                padding: '0.75rem',
+                background: 'rgba(251, 191, 36, 0.03)',
+                border: '1px solid rgba(251, 191, 36, 0.15)',
+                borderRadius: '10px',
+                fontSize: '0.75rem',
+                color: 'var(--text-muted)',
+                lineHeight: 1.45
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#fbbf24', fontWeight: 700, marginBottom: '0.25rem' }}>
+                  <Shield size={14} />
+                  <span>🔒 Security, Privacy & Auth Note</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div>
+                    <strong>Why does Google show an "Unverified App" warning?</strong> Google flags any custom Apps Script project run under personal accounts as "unverified" because it hasn't gone through commercial review. Since the script code is 100% open-source and run entirely within your own Google account, it is completely safe to click <em>"Advanced" ➔ "Go to Untitled Project (unsafe)"</em> to authorize it.
+                  </div>
+                  <div>
+                    <strong>Why deploy with "Who has access: Anyone"?</strong> This allows this local web app (running entirely inside your browser) to sync lead data directly to your Sheet without going through any third-party middleman server. Your Web App URL acts as a private pre-shared API token, stored only in your browser's local storage.
+                  </div>
                 </div>
               </div>
             </div>
