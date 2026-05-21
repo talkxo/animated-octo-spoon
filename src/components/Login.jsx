@@ -21,7 +21,7 @@ export default function Login({ onLogin }) {
     // Simulate a slight delay for premium feedback animation
     setTimeout(() => {
       if (username.trim() === expectedUsername && password === expectedPassword) {
-        onLogin(rememberMe);
+        onLogin(username.trim(), rememberMe);
       } else {
         setError('Invalid administrator username or password.');
         setIsLoading(false);

@@ -213,11 +213,52 @@ const DEFAULT_WHATSAPP_TEMPLATES = [
 ];
 
 export default function App() {
+  // Auth State — check localStorage (remember me) or sessionStorage (session only)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('crm_logged_in') === 'true' ||
+           sessionStorage.getItem('crm_logged_in') === 'true';
+  });
+  const [loggedInUser, setLoggedInUser] = useState(() => {
+    return localStorage.getItem('crm_logged_in_user') ||
+           sessionStorage.getItem('crm_logged_in_user') || '';
+  });
+
+  const handleLogin = (username, rememberMe) => {
+    setIsLoggedIn(true);
+    setLoggedInUser(username);
+    if (rememberMe) {
+      localStorage.setItem('crm_logged_in', 'true');
+      localStorage.setItem('crm_logged_in_user', username);
+    } else {
+      sessionStorage.setItem('crm_logged_in', 'true');
+      sessionStorage.setItem('crm_logged_in_user', username);
+    }
+    // Restore this user's sheet URL
+    const savedUrl = localStorage.getItem(`crm_sheet_url_${username}`) || '';
+    setSheetUrl(savedUrl);
+    if (savedUrl) syncDataFromSheet(savedUrl);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('crm_logged_in');
+    localStorage.removeItem('crm_logged_in_user');
+    sessionStorage.removeItem('crm_logged_in');
+    sessionStorage.removeItem('crm_logged_in_user');
+    setIsLoggedIn(false);
+    setLoggedInUser('');
+  };
+
   // Navigation & Views State
   const [activeTab, setActiveTab] = useState('funnel');
   
-  // Settings & Sync State
-  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('crm_sheet_url') || '');
+  // Settings & Sync State — sheet URL bootstrapped from user-scoped key
+  const [sheetUrl, setSheetUrl] = useState(() => {
+    const user = localStorage.getItem('crm_logged_in_user') ||
+                 sessionStorage.getItem('crm_logged_in_user') || '';
+    return user
+      ? (localStorage.getItem(`crm_sheet_url_${user}`) || '')
+      : (localStorage.getItem('crm_sheet_url') || '');
+  });
   const [syncStatus, setSyncStatus] = useState(sheetUrl ? 'syncing' : 'offline'); // 'syncing', 'synced', 'offline', 'error', 'pending'
   const [lastSyncTime, setLastSyncTime] = useState(() => localStorage.getItem('crm_last_sync') || '');
   const [syncMode, setSyncMode] = useState(() => localStorage.getItem('crm_sync_mode') || 'auto');
@@ -693,6 +734,11 @@ export default function App() {
     }
   ];
 
+  // Gate — show Login if not authenticated
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <KBarProvider actions={actions}>
       <PlutoCommandBar />
@@ -797,6 +843,15 @@ export default function App() {
               <span>Sync Error</span>
             </div>
           )}
+          {/* Logout button */}
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '0.45rem', borderRadius: '8px' }}
+            onClick={handleLogout}
+            title={`Logged in as ${loggedInUser}. Click to log out.`}
+          >
+            <LogOut size={16} style={{ color: 'var(--text-muted)' }} />
+          </button>
         </div>
       </header>
 
@@ -861,6 +916,10 @@ export default function App() {
             sheetUrl={sheetUrl}
             setSheetUrl={(url) => {
               setSheetUrl(url);
+              // Save under per-user key so it persists across devices/sessions
+              if (loggedInUser) {
+                localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+              }
               localStorage.setItem('crm_sheet_url', url);
               if (url) {
                 syncDataFromSheet(url);
@@ -945,6 +1004,9 @@ export default function App() {
           sheetUrl={sheetUrl}
           setSheetUrl={(url) => {
             setSheetUrl(url);
+            if (loggedInUser) {
+              localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+            }
             localStorage.setItem('crm_sheet_url', url);
             if (url) {
               syncDataFromSheet(url);
