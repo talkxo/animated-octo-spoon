@@ -171,6 +171,42 @@ header {
   }
 }
 
+/* Hide text on very small screens, keep icons */
+.mobile-hide {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .mobile-hide {
+    display: inline;
+  }
+}
+
+/* Prevent header right-side buttons from overflowing on mobile */
+header > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
+  flex-shrink: 1;
+}
+
+/* Sync badge — truncate text so it never pushes buttons off screen */
+.sync-badge {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  flex-shrink: 1;
+}
+
+@media (max-width: 479px) {
+  .sync-badge span {
+    display: none;
+  }
+}
+
 .logo-container {
   display: flex;
   align-items: center;
