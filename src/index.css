@@ -2544,3 +2544,138 @@ main {
   color: var(--text-dark);
   margin-top: 1.5rem;
 }
+
+/* ==========================================
+   LOGIN LOAD ANIMATION & VIEW TRANSITIONS
+   ========================================== */
+
+.login-intro-container {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  overflow: hidden;
+  position: relative;
+  z-index: 10000;
+}
+
+.login-intro-planet-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  position: relative;
+  transition: all 0.3s ease;
+  view-transition-name: login-planet;
+}
+
+/* Pulsing backdrop glow around the planet */
+.login-intro-planet-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--primary) 0%, rgba(249, 115, 22, 0.4) 40%, rgba(249, 115, 22, 0) 70%);
+  opacity: 0.15;
+  filter: blur(10px);
+  animation: planet-glow-pulse 4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.login-intro-planet-svg {
+  display: block;
+  filter: drop-shadow(0 0 15px var(--primary-glow)) drop-shadow(0 0 35px rgba(249, 115, 22, 0.25));
+  animation: planet-spin 12s linear infinite;
+  transform-origin: center;
+}
+
+.login-logo-icon {
+  view-transition-name: login-planet;
+}
+
+/* Spin animation for the planet icon */
+@keyframes planet-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Glow pulsing animation */
+@keyframes planet-glow-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.12;
+    filter: blur(12px);
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0.25;
+    filter: blur(8px);
+  }
+}
+
+/* settled planet subtle hover rotation */
+.login-logo-icon:hover svg {
+  transform: rotate(15deg);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.login-logo-icon svg {
+  transition: transform 0.4s ease;
+}
+
+/* Configure View Transitions */
+::view-transition-group(login-planet) {
+  animation-duration: 0.95s;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); /* Premium custom ease-in-out */
+}
+
+/* Prevent cross-fade rendering bugs for the planet image */
+::view-transition-old(login-planet),
+::view-transition-new(login-planet) {
+  height: 100%;
+  width: 100%;
+  mix-blend-mode: normal;
+}
+
+/* We want the rest of the new page (the login glass card) to fade in beautifully. */
+::view-transition-new(root) {
+  animation: fade-in-card 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-in-card {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Support users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .login-intro-planet-svg {
+    animation: none !important;
+  }
+  .login-intro-planet-wrapper::before {
+    animation: none !important;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function Login({ onLogin }) {
@@ -8,6 +8,20 @@ export default function Login({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isIntroLoading, setIsIntroLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (document.startViewTransition) {
+        document.startViewTransition(() => {
+          setIsIntroLoading(false);
+        });
+      } else {
+        setIsIntroLoading(false);
+      }
+    }, 1800); // 1.8 seconds loading experience
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -29,13 +43,40 @@ export default function Login({ onLogin }) {
     }, 800);
   };
 
+  if (isIntroLoading) {
+    return (
+      <div className="login-intro-container">
+        <div className="login-intro-planet-wrapper" style={{ viewTransitionName: 'login-planet' }}>
+          <svg viewBox="0 0 32 32" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg" className="login-intro-planet-svg">
+            <defs>
+              <radialGradient id="introPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#ffeedd" />
+                <stop offset="60%" stopColor="var(--primary)" />
+                <stop offset="100%" stopColor="#7c2d12" />
+              </radialGradient>
+            </defs>
+            <circle cx="16" cy="16" r="12" fill="url(#introPlutoPlanetGrad)" />
+            <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+              <path 
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" 
+                fill="#ffffff" 
+                opacity="0.9"
+              />
+            </g>
+            <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.2)" strokeWidth="0.5" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="login-page-container">
       <div className="login-glass-card">
         
         {/* Logo Section */}
         <div className="login-logo-section">
-          <div className="login-logo-icon">
+          <div className="login-logo-icon" style={{ viewTransitionName: 'login-planet' }}>
             <svg viewBox="0 0 32 32" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <radialGradient id="loginPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
