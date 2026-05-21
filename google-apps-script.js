@@ -41,6 +41,7 @@ function doPost(e) {
   if (action === 'saveSprint')        return jsonResponse(saveSprint(data.sprint));
   if (action === 'deleteSprint')      return jsonResponse(deleteSprint(data.id));
   if (action === 'saveCallingLists')  return jsonResponse(saveCallingLists(data.callingLists));
+  if (action === 'saveSettings')      return jsonResponse(saveSettings(data.settings));
 
   return jsonResponse({ error: 'Invalid POST action' });
 }
@@ -100,6 +101,14 @@ function initSheets() {
     listsSheet = ss.insertSheet('CallingLists');
     listsSheet.appendRow(['data']);
     listsSheet.getRange('A1').setFontWeight('bold');
+  }
+
+  // 6. Settings Sheet — all settings stored as a single JSON blob in one cell
+  var settingsSheet = ss.getSheetByName('Settings');
+  if (!settingsSheet) {
+    settingsSheet = ss.insertSheet('Settings');
+    settingsSheet.appendRow(['data']);
+    settingsSheet.getRange('A1').setFontWeight('bold');
   }
 }
 
@@ -166,13 +175,22 @@ function readAllData() {
     callingLists = safeJsonParse(blob, []);
   }
 
+  // Read settings — single JSON blob
+  var settingsSheet = ss.getSheetByName('Settings');
+  var settings = null;
+  if (settingsSheet && settingsSheet.getLastRow() > 1) {
+    var settingsBlob = settingsSheet.getRange(2, 1).getValue();
+    settings = safeJsonParse(settingsBlob, null);
+  }
+
   return {
     success: true,
     leads: leads,
     notes: notes,
     pipelines: pipelines,
     sprints: sprints,
-    callingLists: callingLists
+    callingLists: callingLists,
+    settings: settings
   };
 }
 
@@ -311,5 +329,17 @@ function saveCallingLists(callingLists) {
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).clearContent();
   }
   sheet.getRange(2, 1).setValue(JSON.stringify(callingLists));
+  return { success: true };
+}
+
+// Overwrite all settings (stored as a single JSON blob)
+function saveSettings(settings) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Settings');
+  // Clear existing data rows
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).clearContent();
+  }
+  sheet.getRange(2, 1).setValue(JSON.stringify(settings));
   return { success: true };
 }

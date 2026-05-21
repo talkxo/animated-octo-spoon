@@ -12,7 +12,8 @@ import {
   Grid,
   RefreshCw,
   Sliders,
-  Trash
+  Trash,
+  Smartphone
 } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 
@@ -255,16 +256,58 @@ export default function SettingsView({
         </form>
 
         {sheetUrl && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '10px', padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.8rem' }}>
-              <span style={{ color: '#10b981', fontWeight: 700 }}>✓ CONNECTED: </span>
-              <span style={{ color: 'var(--text-muted)' }}>Sheet sync active (GET / POST rows ready).</span>
-              {lastSyncTime && <div style={{ fontSize: '0.7rem', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '10px', padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '0.8rem' }}>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ CONNECTED: </span>
+                <span style={{ color: 'var(--text-muted)' }}>Sheet sync active (GET / POST rows ready).</span>
+                {lastSyncTime && <div style={{ fontSize: '0.7rem', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
+              </div>
+              <button className="outcome-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={onSyncClick}>
+                <RefreshCw size={12} />
+                <span>Fetch Now</span>
+              </button>
             </div>
-            <button className="outcome-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={onSyncClick}>
-              <RefreshCw size={12} />
-              <span>Fetch Now</span>
-            </button>
+
+            {/* Sync to Mobile Card */}
+            <div style={{ padding: '0.85rem', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                <Smartphone size={16} style={{ color: 'var(--primary)' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Sync to Mobile or Other Devices</span>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45, margin: '0 0 0.75rem 0' }}>
+                To connect your mobile device or another computer without copy-pasting the long Apps Script Web App URL:
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block' }}>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                      window.location.origin + window.location.pathname + '?sheetUrl=' + encodeURIComponent(sheetUrl)
+                    )}`} 
+                    alt="Scan to sync" 
+                    style={{ width: '110px', height: '110px', display: 'block' }}
+                  />
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '200px' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    Scan this QR code using your phone's camera, or copy the direct access link below. It will open Pluto on your mobile and automatically fill the spreadsheet configuration!
+                  </div>
+                  <button 
+                    type="button" 
+                    className="outcome-btn" 
+                    style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', alignSelf: 'flex-start', display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                    onClick={() => {
+                      const shareUrl = window.location.origin + window.location.pathname + '?sheetUrl=' + encodeURIComponent(sheetUrl);
+                      navigator.clipboard.writeText(shareUrl);
+                      alert('Mobile access link copied! Send this link to your mobile phone (e.g. via text/email) and log in.');
+                    }}
+                  >
+                    <Copy size={12} />
+                    <span>Copy Mobile Access Link</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -400,6 +443,8 @@ export default function SettingsView({
                   if (item.action === 'deleteLead') desc = `Delete lead ID "${item.id}"`;
                   if (item.action === 'saveNote') desc = `Add timeline note for lead ID "${item.note.leadId}"`;
                   if (item.action === 'savePipelines') desc = `Save campaign pipelines configuration`;
+                  if (item.action === 'saveCallingLists') desc = `Save call lists & queue state`;
+                  if (item.action === 'saveSettings') desc = `Save global preferences & WhatsApp templates`;
                   
                   return (
                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '4px' }}>

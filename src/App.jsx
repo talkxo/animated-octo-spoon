@@ -233,8 +233,19 @@ export default function App() {
       sessionStorage.setItem('crm_logged_in', 'true');
       sessionStorage.setItem('crm_logged_in_user', username);
     }
-    // Restore this user's sheet URL
-    const savedUrl = localStorage.getItem(`crm_sheet_url_${username}`) || '';
+    // Check if there was a pending sheet URL shared via QR/Link
+    const pendingUrl = localStorage.getItem('crm_pending_sheet_url');
+    let savedUrl = '';
+    if (pendingUrl) {
+      savedUrl = pendingUrl;
+      localStorage.removeItem('crm_pending_sheet_url');
+      // Save it permanently for this user
+      localStorage.setItem(`crm_sheet_url_${username}`, pendingUrl);
+      localStorage.setItem('crm_sheet_url', pendingUrl);
+    } else {
+      // Restore this user's sheet URL
+      savedUrl = localStorage.getItem(`crm_sheet_url_${username}`) || '';
+    }
     setSheetUrl(savedUrl);
     if (savedUrl) syncDataFromSheet(savedUrl);
   };
@@ -383,6 +394,29 @@ export default function App() {
     return () => clearInterval(timer);
   }, [syncMode, syncQueue, sheetUrl, syncStatus]);
 
+  // Parse shared sheet URL from deep link / QR code on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryUrl = params.get('sheetUrl') || params.get('sheet');
+    if (queryUrl) {
+      localStorage.setItem('crm_pending_sheet_url', queryUrl);
+      if (isLoggedIn && loggedInUser) {
+        setSheetUrl(queryUrl);
+        localStorage.setItem(`crm_sheet_url_${loggedInUser}`, queryUrl);
+        localStorage.setItem('crm_sheet_url', queryUrl);
+        localStorage.removeItem('crm_pending_sheet_url');
+        syncDataFromSheet(queryUrl);
+      }
+      // Clean query params from URL bar so it doesn't stay cluttered
+      try {
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [isLoggedIn, loggedInUser]);
+
   // Auto-launch Setup Wizard if Sheet is not connected and it is first run
   useEffect(() => {
     const hasSeenWizard = localStorage.getItem('crm_has_seen_wizard');
@@ -433,6 +467,20 @@ export default function App() {
         if (data.callingLists) {
           setCallingLists(data.callingLists);
         }
+        if (data.settings) {
+          if (data.settings.currency) {
+            setCurrency(data.settings.currency);
+          }
+          if (data.settings.syncMode) {
+            setSyncMode(data.settings.syncMode);
+          }
+          if (data.settings.whatsappTemplates && data.settings.whatsappTemplates.length > 0) {
+            setWhatsappTemplates(data.settings.whatsappTemplates);
+          }
+          if (data.settings.theme) {
+            setTheme(data.settings.theme);
+          }
+        }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
         setLastSyncTime(timeStr);
@@ -450,6 +498,60 @@ export default function App() {
   const syncSprint = (sprint) => handleSyncPush({ action: 'saveSprint', sprint });
   const deleteSprintFromSheet = (id) => handleSyncPush({ action: 'deleteSprint', id });
   const syncCallingLists = (callingLists) => handleSyncPush({ action: 'saveCallingLists', callingLists });
+
+  // Settings sync helpers
+  const updateCurrency = async (newCurrency) => {
+    setCurrency(newCurrency);
+    await handleSyncPush({
+      action: 'saveSettings',
+      settings: {
+        currency: newCurrency,
+        syncMode,
+        whatsappTemplates,
+        theme
+      }
+    });
+  };
+
+  const updateSyncMode = async (newSyncMode) => {
+    setSyncMode(newSyncMode);
+    await handleSyncPush({
+      action: 'saveSettings',
+      settings: {
+        currency,
+        syncMode: newSyncMode,
+        whatsappTemplates,
+        theme
+      }
+    });
+  };
+
+  const updateWhatsappTemplates = async (newTemplates) => {
+    setWhatsappTemplates(newTemplates);
+    await handleSyncPush({
+      action: 'saveSettings',
+      settings: {
+        currency,
+        syncMode,
+        whatsappTemplates: newTemplates,
+        theme
+      }
+    });
+  };
+
+  const toggleTheme = async () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    await handleSyncPush({
+      action: 'saveSettings',
+      settings: {
+        currency,
+        syncMode,
+        whatsappTemplates,
+        theme: nextTheme
+      }
+    });
+  };
 
   // Helper to post API payload to Apps Script
   const postToSheet = async (payload) => {
@@ -708,42 +810,42 @@ export default function App() {
       shortcut: ['t', 't'],
       keywords: 'color mode toggle sun moon dark light style theme switch',
       section: 'Preferences',
-      perform: () => setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+      perform: () => toggleTheme()
     },
     {
       id: 'pref_curr_usd',
       name: 'Set Account Currency to USD ($)',
       keywords: 'settings currency symbol dollar usd money united states',
       section: 'Preferences',
-      perform: () => setCurrency('USD')
+      perform: () => updateCurrency('USD')
     },
     {
       id: 'pref_curr_inr',
       name: 'Set Account Currency to INR (₹)',
       keywords: 'settings currency symbol rupee inr money india',
       section: 'Preferences',
-      perform: () => setCurrency('INR')
+      perform: () => updateCurrency('INR')
     },
     {
       id: 'pref_curr_eur',
       name: 'Set Account Currency to EUR (€)',
       keywords: 'settings currency symbol euro eur money europe',
       section: 'Preferences',
-      perform: () => setCurrency('EUR')
+      perform: () => updateCurrency('EUR')
     },
     {
       id: 'pref_curr_gbp',
       name: 'Set Account Currency to GBP (£)',
       keywords: 'settings currency symbol pound gbp money united kingdom uk',
       section: 'Preferences',
-      perform: () => setCurrency('GBP')
+      perform: () => updateCurrency('GBP')
     },
     {
       id: 'pref_curr_aed',
       name: 'Set Account Currency to AED (د.إ)',
       keywords: 'settings currency symbol dirham aed money dubai uae',
       section: 'Preferences',
-      perform: () => setCurrency('AED')
+      perform: () => updateCurrency('AED')
     },
     // Quick Actions
     {
@@ -831,7 +933,7 @@ export default function App() {
           <button 
             className="btn btn-secondary" 
             style={{ padding: '0.45rem', borderRadius: '8px' }}
-            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            onClick={toggleTheme}
             title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {theme === 'dark' ? <Sun size={16} style={{ color: 'var(--accent)' }} /> : <Moon size={16} style={{ color: 'var(--primary)' }} />}
@@ -977,13 +1079,13 @@ export default function App() {
             pipelines={pipelines}
             updatePipelines={updatePipelines}
             whatsappTemplates={whatsappTemplates}
-            setWhatsappTemplates={setWhatsappTemplates}
+            setWhatsappTemplates={updateWhatsappTemplates}
             lastSyncTime={lastSyncTime}
             currency={currency}
-            setCurrency={setCurrency}
+            setCurrency={updateCurrency}
             onOpenWizard={() => setIsSetupWizardOpen(true)}
             syncMode={syncMode}
-            setSyncMode={setSyncMode}
+            setSyncMode={updateSyncMode}
             syncQueue={syncQueue}
             clearSyncQueue={() => {
               if (confirm('Are you sure you want to discard all pending offline edits? This cannot be undone.')) {
