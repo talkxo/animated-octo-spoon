@@ -10,7 +10,8 @@ import {
   UserPlus,
   Sun,
   Moon,
-  HelpCircle
+  HelpCircle,
+  LogOut
 } from 'lucide-react';
 import {
   KBarProvider,
@@ -26,6 +27,7 @@ import SprintView from './components/SprintView';
 import SettingsView from './components/SettingsView';
 import LeadModal from './components/LeadModal';
 import SetupWizard from './components/SetupWizard';
+import Login from './components/Login';
 
 // Custom KBar results list renderer with high-end styles
 function PlutoCommandBarResults() {
