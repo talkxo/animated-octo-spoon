@@ -47,7 +47,10 @@ export default function SprintView({
   addNote, 
   saveLead, 
   onSelectLead,
-  currency
+  currency,
+  syncSprint = () => {},
+  deleteSprintFromSheet = () => {},
+  syncCallingLists = () => {}
 }) {
   // Repositories
   const [sprints, setSprints] = useState(() => {
@@ -108,6 +111,8 @@ export default function SprintView({
   const saveCallingListsToStorage = (updatedLists) => {
     setCallingLists(updatedLists);
     localStorage.setItem('crm_calling_lists', JSON.stringify(updatedLists));
+    // Sync all lists to Sheets so they're available on any device
+    syncCallingLists(updatedLists);
   };
 
   const saveActiveSprintIdToStorage = (id) => {
@@ -117,6 +122,11 @@ export default function SprintView({
     } else {
       localStorage.removeItem('crm_active_sprint_id');
     }
+  };
+
+  // Helper: save sprint both locally and to Sheets
+  const persistSprint = (sprint) => {
+    syncSprint(sprint);
   };
 
   // Synchronize dynamic default values
@@ -379,6 +389,7 @@ export default function SprintView({
     const updatedSprints = [newSprint, ...sprints];
     saveSprintsToStorage(updatedSprints);
     saveActiveSprintIdToStorage(newSprint.id);
+    persistSprint(newSprint); // sync to Sheets
     
     setActiveSprint(newSprint);
     setSprintQueue(queue);
@@ -409,6 +420,7 @@ export default function SprintView({
         return s;
       });
       saveSprintsToStorage(updatedSprints);
+      persistSprint({ ...sprint, status: 'active' }); // sync to Sheets
     }
     
     setCallOutcome('');
@@ -433,7 +445,9 @@ export default function SprintView({
       return s;
     });
     
+    const suspendedSprint = updatedSprints.find(s => s.id === activeSprintId);
     saveSprintsToStorage(updatedSprints);
+    if (suspendedSprint) persistSprint(suspendedSprint); // sync paused state to Sheets
     setSprintState('setup');
     setActiveSprint(null);
   };
@@ -456,7 +470,9 @@ export default function SprintView({
       return s;
     });
     
+    const completedSprint = updatedSprints.find(s => s.id === targetId);
     saveSprintsToStorage(updatedSprints);
+    if (completedSprint) persistSprint(completedSprint); // sync completed state to Sheets
     saveActiveSprintIdToStorage(null);
     setActiveSprint(null);
     setSprintState('finished');
@@ -466,6 +482,7 @@ export default function SprintView({
     e.stopPropagation();
     const updatedSprints = sprints.filter(s => s.id !== sprintId);
     saveSprintsToStorage(updatedSprints);
+    deleteSprintFromSheet(sprintId); // remove from Sheets
     if (activeSprintId === sprintId) {
       saveActiveSprintIdToStorage(null);
     }
@@ -604,6 +621,8 @@ export default function SprintView({
         return s;
       });
       saveSprintsToStorage(updatedSprints);
+      const updatedSprint = updatedSprints.find(s => s.id === activeSprintId);
+      if (updatedSprint) persistSprint(updatedSprint); // sync progress to Sheets
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
@@ -628,6 +647,8 @@ export default function SprintView({
         return s;
       });
       saveSprintsToStorage(updatedSprints);
+      const updatedSprint = updatedSprints.find(s => s.id === activeSprintId);
+      if (updatedSprint) persistSprint(updatedSprint); // sync progress to Sheets
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {

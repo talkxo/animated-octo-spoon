@@ -408,6 +408,13 @@ export default function App() {
         if (data.pipelines && data.pipelines.length > 0) {
           setPipelines(data.pipelines);
         }
+        // Restore sprint data from sheet
+        if (data.sprints && data.sprints.length > 0) {
+          localStorage.setItem('crm_sprints', JSON.stringify(data.sprints));
+        }
+        if (data.callingLists && data.callingLists.length > 0) {
+          localStorage.setItem('crm_calling_lists', JSON.stringify(data.callingLists));
+        }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
         setLastSyncTime(timeStr);
@@ -420,6 +427,11 @@ export default function App() {
       setSyncStatus('error');
     }
   };
+
+  // Sprint sync helpers passed down to SprintView
+  const syncSprint = (sprint) => handleSyncPush({ action: 'saveSprint', sprint });
+  const deleteSprintFromSheet = (id) => handleSyncPush({ action: 'deleteSprint', id });
+  const syncCallingLists = (callingLists) => handleSyncPush({ action: 'saveCallingLists', callingLists });
 
   // Helper to post API payload to Apps Script
   const postToSheet = async (payload) => {
@@ -908,6 +920,9 @@ export default function App() {
             saveLead={saveLead}
             onSelectLead={(id) => setSelectedLeadId(id)}
             currency={currency}
+            syncSprint={syncSprint}
+            deleteSprintFromSheet={deleteSprintFromSheet}
+            syncCallingLists={syncCallingLists}
           />
         )}
 
