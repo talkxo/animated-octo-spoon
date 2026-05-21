@@ -921,7 +921,7 @@ export default function App() {
           style={{ cursor: 'pointer' }} 
           title="Go to Home Dashboard"
         >
-          <div className="logo-icon" style={{ boxShadow: '0 0 15px var(--border-glow)' }}>
+          <div className="logo-icon">
             <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
               <defs>
                 <radialGradient id="plutoPlanetGrad" cx="30%" cy="30%" r="70%">

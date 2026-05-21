@@ -218,15 +218,11 @@ header > div:last-child {
 }
 
 .logo-icon {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-light);
   width: 34px;
   height: 34px;
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 12px var(--primary-glow);
   transition: all 0.3s ease;
 }
 
@@ -2353,14 +2349,10 @@ main {
 .login-logo-icon {
   width: 64px;
   height: 64px;
-  background: var(--primary-glow);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1rem;
-  box-shadow: 0 0 20px var(--primary-glow);
 }
 
 .login-title {
