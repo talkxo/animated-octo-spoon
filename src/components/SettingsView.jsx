@@ -14,6 +14,7 @@ import {
   Sliders,
   Trash
 } from 'lucide-react';
+import appsScriptCode from '../../google-apps-script.js?raw';
 
 export default function SettingsView({ 
   sheetUrl, 
@@ -48,8 +49,8 @@ export default function SettingsView({
   const [tempText, setTempText] = useState('');
 
   // Apps Script Guide copy handler
-  const handleCopyScriptPath = () => {
-    navigator.clipboard.writeText("google-apps-script.js");
+  const handleCopyScriptCode = () => {
+    navigator.clipboard.writeText(appsScriptCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -277,7 +278,7 @@ export default function SettingsView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
             <div>1. Open a blank Google Sheet.</div>
             <div>2. Open <strong>Extensions ➔ Apps Script</strong> inside the sheet header menu.</div>
-            <div>3. Open and copy the entire contents of the <strong>[google-apps-script.js](file:///Users/rishiraj/Documents/antigravity/charming-oppenheimer/google-apps-script.js)</strong> script file created in this workspace.</div>
+            <div>3. Copy the Apps Script code using the button below (or open the <strong>google-apps-script.js</strong> file in the project).</div>
             <div>4. Paste this code block into the Apps Script editor, replacing any default lines, and click Save.</div>
             <div>5. Click <strong>Deploy ➔ New deployment</strong>. Select type <strong>Web app</strong>.</div>
             <div>6. Configure: <strong>Execute as: "Me"</strong> and <strong>Who has access: "Anyone"</strong> (crucial for lightweight webhook fetch). Click Deploy.</div>
@@ -287,10 +288,10 @@ export default function SettingsView({
           <button 
             className="btn btn-secondary" 
             style={{ width: '100%', padding: '0.45rem', fontSize: '0.75rem', marginTop: '0.25rem' }}
-            onClick={handleCopyScriptPath}
+            onClick={handleCopyScriptCode}
           >
             {copied ? <Check size={12} style={{ color: '#10b981' }} /> : <Copy size={12} />}
-            <span>{copied ? 'Path copied!' : 'Show Apps Script File Reference'}</span>
+            <span>{copied ? 'Code copied!' : 'Copy Apps Script Code'}</span>
           </button>
         </div>
       </div>
