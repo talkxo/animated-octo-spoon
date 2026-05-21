@@ -42,6 +42,7 @@ export default function SettingsView({
   const [copied, setCopied] = useState(false);
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [expiresAt, setExpiresAt] = useState(() => Date.now() + 300000);
   const [qrKey, setQrKey] = useState(0);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export default function SettingsView({
       setTimeLeft((prev) => {
         if (prev <= 1) {
           setQrKey(k => k + 1);
+          setExpiresAt(Date.now() + 300000);
           return 300;
         }
         return prev - 1;
@@ -305,7 +307,8 @@ export default function SettingsView({
                       window.location.origin + window.location.pathname + 
                       '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
                       '&currency=' + encodeURIComponent(currency) + 
-                      '&theme=' + encodeURIComponent(theme || 'dark')
+                      '&theme=' + encodeURIComponent(theme || 'dark') +
+                      '&expiresAt=' + expiresAt
                     )}`} 
                     alt="Scan to sync" 
                     style={{ width: '110px', height: '110px', display: 'block' }}
@@ -341,9 +344,10 @@ export default function SettingsView({
                       const shareUrl = window.location.origin + window.location.pathname + 
                         '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
                         '&currency=' + encodeURIComponent(currency) + 
-                        '&theme=' + encodeURIComponent(theme || 'dark');
+                        '&theme=' + encodeURIComponent(theme || 'dark') +
+                        '&expiresAt=' + expiresAt;
                       navigator.clipboard.writeText(shareUrl);
-                      alert('Mobile access link copied! Send this link to your mobile phone (e.g. via text/email) and log in.');
+                      alert('Mobile access link copied! Send this link to your mobile phone (e.g. via text/email) and log in. Note: Link expires in 5 minutes.');
                     }}
                   >
                     <Copy size={12} />

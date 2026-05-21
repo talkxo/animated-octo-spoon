@@ -395,11 +395,27 @@ export default function App() {
   }, [syncMode, syncQueue, sheetUrl, syncStatus]);
 
   // Parse shared sheet URL from deep link / QR code on mount
+  // Parse shared sheet URL from deep link / QR code on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const queryUrl = params.get('sheetUrl') || params.get('sheet');
     const queryCurrency = params.get('currency');
     const queryTheme = params.get('theme');
+    const expiresAt = params.get('expiresAt');
+
+    if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
+      alert("⚠️ This sync QR code or link has expired for security. Please scan a fresh QR code from your desktop Settings.");
+      // Clean query params from URL bar so it doesn't stay cluttered
+      if (queryUrl || queryCurrency || queryTheme || expiresAt) {
+        try {
+          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+          window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return;
+    }
 
     if (queryCurrency) {
       setCurrency(queryCurrency);
@@ -423,7 +439,7 @@ export default function App() {
     }
 
     // Clean query params from URL bar so it doesn't stay cluttered
-    if (queryUrl || queryCurrency || queryTheme) {
+    if (queryUrl || queryCurrency || queryTheme || expiresAt) {
       try {
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
