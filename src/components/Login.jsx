@@ -46,7 +46,7 @@ export default function Login({ onLogin }) {
   if (isIntroLoading) {
     return (
       <div className="login-intro-container">
-        <div className="login-intro-planet-wrapper" style={{ viewTransitionName: 'login-planet' }}>
+        <div className="login-intro-planet-wrapper">
           <svg viewBox="0 0 32 32" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg" className="login-intro-planet-svg">
             <defs>
               <radialGradient id="introPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
@@ -76,7 +76,7 @@ export default function Login({ onLogin }) {
         
         {/* Logo Section */}
         <div className="login-logo-section">
-          <div className="login-logo-icon" style={{ viewTransitionName: 'login-planet' }}>
+          <div className="login-logo-icon">
             <svg viewBox="0 0 32 32" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <radialGradient id="loginPlutoPlanetGrad" cx="30%" cy="30%" r="70%">

@@ -2582,7 +2582,6 @@ main {
   border-radius: 50%;
   position: relative;
   transition: all 0.3s ease;
-  view-transition-name: login-planet;
 }
 
 /* Pulsing backdrop glow around the planet */
@@ -2608,9 +2607,7 @@ main {
   transform-origin: center;
 }
 
-.login-logo-icon {
-  view-transition-name: login-planet;
-}
+
 
 /* Spin animation for the planet icon */
 @keyframes planet-spin {
@@ -2646,19 +2643,7 @@ main {
   transition: transform 0.4s ease;
 }
 
-/* Configure View Transitions */
-::view-transition-group(login-planet) {
-  animation-duration: 0.95s;
-  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); /* Premium custom ease-in-out */
-}
 
-/* Prevent cross-fade rendering bugs for the planet image */
-::view-transition-old(login-planet),
-::view-transition-new(login-planet) {
-  height: 100%;
-  width: 100%;
-  mix-blend-mode: normal;
-}
 
 /* We want the rest of the new page (the login glass card) to fade in beautifully. */
 ::view-transition-new(root) {
