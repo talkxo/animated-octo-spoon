@@ -33,35 +33,79 @@ const getCurrencySymbol = (currencyCode) => {
   return mapping[currencyCode] || '$';
 };
 
+const formatDateTimeSafe = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) {
+      const cleaned = String(dateString).trim();
+      const parts = cleaned.split(/[\sT]+/);
+      if (parts.length >= 1) {
+        const dateParts = parts[0].split(/[-/]/);
+        if (dateParts.length === 3) {
+          let year = parseInt(dateParts[0]);
+          let month = parseInt(dateParts[1]) - 1;
+          let day = parseInt(dateParts[2]);
+          if (dateParts[0].length !== 4) {
+            const standardParsed = new Date(cleaned.replace(/-/g, '/'));
+            if (!isNaN(standardParsed.getTime())) {
+              return standardParsed.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            }
+          } else {
+            let hours = 0, minutes = 0, seconds = 0;
+            if (parts[1]) {
+              const timeParts = parts[1].split(':');
+              hours = parseInt(timeParts[0]) || 0;
+              minutes = parseInt(timeParts[1]) || 0;
+              seconds = parseInt(timeParts[2]) || 0;
+            }
+            const constructed = new Date(year, month, day, hours, minutes, seconds);
+            if (!isNaN(constructed.getTime())) {
+              return constructed.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            }
+          }
+        }
+      }
+      return String(dateString);
+    }
+    return d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+  } catch (e) {
+    return String(dateString);
+  }
+};
+
 export default function LeadModal({ 
   lead, 
   leads = [],
   notes = [],
-  pipelines, 
+  pipelines = [], 
   activePipelineId, 
   onClose, 
   onSave, 
   onDelete, 
   onAddNote,
-  whatsappTemplates,
+  whatsappTemplates = [],
   currency
 }) {
   const [currentLead, setCurrentLead] = useState(lead);
   const isNew = !currentLead;
 
   // Form Field States
-  const [name, setName] = useState(currentLead ? currentLead.name : '');
-  const [company, setCompany] = useState(currentLead ? currentLead.company : '');
-  const [phone, setPhone] = useState(currentLead ? currentLead.phone : '');
-  const [email, setEmail] = useState(currentLead ? currentLead.email : '');
-  const [pipelineId, setPipelineId] = useState(currentLead ? currentLead.pipelineId : activePipelineId || pipelines[0].id);
+  const [name, setName] = useState(currentLead?.name !== undefined && currentLead?.name !== null ? String(currentLead.name) : '');
+  const [company, setCompany] = useState(currentLead?.company !== undefined && currentLead?.company !== null ? String(currentLead.company) : '');
+  const [phone, setPhone] = useState(currentLead?.phone !== undefined && currentLead?.phone !== null ? String(currentLead.phone) : '');
+  const [email, setEmail] = useState(currentLead?.email !== undefined && currentLead?.email !== null ? String(currentLead.email) : '');
+  
+  // Safe pipeline resolution
+  const initialPipelineId = currentLead?.pipelineId || activePipelineId || (pipelines?.[0]?.id || '');
+  const [pipelineId, setPipelineId] = useState(String(initialPipelineId || ''));
   
   // Find current stages based on selected pipeline
-  const currentPipeline = pipelines.find(p => p.id === pipelineId) || pipelines[0];
+  const currentPipeline = (pipelines && pipelines.find(p => String(p.id) === String(pipelineId))) || (pipelines && pipelines[0]) || { name: '', stages: [] };
   
-  const [status, setStatus] = useState(currentLead ? currentLead.status : currentPipeline.stages[0]);
-  const [value, setValue] = useState(currentLead ? currentLead.value : 0);
-  const [tags, setTags] = useState(currentLead ? currentLead.tags : '');
+  const [status, setStatus] = useState(currentLead?.status || currentPipeline?.stages?.[0] || '');
+  const [value, setValue] = useState(currentLead?.value || 0);
+  const [tags, setTags] = useState(currentLead?.tags !== undefined && currentLead?.tags !== null ? String(currentLead.tags) : '');
   const [isScanning, setIsScanning] = useState(false);
 
   // Add Note Input state
@@ -85,26 +129,27 @@ export default function LeadModal({
 
   // Auto-correct stage when pipeline changes
   const handlePipelineChange = (newPipeId) => {
-    setPipelineId(newPipeId);
-    const pipe = pipelines.find(p => p.id === newPipeId) || pipelines[0];
-    setStatus(pipe.stages[0]); // Reset to first stage of new pipeline
+    const stringPipeId = String(newPipeId || '');
+    setPipelineId(stringPipeId);
+    const pipe = pipelines.find(p => String(p.id) === stringPipeId) || pipelines[0] || { stages: [] };
+    setStatus(pipe?.stages?.[0] || ''); // Reset to first stage of new pipeline
   };
 
   // Duplicate lead checking
   const duplicate = useMemo(() => {
     if (!leads || leads.length === 0) return null;
-    const cleanTypedEmail = email.trim().toLowerCase();
-    const cleanTypedPhone = phone.replace(/[^0-9]/g, '');
+    const cleanTypedEmail = String(email || '').trim().toLowerCase();
+    const cleanTypedPhone = String(phone || '').replace(/[^0-9]/g, '');
 
     // Avoid matching if both are empty
     if (!cleanTypedEmail && !cleanTypedPhone) return null;
 
     return leads.find(l => {
       // If we are currently editing/inspecting a lead, don't match it with itself
-      if (currentLead && l.id === currentLead.id) return false;
+      if (currentLead && String(l.id) === String(currentLead.id)) return false;
 
-      const emailMatch = cleanTypedEmail && l.email && l.email.trim().toLowerCase() === cleanTypedEmail;
-      const phoneMatch = cleanTypedPhone && l.phone && l.phone.replace(/[^0-9]/g, '') === cleanTypedPhone;
+      const emailMatch = cleanTypedEmail && l.email && String(l.email).trim().toLowerCase() === cleanTypedEmail;
+      const phoneMatch = cleanTypedPhone && l.phone && String(l.phone).replace(/[^0-9]/g, '') === cleanTypedPhone;
 
       return emailMatch || phoneMatch;
     });
@@ -114,16 +159,17 @@ export default function LeadModal({
 
   // Auto-fill logic when duplicate is detected
   useEffect(() => {
-    if (duplicate && duplicate.id !== lastAutoPopulatedId.current) {
-      lastAutoPopulatedId.current = duplicate.id;
+    if (duplicate && String(duplicate.id) !== String(lastAutoPopulatedId.current)) {
+      lastAutoPopulatedId.current = String(duplicate.id);
       setName(duplicate.name || '');
       setCompany(duplicate.company || '');
-      if (duplicate.phone) setPhone(duplicate.phone);
-      if (duplicate.email) setEmail(duplicate.email);
+      setPhone(duplicate.phone || '');
+      setEmail(duplicate.email || '');
       if (duplicate.pipelineId) {
-        setPipelineId(duplicate.pipelineId);
-        const pipe = pipelines.find(p => p.id === duplicate.pipelineId) || pipelines[0];
-        setStatus(duplicate.status || pipe.stages[0]);
+        const stringPipeId = String(duplicate.pipelineId);
+        setPipelineId(stringPipeId);
+        const pipe = pipelines.find(p => String(p.id) === stringPipeId) || pipelines[0] || { stages: [] };
+        setStatus(duplicate.status || pipe?.stages?.[0] || '');
       }
       setValue(duplicate.value || 0);
       setTags(duplicate.tags || '');
@@ -139,11 +185,11 @@ export default function LeadModal({
     setCompany(duplicate.company || '');
     setPhone(duplicate.phone || '');
     setEmail(duplicate.email || '');
-    setPipelineId(duplicate.pipelineId || pipelines[0].id);
+    setPipelineId(String(duplicate.pipelineId || (pipelines[0] && pipelines[0].id) || ''));
     setStatus(duplicate.status || '');
     setValue(duplicate.value || 0);
     setTags(duplicate.tags || '');
-    lastAutoPopulatedId.current = duplicate.id;
+    lastAutoPopulatedId.current = String(duplicate.id);
   };
 
   // Extract unique tags for autocomplete suggestions
@@ -151,7 +197,7 @@ export default function LeadModal({
     if (!leads) return [];
     const uniqueTags = new Set();
     leads.forEach(l => {
-      if (l.tags) {
+      if (l.tags && typeof l.tags === 'string') {
         l.tags.split(',').forEach(tag => {
           const t = tag.trim();
           if (t) uniqueTags.add(t);
@@ -163,10 +209,12 @@ export default function LeadModal({
 
   // Tag suggestions filter logic
   const typedTagsList = useMemo(() => {
+    if (typeof tags !== 'string') return [];
     return tags.split(',').map(t => t.trim());
   }, [tags]);
 
   const currentTypedTag = useMemo(() => {
+    if (typeof tags !== 'string') return '';
     if (tags.endsWith(',') || tags === '') return '';
     return typedTagsList[typedTagsList.length - 1];
   }, [tags, typedTagsList]);
@@ -273,12 +321,13 @@ export default function LeadModal({
 
   // Compile WhatsApp link
   const getWhatsAppLink = (templateText) => {
+    if (typeof templateText !== 'string') return '';
     let compiled = templateText
-      .replace(/{{name}}/g, name)
-      .replace(/{{company}}/g, company)
+      .replace(/{{name}}/g, String(name || ''))
+      .replace(/{{company}}/g, String(company || ''))
       .replace(/{{value}}/g, `${getCurrencySymbol(currency)}${(parseFloat(value) || 0).toLocaleString()}`);
       
-    let cleanPhone = phone.replace(/[^0-9+]/g, '');
+    let cleanPhone = String(phone || '').replace(/[^0-9+]/g, '');
     if (!cleanPhone.startsWith('+') && cleanPhone.length > 5) {
       cleanPhone = '+' + cleanPhone;
     }
@@ -309,7 +358,7 @@ export default function LeadModal({
 
   const activeLeadNotes = useMemo(() => {
     if (!currentLead || !notes) return [];
-    return notes.filter(n => n.leadId === currentLead.id);
+    return notes.filter(n => String(n.leadId) === String(currentLead.id));
   }, [notes, currentLead]);
 
   return (
@@ -425,12 +474,12 @@ export default function LeadModal({
                     className="custom-dropdown-trigger"
                     onClick={() => setIsPipelineDropdownOpen(!isPipelineDropdownOpen)}
                   >
-                    <span>{currentPipeline.name}</span>
+                    <span>{currentPipeline?.name || ''}</span>
                     <ChevronDown size={14} className={`chevron-icon ${isPipelineDropdownOpen ? 'open' : ''}`} />
                   </button>
                   {isPipelineDropdownOpen && (
                     <div className="custom-dropdown-options">
-                      {pipelines.map(p => (
+                      {pipelines?.map(p => (
                         <div 
                           key={p.id}
                           className={`custom-dropdown-option ${p.id === pipelineId ? 'active' : ''}`}
@@ -462,7 +511,7 @@ export default function LeadModal({
                     </button>
                     {isStageDropdownOpen && (
                       <div className="custom-dropdown-options">
-                        {currentPipeline.stages.map(stage => (
+                        {currentPipeline?.stages?.map(stage => (
                           <div 
                             key={stage}
                             className={`custom-dropdown-option ${stage === status ? 'active' : ''}`}
@@ -588,7 +637,7 @@ export default function LeadModal({
               <div className="modal-timeline-column">
                 
                 {/* WHATSAPP TEMPLATE SLUGS ACCORDION */}
-                {whatsappTemplates.length > 0 && (
+                {whatsappTemplates?.length > 0 && (
                   <div className="whatsapp-triggers-box">
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
                       <MessageSquare size={13} />
@@ -596,7 +645,7 @@ export default function LeadModal({
                     </div>
                     
                     <div className="whatsapp-slug-list">
-                      {whatsappTemplates.map(temp => (
+                      {whatsappTemplates?.map(temp => (
                         <a
                           key={temp.id}
                           href={getWhatsAppLink(temp.text)}
@@ -679,7 +728,7 @@ export default function LeadModal({
                             <span style={{ marginRight: '0.35rem' }}>{details.icon}</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{details.text}</span>
                             <span style={{ marginLeft: '0.5rem', color: 'var(--text-dark)' }}>
-                              {new Date(n.timestamp).toLocaleDateString()} {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatDateTimeSafe(n.timestamp)}
                             </span>
                           </div>
                           <div className="timeline-content">{n.text}</div>

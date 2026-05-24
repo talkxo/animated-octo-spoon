@@ -35,7 +35,7 @@ function doPost(e) {
   var action = data.action;
 
   if (action === 'saveLead')          return jsonResponse(saveLead(data.lead));
-  if (action === 'deleteLead')        return jsonResponse(deleteLead(data.id));
+  if (action === 'deleteLead')        return jsonResponse(deleteLead(data));
   if (action === 'saveNote')          return jsonResponse(saveNote(data.note));
   if (action === 'savePipelines')     return jsonResponse(savePipelines(data.pipelines));
   if (action === 'saveSprint')        return jsonResponse(saveSprint(data.sprint));
@@ -45,6 +45,8 @@ function doPost(e) {
 
   return jsonResponse({ error: 'Invalid POST action' });
 }
+
+var LEADS_HEADERS = ['id', 'name', 'company', 'phone', 'email', 'status', 'value', 'tags', 'pipelineId', 'lastContacted', 'revision', 'updatedAt'];
 
 // Return JSON output with standard CORS headers
 function jsonResponse(data) {
@@ -60,9 +62,9 @@ function initSheets() {
   var leadsSheet = ss.getSheetByName('Leads');
   if (!leadsSheet) {
     leadsSheet = ss.insertSheet('Leads');
-    leadsSheet.appendRow(['id', 'name', 'company', 'phone', 'email', 'status', 'value', 'tags', 'pipelineId', 'lastContacted']);
-    leadsSheet.getRange('A1:J1').setFontWeight('bold');
+    leadsSheet.appendRow(LEADS_HEADERS);
   }
+  ensureHeaders(leadsSheet, LEADS_HEADERS);
 
   // 2. Notes Sheet
   var notesSheet = ss.getSheetByName('Notes');
@@ -108,8 +110,15 @@ function initSheets() {
   if (!settingsSheet) {
     settingsSheet = ss.insertSheet('Settings');
     settingsSheet.appendRow(['data']);
-    settingsSheet.getRange('A1').setFontWeight('bold');
   }
+  ensureHeaders(settingsSheet, ['data']);
+}
+
+function ensureHeaders(sheet, headers) {
+  for (var i = 0; i < headers.length; i++) {
+    sheet.getRange(1, i + 1).setValue(headers[i]);
+  }
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
 // Helper to convert sheet rows into array of objects
@@ -138,7 +147,7 @@ function sheetToObjects(sheet) {
 function readAllData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  var leads = sheetToObjects(ss.getSheetByName('Leads'));
+  var leads = sheetToObjects(ss.getSheetByName('Leads')).map(normalizeLeadRecord);
   var notes = sheetToObjects(ss.getSheetByName('Notes'));
 
   var pipelines = sheetToObjects(ss.getSheetByName('Pipelines'));
@@ -198,18 +207,30 @@ function safeJsonParse(str, fallback) {
   try { return JSON.parse(str); } catch(e) { return fallback; }
 }
 
-// Save or Update Lead
-function saveLead(lead) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Leads');
-  var rows = sheet.getDataRange().getValues();
+function toInt(value, fallback) {
+  var parsed = parseInt(value, 10);
+  return isNaN(parsed) ? fallback : parsed;
+}
 
-  var leadRowIndex = -1;
-  for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0] === lead.id) { leadRowIndex = i + 1; break; }
-  }
+function normalizeLeadRecord(lead) {
+  return {
+    id: lead.id || '',
+    name: lead.name || '',
+    company: lead.company || '',
+    phone: lead.phone || '',
+    email: lead.email || '',
+    status: lead.status || '',
+    value: parseFloat(lead.value) || 0,
+    tags: lead.tags || '',
+    pipelineId: lead.pipelineId || 'agency_pipeline',
+    lastContacted: lead.lastContacted || '',
+    revision: toInt(lead.revision, 0),
+    updatedAt: lead.updatedAt || ''
+  };
+}
 
-  var values = [
+function buildLeadValues(lead) {
+  return [
     lead.id || '',
     lead.name || '',
     lead.company || '',
@@ -219,25 +240,112 @@ function saveLead(lead) {
     parseFloat(lead.value) || 0,
     lead.tags || '',
     lead.pipelineId || 'agency_pipeline',
-    lead.lastContacted || ''
+    lead.lastContacted || '',
+    toInt(lead.revision, 0),
+    lead.updatedAt || ''
   ];
+}
+
+function conflictResponse(message, payload) {
+  var response = {
+    success: false,
+    conflict: true,
+    error: message
+  };
+  if (payload) {
+    for (var key in payload) {
+      response[key] = payload[key];
+    }
+  }
+  return response;
+}
+
+// Save or Update Lead
+function saveLead(lead) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Leads');
+  var rows = sheet.getDataRange().getValues();
+  var now = new Date().toISOString();
+  var incomingBaseRevision = toInt(lead.baseRevision, 0);
+
+  var leadRowIndex = -1;
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0] === lead.id) { leadRowIndex = i + 1; break; }
+  }
+
+  var storedLead;
 
   if (leadRowIndex !== -1) {
-    sheet.getRange(leadRowIndex, 1, 1, values.length).setValues([values]);
+    var currentLead = normalizeLeadRecord(sheetToObjects(sheet).filter(function(item) {
+      return item.id === lead.id;
+    })[0] || {});
+    var currentRevision = toInt(currentLead.revision, 0);
+    if (incomingBaseRevision !== currentRevision) {
+      return conflictResponse('This lead was updated on another device. Pull the latest changes and try again.', {
+        currentLead: currentLead
+      });
+    }
+    storedLead = normalizeLeadRecord({
+      id: lead.id,
+      name: lead.name,
+      company: lead.company,
+      phone: lead.phone,
+      email: lead.email,
+      status: lead.status,
+      value: lead.value,
+      tags: lead.tags,
+      pipelineId: lead.pipelineId,
+      lastContacted: lead.lastContacted,
+      revision: currentRevision + 1,
+      updatedAt: now
+    });
+    sheet.getRange(leadRowIndex, 1, 1, LEADS_HEADERS.length).setValues([buildLeadValues(storedLead)]);
   } else {
-    sheet.appendRow(values);
+    if (incomingBaseRevision > 0) {
+      return conflictResponse('This lead no longer exists in the sheet. Pull the latest changes and try again.');
+    }
+    storedLead = normalizeLeadRecord({
+      id: lead.id || Utilities.getUuid(),
+      name: lead.name,
+      company: lead.company,
+      phone: lead.phone,
+      email: lead.email,
+      status: lead.status,
+      value: lead.value,
+      tags: lead.tags,
+      pipelineId: lead.pipelineId,
+      lastContacted: lead.lastContacted,
+      revision: 1,
+      updatedAt: now
+    });
+    sheet.appendRow(buildLeadValues(storedLead));
   }
-  return { success: true, lead: lead };
+  return { success: true, lead: storedLead };
 }
 
 // Delete Lead & its associated notes
-function deleteLead(id) {
+function deleteLead(payload) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var id = payload && payload.id ? payload.id : payload;
+  var incomingBaseRevision = toInt(payload && payload.baseRevision, 0);
 
   var leadsSheet = ss.getSheetByName('Leads');
   var leadsRows = leadsSheet.getDataRange().getValues();
+  var deleted = false;
   for (var i = 1; i < leadsRows.length; i++) {
-    if (leadsRows[i][0] === id) { leadsSheet.deleteRow(i + 1); break; }
+    if (leadsRows[i][0] === id) {
+      var currentRevision = toInt(leadsRows[i][10], 0);
+      if (incomingBaseRevision && incomingBaseRevision !== currentRevision) {
+        return conflictResponse('This lead changed before it could be deleted. Pull the latest changes and try again.');
+      }
+      leadsSheet.deleteRow(i + 1);
+      deleted = true;
+      break;
+    }
+  }
+
+  if (!deleted && incomingBaseRevision > 0) {
+    return conflictResponse('This lead was already removed from the sheet.');
   }
 
   var notesSheet = ss.getSheetByName('Notes');
@@ -336,10 +444,31 @@ function saveCallingLists(callingLists) {
 function saveSettings(settings) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Settings');
-  // Clear existing data rows
+  var currentSettings = {};
+  if (sheet.getLastRow() > 1) {
+    currentSettings = safeJsonParse(sheet.getRange(2, 1).getValue(), {}) || {};
+  }
+
+  var currentRevision = toInt(currentSettings.revision, 0);
+  var incomingBaseRevision = toInt(settings.baseRevision, 0);
+  if (incomingBaseRevision !== currentRevision) {
+    return conflictResponse('Settings changed on another device. Pull the latest settings and try again.', {
+      currentSettings: currentSettings
+    });
+  }
+
+  var nextSettings = {
+    currency: settings.currency || 'USD',
+    syncMode: settings.syncMode || 'auto',
+    whatsappTemplates: Array.isArray(settings.whatsappTemplates) ? settings.whatsappTemplates : [],
+    theme: settings.theme || 'dark',
+    revision: currentRevision + 1,
+    updatedAt: new Date().toISOString()
+  };
+
   if (sheet.getLastRow() > 1) {
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).clearContent();
   }
-  sheet.getRange(2, 1).setValue(JSON.stringify(settings));
-  return { success: true };
+  sheet.getRange(2, 1).setValue(JSON.stringify(nextSettings));
+  return { success: true, settings: nextSettings };
 }

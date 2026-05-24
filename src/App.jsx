@@ -277,6 +277,67 @@ export default function App() {
     const saved = localStorage.getItem('crm_sync_queue');
     return saved ? JSON.parse(saved) : [];
   });
+  const [settingsRevision, setSettingsRevision] = useState(() => {
+    return parseInt(localStorage.getItem('crm_settings_revision') || '0', 10) || 0;
+  });
+
+  const [isSyncExpanded, setIsSyncExpanded] = useState(false);
+
+  const hasPendingSync = syncQueue.length > 0;
+  const syncIndicatorState = syncStatus === 'syncing'
+    ? 'syncing'
+    : hasPendingSync
+      ? 'pending'
+      : syncStatus === 'error'
+        ? 'error'
+        : syncStatus === 'offline' || !sheetUrl
+          ? 'offline'
+          : 'synced';
+
+  const syncIndicatorConfig = {
+    syncing: {
+      className: 'syncing',
+      label: 'Syncing...',
+      title: 'Syncing data with Google Sheets...',
+      icon: <div className="loader-spinner" style={{ width: '12px', height: '12px' }}></div>,
+      onClick: undefined
+    },
+    pending: {
+      className: 'pending',
+      label: `${syncQueue.length} pending sync`,
+      title: 'Click to push pending edits now',
+      icon: <WifiOff size={14} />,
+      onClick: () => flushSyncQueue()
+    },
+    synced: {
+      className: 'synced',
+      label: `Synced ${lastSyncTime || 'just now'}`,
+      title: 'Synced. Click to refresh from sheet.',
+      icon: <Wifi size={14} />,
+      onClick: () => syncDataFromSheet()
+    },
+    offline: {
+      className: 'offline',
+      label: 'Offline (Local)',
+      title: 'Offline mode. Click to set up Google Sheets.',
+      icon: <WifiOff size={14} />,
+      onClick: () => setIsSetupWizardOpen(true)
+    },
+    error: {
+      className: 'error',
+      label: 'Sync Error',
+      title: 'Sync error. Click to retry.',
+      icon: <WifiOff size={14} />,
+      onClick: () => flushSyncQueue()
+    }
+  };
+
+  const activeSyncIndicator = syncIndicatorConfig[syncIndicatorState];
+
+  useEffect(() => {
+    const shouldExpand = ['syncing', 'pending', 'error'].includes(syncIndicatorState);
+    setIsSyncExpanded(shouldExpand);
+  }, [syncIndicatorState]);
 
   // Core Data States
   const [pipelines, setPipelines] = useState(() => {
@@ -322,6 +383,36 @@ export default function App() {
   // Modal / Capture Dialogs
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
+
+  const upsertLeadLocally = (lead) => {
+    setLeads(prev => {
+      const idx = prev.findIndex(l => String(l.id) === String(lead.id));
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = lead;
+        return copy;
+      }
+      return [lead, ...prev];
+    });
+  };
+
+  const applySettingsPayload = (settings) => {
+    if (!settings) return;
+
+    if ('currency' in settings) {
+      setCurrency(settings.currency || 'USD');
+    }
+    if ('syncMode' in settings) {
+      setSyncMode(settings.syncMode || 'auto');
+    }
+    if ('whatsappTemplates' in settings) {
+      setWhatsappTemplates(Array.isArray(settings.whatsappTemplates) ? settings.whatsappTemplates : []);
+    }
+    if ('theme' in settings) {
+      setTheme(settings.theme || 'dark');
+    }
+    setSettingsRevision(Number(settings.revision) || 0);
+  };
 
   // Persistence to localstorage
   useEffect(() => {
@@ -371,6 +462,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('crm_sync_queue', JSON.stringify(syncQueue));
   }, [syncQueue]);
+
+  useEffect(() => {
+    localStorage.setItem('crm_settings_revision', String(settingsRevision));
+  }, [settingsRevision]);
 
   // Listen for browser online event to auto-flush in Auto Mode
   useEffect(() => {
@@ -500,18 +595,7 @@ export default function App() {
           setCallingLists(data.callingLists);
         }
         if (data.settings) {
-          if (data.settings.currency) {
-            setCurrency(data.settings.currency);
-          }
-          if (data.settings.syncMode) {
-            setSyncMode(data.settings.syncMode);
-          }
-          if (data.settings.whatsappTemplates && data.settings.whatsappTemplates.length > 0) {
-            setWhatsappTemplates(data.settings.whatsappTemplates);
-          }
-          if (data.settings.theme) {
-            setTheme(data.settings.theme);
-          }
+          applySettingsPayload(data.settings);
         }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
@@ -532,62 +616,63 @@ export default function App() {
   const syncCallingLists = (callingLists) => handleSyncPush({ action: 'saveCallingLists', callingLists });
 
   // Settings sync helpers
-  const updateCurrency = async (newCurrency) => {
-    setCurrency(newCurrency);
-    await handleSyncPush({
+  const syncSettings = async (nextSettings) => {
+    const result = await handleSyncPush({
       action: 'saveSettings',
       settings: {
-        currency: newCurrency,
-        syncMode,
-        whatsappTemplates,
-        theme
+        ...nextSettings,
+        baseRevision: settingsRevision
       }
+    });
+    if (result?.success && result?.data?.settings) {
+      applySettingsPayload(result.data.settings);
+    }
+  };
+
+  const updateCurrency = async (newCurrency) => {
+    setCurrency(newCurrency);
+    await syncSettings({
+      currency: newCurrency,
+      syncMode,
+      whatsappTemplates,
+      theme
     });
   };
 
   const updateSyncMode = async (newSyncMode) => {
     setSyncMode(newSyncMode);
-    await handleSyncPush({
-      action: 'saveSettings',
-      settings: {
-        currency,
-        syncMode: newSyncMode,
-        whatsappTemplates,
-        theme
-      }
+    await syncSettings({
+      currency,
+      syncMode: newSyncMode,
+      whatsappTemplates,
+      theme
     });
   };
 
   const updateWhatsappTemplates = async (newTemplates) => {
     setWhatsappTemplates(newTemplates);
-    await handleSyncPush({
-      action: 'saveSettings',
-      settings: {
-        currency,
-        syncMode,
-        whatsappTemplates: newTemplates,
-        theme
-      }
+    await syncSettings({
+      currency,
+      syncMode,
+      whatsappTemplates: newTemplates,
+      theme
     });
   };
 
   const toggleTheme = async () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
-    await handleSyncPush({
-      action: 'saveSettings',
-      settings: {
-        currency,
-        syncMode,
-        whatsappTemplates,
-        theme: nextTheme
-      }
+    await syncSettings({
+      currency,
+      syncMode,
+      whatsappTemplates,
+      theme: nextTheme
     });
   };
 
   // Helper to post API payload to Apps Script
   const postToSheet = async (payload) => {
-    if (!sheetUrl) return true; // Offline mode is always successful locally
+    if (!sheetUrl) return { success: true, offline: true };
     
     try {
       // First try standard fetch POST with text/plain (simple request to avoid OPTIONS preflight, allowing us to read response CORS redirect)
@@ -604,17 +689,28 @@ export default function App() {
           const data = await response.json();
           if (data && data.success === false) {
             console.warn('Apps Script reported success: false', data.error);
-            return false;
+            return {
+              success: false,
+              conflict: Boolean(data.conflict),
+              error: data.error || 'Apps Script save failed.',
+              data
+            };
           }
           setLastSyncTime(new Date().toLocaleTimeString());
-          return true;
+          return {
+            success: true,
+            data
+          };
         } catch (parseErr) {
           console.warn('POST succeeded but could not parse response JSON:', parseErr);
           setLastSyncTime(new Date().toLocaleTimeString());
-          return true;
+          return { success: true };
         }
       }
-      return false;
+      return {
+        success: false,
+        error: 'Apps Script returned a non-OK response.'
+      };
     } catch (err) {
       console.warn('CORS / fetch POST error, attempting fallback:', err);
       try {
@@ -628,12 +724,53 @@ export default function App() {
           body: JSON.stringify(payload)
         });
         setLastSyncTime(new Date().toLocaleTimeString());
-        return true;
+        return {
+          success: true,
+          opaque: true
+        };
       } catch (fallbackErr) {
         console.error('Fallback POST failed completely:', fallbackErr);
-        return false;
+        return {
+          success: false,
+          error: 'Unable to reach the Google Sheets endpoint.'
+        };
       }
     }
+  };
+
+  const rebaseQueuedPayloads = (queue, responseData) => {
+    if (!responseData) return queue;
+
+    return queue.map(item => {
+      if (responseData.lead && item.action === 'saveLead' && String(item.lead?.id) === String(responseData.lead.id)) {
+        return {
+          ...item,
+          lead: {
+            ...item.lead,
+            baseRevision: Number(responseData.lead.revision) || 0
+          }
+        };
+      }
+
+      if (responseData.lead && item.action === 'deleteLead' && String(item.id) === String(responseData.lead.id)) {
+        return {
+          ...item,
+          baseRevision: Number(responseData.lead.revision) || 0
+        };
+      }
+
+      if (responseData.settings && item.action === 'saveSettings') {
+        return {
+          ...item,
+          settings: {
+            ...item.settings,
+            baseRevision: Number(responseData.settings.revision) || 0
+          }
+        };
+      }
+
+      return item;
+    });
   };
 
   // Process items in the sync queue sequentially (FIFO)
@@ -645,13 +782,17 @@ export default function App() {
     let failed = false;
 
     for (const item of currentQueue) {
-      const success = await postToSheet(item);
-      if (success) {
-        currentQueue = currentQueue.slice(1);
+      const result = await postToSheet(item);
+      if (result.success) {
+        currentQueue = rebaseQueuedPayloads(currentQueue.slice(1), result.data);
         setSyncQueue(currentQueue);
         localStorage.setItem('crm_sync_queue', JSON.stringify(currentQueue));
       } else {
         failed = true;
+        if (result.conflict) {
+          alert(result.error || 'A newer version exists in Google Sheets. Pulling the latest data now.');
+          await syncDataFromSheet();
+        }
         break;
       }
     }
@@ -669,13 +810,13 @@ export default function App() {
   const handleSyncPush = async (payload) => {
     if (!sheetUrl) {
       setSyncStatus('offline');
-      return;
+      return { success: false, offline: true };
     }
 
     if (syncMode === 'manual') {
       setSyncQueue(prev => [...prev, payload]);
       setSyncStatus('pending');
-      return;
+      return { success: true, queued: true };
     }
 
     // Auto Sync Mode
@@ -683,14 +824,23 @@ export default function App() {
       const updatedQueue = [...syncQueue, payload];
       setSyncQueue(updatedQueue);
       flushSyncQueue(updatedQueue);
+      return { success: true, queued: true };
     } else {
       setSyncStatus('syncing');
-      const success = await postToSheet(payload);
-      if (success) {
+      const result = await postToSheet(payload);
+      if (result.success) {
         setSyncStatus('synced');
+        return result;
       } else {
         setSyncQueue([payload]);
         setSyncStatus('error');
+        if (result.conflict) {
+          setSyncQueue([]);
+          localStorage.setItem('crm_sync_queue', JSON.stringify([]));
+          alert(result.error || 'A newer version exists in Google Sheets. Pulling the latest data now.');
+          await syncDataFromSheet();
+        }
+        return result;
       }
     }
   };
@@ -702,18 +852,11 @@ export default function App() {
       ...leadData,
       id: leadData.id || `lead-${Date.now()}`,
       pipelineId: leadData.pipelineId || activePipelineId,
-      lastContacted: leadData.lastContacted || ''
+      lastContacted: leadData.lastContacted || '',
+      revision: Number(leadData.revision) || 0
     };
 
-    setLeads(prev => {
-      const idx = prev.findIndex(l => l.id === finalLead.id);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = finalLead;
-        return copy;
-      }
-      return [finalLead, ...prev];
-    });
+    upsertLeadLocally(finalLead);
 
     if (isNew) {
       addNote({
@@ -723,21 +866,29 @@ export default function App() {
       });
     }
 
-    await handleSyncPush({
+    const result = await handleSyncPush({
       action: 'saveLead',
-      lead: finalLead
+      lead: {
+        ...finalLead,
+        baseRevision: Number(leadData.revision) || 0
+      }
     });
+
+    if (result?.success && result?.data?.lead) {
+      upsertLeadLocally(result.data.lead);
+    }
   };
 
   const deleteLead = async (id) => {
-    setLeads(prev => prev.filter(l => l.id !== id));
-    setNotes(prev => prev.filter(n => n.leadId !== id));
+    setLeads(prev => prev.filter(l => String(l.id) !== String(id)));
+    setNotes(prev => prev.filter(n => String(n.leadId) !== String(id)));
     
-    if (selectedLeadId === id) setSelectedLeadId(null);
+    if (String(selectedLeadId) === String(id)) setSelectedLeadId(null);
 
     await handleSyncPush({
       action: 'deleteLead',
-      id: id
+      id: id,
+      baseRevision: Number(leads.find(l => String(l.id) === String(id))?.revision) || 0
     });
   };
 
@@ -751,15 +902,22 @@ export default function App() {
 
     setNotes(prev => [finalNote, ...prev]);
 
-    if (noteData.type === 'call' || noteData.type === 'whatsapp') {
-      setLeads(prev => prev.map(l => {
-        if (l.id === noteData.leadId) {
-          const updatedLead = { ...l, lastContacted: finalNote.timestamp };
-          handleSyncPush({ action: 'saveLead', lead: updatedLead });
-          return updatedLead;
+    const relatedLead = leads.find(l => String(l.id) === String(noteData.leadId)) || null;
+    if (relatedLead && (noteData.type === 'call' || noteData.type === 'whatsapp')) {
+      const updatedLead = { ...relatedLead, lastContacted: finalNote.timestamp };
+      upsertLeadLocally(updatedLead);
+
+      const leadSyncResult = await handleSyncPush({
+        action: 'saveLead',
+        lead: {
+          ...updatedLead,
+          baseRevision: Number(relatedLead.revision) || 0
         }
-        return l;
-      }));
+      });
+
+      if (leadSyncResult?.success && leadSyncResult?.data?.lead) {
+        upsertLeadLocally(leadSyncResult.data.lead);
+      }
     }
 
     await handleSyncPush({
@@ -777,7 +935,7 @@ export default function App() {
   };
 
   // Find active pipeline configuration
-  const activePipeline = pipelines.find(p => p.id === activePipelineId) || pipelines[0];
+  const activePipeline = pipelines.find(p => String(p.id) === String(activePipelineId)) || pipelines[0];
 
   // Actions list for Command Palette
   const actions = [
@@ -971,42 +1129,18 @@ export default function App() {
             {theme === 'dark' ? <Sun size={16} style={{ color: 'var(--accent)' }} /> : <Moon size={16} style={{ color: 'var(--primary)' }} />}
           </button>
 
-          {/* Connection Status Badge */}
-          {syncStatus === 'syncing' && (
-            <div className="sync-badge offline" style={{ background: 'rgba(124, 58, 237, 0.1)', color: 'var(--primary)' }}>
-              <div className="loader-spinner" style={{ width: '12px', height: '12px' }}></div>
-              <span className="mobile-hide">Syncing...</span>
-            </div>
-          )}
-          {syncStatus !== 'syncing' && syncQueue.length > 0 && (
-            <div 
-              className="sync-badge" 
-              style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)', cursor: 'pointer' }}
-              onClick={() => flushSyncQueue()}
-              title="Click to push pending edits now"
-            >
-              <WifiOff size={13} style={{ color: '#f59e0b' }} />
-              <span>{syncQueue.length} pending sync</span>
-            </div>
-          )}
-          {syncStatus === 'synced' && syncQueue.length === 0 && (
-            <div className="sync-badge" onClick={() => syncDataFromSheet()} style={{ cursor: 'pointer' }}>
-              <Wifi size={13} />
-              <span style={{ display: 'inline' }} className="mobile-hide">Synced {lastSyncTime}</span>
-            </div>
-          )}
-          {syncStatus === 'offline' && syncQueue.length === 0 && (
-            <div className="sync-badge offline" onClick={() => setIsSetupWizardOpen(true)} style={{ cursor: 'pointer' }}>
-              <WifiOff size={13} />
-              <span>Offline (Local)</span>
-            </div>
-          )}
-          {syncStatus === 'error' && syncQueue.length === 0 && (
-            <div className="sync-badge offline" onClick={() => flushSyncQueue()} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', cursor: 'pointer' }}>
-              <WifiOff size={13} />
-              <span>Sync Error</span>
-            </div>
-          )}
+          {/* Persistent Sync Control */}
+          <button
+            type="button"
+            className={`sync-badge ${activeSyncIndicator.className} ${isSyncExpanded ? 'expanded' : ''}`}
+            onClick={activeSyncIndicator.onClick}
+            title={activeSyncIndicator.title}
+            aria-label={activeSyncIndicator.label}
+            disabled={!activeSyncIndicator.onClick}
+          >
+            {activeSyncIndicator.icon}
+            <span>{activeSyncIndicator.label}</span>
+          </button>
           {/* Logout button */}
           <button
             className="btn btn-secondary"
@@ -1137,7 +1271,7 @@ export default function App() {
       {/* Lead details timeline drawer */}
       {selectedLeadId && (
         <LeadModal 
-          lead={leads.find(l => l.id === selectedLeadId)}
+          lead={leads.find(l => String(l.id) === String(selectedLeadId))}
           leads={leads}
           notes={notes}
           pipelines={pipelines}

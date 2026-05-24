@@ -39,7 +39,21 @@ const getCurrencySymbol = (currencyCode) => {
   return mapping[currencyCode] || '$';
 };
 
+const formatDateSafe = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) {
+      return String(dateString);
+    }
+    return d.toLocaleDateString();
+  } catch (e) {
+    return String(dateString);
+  }
+};
+
 export default function SprintView({ 
+
   leads = [], 
   activePipeline, 
   pipelines = [], 
@@ -134,8 +148,8 @@ export default function SprintView({
 
   useEffect(() => {
     const sourceName = newSprintSourceType === 'pipeline'
-      ? (pipelines.find(p => p.id === newSprintSourceId)?.name || '')
-      : (callingLists.find(l => l.id === newSprintSourceId)?.name || '');
+      ? (pipelines.find(p => String(p.id) === String(newSprintSourceId))?.name || '')
+      : (callingLists.find(l => String(l.id) === String(newSprintSourceId))?.name || '');
     
     if (sourceName) {
       setNewSprintName(`Sprint - ${sourceName} - ${new Date().toLocaleDateString()}`);
@@ -148,13 +162,13 @@ export default function SprintView({
   useEffect(() => {
     if (isConverting && pipelines.length > 0) {
       const defaultPipe = activePipeline?.id || pipelines[0].id;
-      setConversionPipelineId(defaultPipe);
+      setConversionPipelineId(String(defaultPipe || ''));
     }
   }, [isConverting, pipelines, activePipeline]);
 
   useEffect(() => {
     if (conversionPipelineId && pipelines.length > 0) {
-      const pipe = pipelines.find(p => p.id === conversionPipelineId);
+      const pipe = pipelines.find(p => String(p.id) === String(conversionPipelineId));
       if (pipe && pipe.stages && pipe.stages.length > 0) {
         setConversionStage(pipe.stages[0]);
       }
@@ -317,7 +331,7 @@ export default function SprintView({
 
   const handleDeleteCallingList = (listId, e) => {
     e.stopPropagation();
-    const updatedLists = callingLists.filter(l => l.id !== listId);
+    const updatedLists = callingLists.filter(l => String(l.id) !== String(listId));
     saveCallingListsToStorage(updatedLists);
   };
 
@@ -325,7 +339,7 @@ export default function SprintView({
   const compileSprintQueue = (sourceType, sourceId, stageFilt, sortVal) => {
     let queue = [];
     if (sourceType === 'pipeline') {
-      queue = leads.filter(l => l.pipelineId === sourceId);
+      queue = leads.filter(l => String(l.pipelineId) === String(sourceId));
       // Exclude won/lost leads
       queue = queue.filter(l => l.status !== 'Won' && l.status !== 'Lost' && l.status !== 'Closed Won' && l.status !== 'Closed Lost');
       
@@ -342,10 +356,10 @@ export default function SprintView({
           return new Date(a.lastContacted) - new Date(b.lastContacted);
         });
       } else if (sortVal === 'name-asc') {
-        queue.sort((a, b) => a.name.localeCompare(b.name));
+        queue.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
       }
     } else {
-      const list = callingLists.find(l => l.id === sourceId);
+      const list = callingLists.find(l => String(l.id) === String(sourceId));
       if (list) {
         queue = [...list.leads];
       }
@@ -359,8 +373,8 @@ export default function SprintView({
     if (queue.length === 0) return;
     
     const sourceName = newSprintSourceType === 'pipeline' 
-      ? (pipelines.find(p => p.id === newSprintSourceId)?.name || 'Pipeline') 
-      : (callingLists.find(l => l.id === newSprintSourceId)?.name || 'List');
+      ? (pipelines.find(p => String(p.id) === String(newSprintSourceId))?.name || 'Pipeline') 
+      : (callingLists.find(l => String(l.id) === String(newSprintSourceId))?.name || 'List');
       
     const sprintName = newSprintName.trim() || `Sprint - ${sourceName} - ${new Date().toLocaleDateString()}`;
     
@@ -394,7 +408,7 @@ export default function SprintView({
 
   // Resume suspended sprint
   const handleResumeSprint = (sprintId) => {
-    const sprint = sprints.find(s => s.id === sprintId);
+    const sprint = sprints.find(s => String(s.id) === String(sprintId));
     if (!sprint) return;
 
     setActiveSprint(sprint);
@@ -405,7 +419,7 @@ export default function SprintView({
     
     if (sprint.status !== 'active') {
       const updatedSprints = sprints.map(s => {
-        if (s.id === sprint.id) {
+        if (String(s.id) === String(sprint.id)) {
           return { ...s, status: 'active' };
         }
         return s;
@@ -424,7 +438,7 @@ export default function SprintView({
     if (!activeSprintId) return;
     
     const updatedSprints = sprints.map(s => {
-      if (s.id === activeSprintId) {
+      if (String(s.id) === String(activeSprintId)) {
         return {
           ...s,
           status: 'suspended',
@@ -436,7 +450,7 @@ export default function SprintView({
       return s;
     });
     
-    const suspendedSprint = updatedSprints.find(s => s.id === activeSprintId);
+    const suspendedSprint = updatedSprints.find(s => String(s.id) === String(activeSprintId));
     saveSprintsToStorage(updatedSprints);
     if (suspendedSprint) persistSprint(suspendedSprint); // sync paused state to Sheets
     setSprintState('setup');
@@ -449,7 +463,7 @@ export default function SprintView({
     if (!targetId) return;
     
     const updatedSprints = sprints.map(s => {
-      if (s.id === targetId) {
+      if (String(s.id) === String(targetId)) {
         return {
           ...s,
           status: 'completed',
@@ -461,7 +475,7 @@ export default function SprintView({
       return s;
     });
     
-    const completedSprint = updatedSprints.find(s => s.id === targetId);
+    const completedSprint = updatedSprints.find(s => String(s.id) === String(targetId));
     saveSprintsToStorage(updatedSprints);
     if (completedSprint) persistSprint(completedSprint); // sync completed state to Sheets
     saveActiveSprintIdToStorage(null);
@@ -471,10 +485,10 @@ export default function SprintView({
 
   const handleDeleteSprint = (sprintId, e) => {
     e.stopPropagation();
-    const updatedSprints = sprints.filter(s => s.id !== sprintId);
+    const updatedSprints = sprints.filter(s => String(s.id) !== String(sprintId));
     saveSprintsToStorage(updatedSprints);
     deleteSprintFromSheet(sprintId); // remove from Sheets
-    if (activeSprintId === sprintId) {
+    if (String(activeSprintId) === String(sprintId)) {
       saveActiveSprintIdToStorage(null);
     }
   };
@@ -510,7 +524,7 @@ export default function SprintView({
 
     // Save to active sprint repository
     const updatedSprints = sprints.map(s => {
-      if (s.id === activeSprintId) {
+      if (String(s.id) === String(activeSprintId)) {
         return { ...s, queue: updatedQueue };
       }
       return s;
@@ -531,12 +545,13 @@ export default function SprintView({
 
   // WhatsApp template helper
   const getWhatsAppLink = (templateText, lead) => {
+    if (typeof templateText !== 'string') return '';
     let compiled = templateText
-      .replace(/{{name}}/g, lead.name)
-      .replace(/{{company}}/g, lead.company || '')
-      .replace(/{{value}}/g, `${getCurrencySymbol(currency)}${(lead.value || 0).toLocaleString()}`);
+      .replace(/{{name}}/g, String(lead?.name || ''))
+      .replace(/{{company}}/g, String(lead?.company || ''))
+      .replace(/{{value}}/g, `${getCurrencySymbol(currency)}${(parseFloat(lead?.value) || 0).toLocaleString()}`);
       
-    let cleanPhone = lead.phone.replace(/[^0-9+]/g, '');
+    let cleanPhone = String(lead?.phone || '').replace(/[^0-9+]/g, '');
     if (!cleanPhone.startsWith('+') && cleanPhone.length > 5) {
       cleanPhone = '+' + cleanPhone;
     }
@@ -545,7 +560,7 @@ export default function SprintView({
   };
 
   const handleWhatsAppTrigger = (templateTitle) => {
-    const isCrmLead = activeLead.id.startsWith('lead-');
+    const isCrmLead = String(activeLead?.id || '').startsWith('lead-');
     if (isCrmLead) {
       addNote({
         leadId: activeLead.id,
@@ -559,7 +574,7 @@ export default function SprintView({
 
   // Next lead in queue
   const handleNextLead = () => {
-    const isCrmLead = activeLead.id.startsWith('lead-');
+    const isCrmLead = String(activeLead?.id || '').startsWith('lead-');
     
     if (callOutcome || callNotes) {
       const outcomeText = callOutcome ? `Call Outcome: [${callOutcome}]` : 'Call completed';
@@ -576,7 +591,7 @@ export default function SprintView({
         if (activeSprint?.type === 'pipeline') {
           let updatedLead = { ...activeLead };
           const pId = activeSprint.sourceId;
-          const pipeline = pipelines.find(p => p.id === pId);
+          const pipeline = pipelines.find(p => String(p.id) === String(pId));
           if (pipeline) {
             if (callOutcome === 'Deal Won') {
               updatedLead.status = pipeline.stages.find(s => s.toLowerCase().includes('won')) || 'Won';
@@ -606,13 +621,13 @@ export default function SprintView({
       
       // Update ongoing state in storage
       const updatedSprints = sprints.map(s => {
-        if (s.id === activeSprintId) {
+        if (String(s.id) === String(activeSprintId)) {
           return { ...s, currentIdx: nextIdx, logs: [...sprintLogs, { leadName: activeLead.name, action: 'call', outcome: callOutcome, notes: callNotes }] };
         }
         return s;
       });
       saveSprintsToStorage(updatedSprints);
-      const updatedSprint = updatedSprints.find(s => s.id === activeSprintId);
+      const updatedSprint = updatedSprints.find(s => String(s.id) === String(activeSprintId));
       if (updatedSprint) persistSprint(updatedSprint); // sync progress to Sheets
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -632,13 +647,13 @@ export default function SprintView({
       setIsConverting(false);
 
       const updatedSprints = sprints.map(s => {
-        if (s.id === activeSprintId) {
+        if (String(s.id) === String(activeSprintId)) {
           return { ...s, currentIdx: nextIdx, logs: [...sprintLogs, { leadName: activeLead.name, action: 'skip' }] };
         }
         return s;
       });
       saveSprintsToStorage(updatedSprints);
-      const updatedSprint = updatedSprints.find(s => s.id === activeSprintId);
+      const updatedSprint = updatedSprints.find(s => String(s.id) === String(activeSprintId));
       if (updatedSprint) persistSprint(updatedSprint); // sync progress to Sheets
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -657,7 +672,7 @@ export default function SprintView({
   ];
 
   // Lookup ongoing/suspended sprint if exists
-  const ongoingSprint = sprints.find(s => s.id === activeSprintId && (s.status === 'active' || s.status === 'suspended'));
+  const ongoingSprint = sprints.find(s => String(s.id) === String(activeSprintId) && (s.status === 'active' || s.status === 'suspended'));
 
   // Ref to scroll back to top on each lead transition
   const wrapperRef = useRef(null);
@@ -789,7 +804,7 @@ export default function SprintView({
                     onChange={(e) => setStageFilter(e.target.value)}
                   >
                     <option value="All">All Active Stages</option>
-                    {pipelines.find(p => p.id === newSprintSourceId)?.stages.slice(0, -2).map(stage => (
+                    {pipelines.find(p => String(p.id) === String(newSprintSourceId))?.stages.slice(0, -2).map(stage => (
                       <option key={stage} value={stage}>{stage}</option>
                     ))}
                   </select>
@@ -1007,7 +1022,7 @@ export default function SprintView({
                     <div>
                       <span style={{ fontWeight: 700 }}>{list.name}</span>
                       <span style={{ color: 'var(--text-dark)', marginLeft: '0.4rem', fontSize: '0.8rem' }}>({list.leads.length} contacts)</span>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {new Date(list.createdAt).toLocaleDateString()}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {formatDateSafe(list.createdAt)}</div>
                     </div>
                     <button 
                       className="outcome-btn lost" 
@@ -1064,12 +1079,12 @@ export default function SprintView({
                             color: sprint.status === 'active' ? 'var(--primary)' : sprint.status === 'suspended' ? 'var(--accent)' : '#10b981'
                           }}>
                             {sprint.status.toUpperCase()}
-                          </span>
+              </span>
                         </div>
                         
                         <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           <span>Source: <strong style={{ color: 'var(--text-main)' }}>{sprint.type === 'pipeline' ? 'Pipeline' : 'Custom List'}</strong> ({sprint.sourceName})</span>
-                          <span>Created: {new Date(sprint.createdAt).toLocaleDateString()}</span>
+                          <span>Created: {formatDateSafe(sprint.createdAt)}</span>
                         </div>
 
                         {/* Progress slider bar */}
@@ -1194,9 +1209,9 @@ export default function SprintView({
           </div>
 
           {/* Lead Card Detail Profile */}
-          <div className="sprint-active-profile" onClick={() => activeLead.id.startsWith('lead-') && onSelectLead(activeLead.id)} style={{ cursor: activeLead.id.startsWith('lead-') ? 'pointer' : 'default' }}>
+          <div className="sprint-active-profile" onClick={() => String(activeLead?.id || '').startsWith('lead-') && onSelectLead(activeLead.id)} style={{ cursor: String(activeLead?.id || '').startsWith('lead-') ? 'pointer' : 'default' }}>
             <div className="profile-avatar">
-              {activeLead.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              {String(activeLead?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
             </div>
             <div className="profile-name">{activeLead.name}</div>
             {activeLead.company && <div className="profile-company">{activeLead.company}</div>}
@@ -1209,7 +1224,7 @@ export default function SprintView({
               <span className="lead-tag-badge">
                 {activeLead.status}
               </span>
-              {activeLead.id.startsWith('lead-') ? (
+              {String(activeLead?.id || '').startsWith('lead-') ? (
                 <span className="lead-tag-badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                   <Check size={10} />
                   CRM Lead
@@ -1237,7 +1252,7 @@ export default function SprintView({
             </a>
 
             {/* Prospect Convert to Lead trigger */}
-            {!activeLead.id.startsWith('lead-') && (
+            {!String(activeLead?.id || '').startsWith('lead-') && (
               <div style={{ width: '100%', marginTop: '0.25rem' }}>
                 {!isConverting ? (
                   <button 
@@ -1278,7 +1293,7 @@ export default function SprintView({
                           value={conversionStage}
                           onChange={(e) => setConversionStage(e.target.value)}
                         >
-                          {pipelines.find(p => p.id === conversionPipelineId)?.stages.map(st => (
+                          {pipelines.find(p => String(p.id) === String(conversionPipelineId))?.stages.map(st => (
                             <option key={st} value={st}>{st}</option>
                           ))}
                         </select>

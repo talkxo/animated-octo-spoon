@@ -54,7 +54,7 @@ export default function FunnelView({
   }, []);
 
   // Filter leads based on active pipeline
-  const pipelineLeads = leads.filter(l => l.pipelineId === activePipeline.id);
+  const pipelineLeads = leads.filter(l => String(l.pipelineId) === String(activePipeline.id));
 
   // Get all unique tags for the filter pill list
   const allTags = Array.from(
@@ -62,19 +62,19 @@ export default function FunnelView({
       pipelineLeads
         .map(l => l.tags)
         .filter(Boolean)
-        .flatMap(t => t.split(',').map(s => s.trim()))
+        .flatMap(t => String(t).split(',').map(s => s.trim()))
     )
   );
 
   // Apply search query and tag filters
   const filteredLeads = pipelineLeads.filter(lead => {
     const matchesSearch = 
-      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (lead.tags && lead.tags.toLowerCase().includes(searchQuery.toLowerCase()));
+      String(lead.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(lead.company || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (lead.tags && String(lead.tags).toLowerCase().includes(searchQuery.toLowerCase()));
       
     const matchesTag = !selectedTag || 
-      (lead.tags && lead.tags.split(',').map(s => s.trim()).includes(selectedTag));
+      (lead.tags && String(lead.tags).split(',').map(s => s.trim()).includes(selectedTag));
       
     return matchesSearch && matchesTag;
   });
@@ -143,7 +143,7 @@ export default function FunnelView({
                 {pipelines.map(p => (
                   <div 
                     key={p.id}
-                    className={`custom-dropdown-option ${p.id === activePipelineId ? 'active' : ''}`}
+                    className={`custom-dropdown-option ${String(p.id) === String(activePipelineId) ? 'active' : ''}`}
                     onClick={() => {
                       setActivePipelineId(p.id);
                       setSelectedTag('');
@@ -151,7 +151,7 @@ export default function FunnelView({
                     }}
                   >
                     <span>{p.name}</span>
-                    {p.id === activePipelineId && <Check size={12} className="check-icon" />}
+                    {String(p.id) === String(activePipelineId) && <Check size={12} className="check-icon" />}
                   </div>
                 ))}
               </div>
@@ -195,7 +195,7 @@ export default function FunnelView({
       </div>
 
       {/* Filters & Search Row */}
-      <div className="glass-card filter-search-row">
+      <div className="filter-search-row">
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <div className="search-box-wrapper">
             <Search size={16} className="search-icon-inside" />
@@ -259,10 +259,10 @@ export default function FunnelView({
             <div className="funnel-lane" key={stage}>
               
               {/* Lane Header */}
-              <div className="lane-header" style={{ borderTop: `3px solid ${stageColor}` }}>
+              <div className="lane-header" style={{ '--stage-color': stageColor }}>
                 <div className="lane-title-row">
                   <div className="lane-title">
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: stageColor }}></span>
+                    <span className="lane-title-dot" style={{ background: stageColor }}></span>
                     {stage}
                   </div>
                   <span className="lane-badge">{stageLeads.length}</span>
@@ -296,7 +296,7 @@ export default function FunnelView({
                       {/* Interactive Move buttons - 1-tap stage shifting, ultra-snappy on mobile */}
                       <div className="deal-footer">
                         <div className="deal-tags">
-                          {lead.tags ? lead.tags.split(',').slice(0, 1).map(t => (
+                          {lead.tags ? String(lead.tags).split(',').slice(0, 1).map(t => (
                             <span className="deal-tag" key={t}>{t.trim()}</span>
                           )) : (
                             <span className="deal-tag" style={{ visibility: 'hidden' }}>x</span>
@@ -307,23 +307,21 @@ export default function FunnelView({
                         <div className="card-move-controls">
                           {activePipeline.stages.indexOf(stage) > 0 && (
                             <button 
-                              className="outcome-btn" 
-                              style={{ padding: '0.15rem 0.3rem', borderRadius: '4px' }}
+                              className="card-move-btn" 
                               onClick={(e) => shiftLeadStage(e, lead, -1)}
                               title="Move Left"
                             >
-                              <ChevronLeft size={13} />
+                              <ChevronLeft size={16} />
                             </button>
                           )}
                           
                           {activePipeline.stages.indexOf(stage) < activePipeline.stages.length - 1 && (
                             <button 
-                              className="outcome-btn" 
-                              style={{ padding: '0.15rem 0.3rem', borderRadius: '4px' }}
+                              className="card-move-btn" 
                               onClick={(e) => shiftLeadStage(e, lead, 1)}
                               title="Move Right"
                             >
-                              <ChevronRight size={13} />
+                              <ChevronRight size={16} />
                             </button>
                           )}
                         </div>

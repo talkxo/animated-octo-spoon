@@ -258,7 +258,7 @@ export default function SettingsView({
                 className="form-input" 
                 placeholder="e.g. https://script.google.com/macros/s/.../exec"
                 required
-                style={{ flex: 1, fontSize: '0.85rem' }}
+                style={{ flex: 1, fontSize: '0.82rem' }}
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
               />
@@ -279,10 +279,10 @@ export default function SettingsView({
         {sheetUrl && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '10px', padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '0.8rem' }}>
+              <div style={{ fontSize: '0.78rem' }}>
                 <span style={{ color: '#10b981', fontWeight: 700 }}>✓ CONNECTED: </span>
                 <span style={{ color: 'var(--text-muted)' }}>Sheet sync active (GET / POST rows ready).</span>
-                {lastSyncTime && <div style={{ fontSize: '0.7rem', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
+                {lastSyncTime && <div style={{ fontSize: '0.68rem', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
               </div>
               <button className="outcome-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={onSyncClick}>
                 <RefreshCw size={12} />
@@ -294,9 +294,9 @@ export default function SettingsView({
             <div style={{ padding: '0.85rem', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
                 <Smartphone size={16} style={{ color: 'var(--primary)' }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>Sync to Mobile or Other Devices</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>Sync to Mobile or Other Devices</span>
               </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45, margin: '0 0 0.75rem 0' }}>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45, margin: '0 0 0.75rem 0' }}>
                 To connect your mobile device or another computer without copy-pasting the long Apps Script Web App URL:
               </p>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -315,7 +315,7 @@ export default function SettingsView({
                   />
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', minWidth: '200px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                     Scan this QR code using your phone's camera, or copy the direct access link below. It will open Pluto on your mobile, apply your current currency and theme preferences instantly, and configure the spreadsheet link automatically.
                   </div>
                   
@@ -324,7 +324,7 @@ export default function SettingsView({
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: '0.35rem', 
-                    fontSize: '0.725rem', 
+                    fontSize: '0.7rem', 
                     color: '#fbbf24', 
                     background: 'rgba(251, 191, 36, 0.04)', 
                     padding: '0.3rem 0.5rem', 
