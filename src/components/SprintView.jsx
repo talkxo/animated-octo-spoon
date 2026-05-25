@@ -108,6 +108,7 @@ export default function SprintView({
 
   // Expanded Log IDs for Sprints Log
   const [expandedSprintIds, setExpandedSprintIds] = useState({});
+  const [isOngoingQueueExpanded, setIsOngoingQueueExpanded] = useState(false);
 
   // Sync state helpers
   const saveSprintsToStorage = (updatedSprints) => {
@@ -433,6 +434,37 @@ export default function SprintView({
     setSprintState('active');
   };
 
+  // Jump to a specific lead in the current/ongoing sprint queue
+  const handleJumpToLead = (index, sprintId = activeSprintId) => {
+    const targetId = sprintId || activeSprintId;
+    if (!targetId) return;
+
+    const sprint = sprints.find(s => String(s.id) === String(targetId));
+    if (!sprint || !sprint.queue || index < 0 || index >= sprint.queue.length) return;
+
+    setActiveSprint(sprint);
+    setSprintQueue(sprint.queue || []);
+    setCurrentIdx(index);
+    setSprintLogs(sprint.logs || []);
+    saveActiveSprintIdToStorage(sprint.id);
+
+    // If the sprint is not active, set it to active and save state to storage/Sheets
+    const updatedSprints = sprints.map(s => {
+      if (String(s.id) === String(sprint.id)) {
+        return { ...s, currentIdx: index, status: 'active' };
+      }
+      return s;
+    });
+    saveSprintsToStorage(updatedSprints);
+    const updatedSprint = updatedSprints.find(s => String(s.id) === String(sprint.id));
+    if (updatedSprint) persistSprint(updatedSprint);
+
+    setCallOutcome('');
+    setCallNotes('');
+    setSprintState('active');
+    wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Suspend/pause current sprint
   const handleSuspendSprint = () => {
     if (!activeSprintId) return;
@@ -530,6 +562,8 @@ export default function SprintView({
       return s;
     });
     saveSprintsToStorage(updatedSprints);
+    const updatedSprint = updatedSprints.find(s => String(s.id) === String(activeSprintId));
+    if (updatedSprint) persistSprint(updatedSprint);
 
     // Add timelines notes
     addNote({
@@ -541,7 +575,16 @@ export default function SprintView({
     setIsConverting(false);
   };
 
-  const activeLead = sprintQueue[currentIdx];
+  const rawActiveLead = sprintQueue[currentIdx];
+  const activeLead = React.useMemo(() => {
+    if (!rawActiveLead) return null;
+    const isCrmLead = String(rawActiveLead.id).startsWith('lead-');
+    if (isCrmLead) {
+      return leads.find(l => String(l.id) === String(rawActiveLead.id)) || rawActiveLead;
+    }
+    return rawActiveLead;
+  }, [rawActiveLead, leads]);
+
 
   // WhatsApp template helper
   const getWhatsAppLink = (templateText, lead) => {
@@ -558,7 +601,6 @@ export default function SprintView({
     
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(compiled)}`;
   };
-
   const handleWhatsAppTrigger = (templateTitle) => {
     const isCrmLead = String(activeLead?.id || '').startsWith('lead-');
     if (isCrmLead) {
@@ -569,13 +611,32 @@ export default function SprintView({
       });
     }
     
-    setSprintLogs(prev => [...prev, { leadName: activeLead.name, action: 'whatsapp', details: templateTitle }]);
+    const newLogEntry = { 
+      leadId: activeLead?.id || '', 
+      leadName: activeLead?.name || 'Unknown Lead', 
+      action: 'whatsapp', 
+      details: templateTitle 
+    };
+    
+    setSprintLogs(prev => [...prev, newLogEntry]);
+
+    const updatedSprints = sprints.map(s => {
+      if (String(s.id) === String(activeSprintId)) {
+        return { ...s, logs: [...(s.logs || []), newLogEntry] };
+      }
+      return s;
+    });
+    saveSprintsToStorage(updatedSprints);
+    const updatedSprint = updatedSprints.find(s => String(s.id) === String(activeSprintId));
+    if (updatedSprint) persistSprint(updatedSprint);
   };
 
   // Next lead in queue
   const handleNextLead = () => {
     const isCrmLead = String(activeLead?.id || '').startsWith('lead-');
     
+    // 1. Construct the new log entry
+    let logEntry;
     if (callOutcome || callNotes) {
       const outcomeText = callOutcome ? `Call Outcome: [${callOutcome}]` : 'Call completed';
       const combinedText = callNotes ? `${outcomeText}. Notes: ${callNotes}` : outcomeText;
@@ -607,10 +668,22 @@ export default function SprintView({
         }
       }
       
-      setSprintLogs(prev => [...prev, { leadName: activeLead.name, action: 'call', outcome: callOutcome, notes: callNotes }]);
+      logEntry = { 
+        leadId: activeLead?.id || '', 
+        leadName: activeLead?.name || 'Unknown Lead', 
+        action: 'call', 
+        outcome: callOutcome, 
+        notes: callNotes 
+      };
     } else {
-      setSprintLogs(prev => [...prev, { leadName: activeLead.name, action: 'skip' }]);
+      logEntry = { 
+        leadId: activeLead?.id || '', 
+        leadName: activeLead?.name || 'Unknown Lead', 
+        action: 'skip' 
+      };
     }
+
+    setSprintLogs(prev => [...prev, logEntry]);
 
     const nextIdx = currentIdx + 1;
     if (nextIdx < sprintQueue.length) {
@@ -619,10 +692,10 @@ export default function SprintView({
       setCallNotes('');
       setIsConverting(false);
       
-      // Update ongoing state in storage
+      // Update ongoing state in storage using race-free direct log appends
       const updatedSprints = sprints.map(s => {
         if (String(s.id) === String(activeSprintId)) {
-          return { ...s, currentIdx: nextIdx, logs: [...sprintLogs, { leadName: activeLead.name, action: 'call', outcome: callOutcome, notes: callNotes }] };
+          return { ...s, currentIdx: nextIdx, logs: [...(s.logs || []), logEntry] };
         }
         return s;
       });
@@ -632,12 +705,42 @@ export default function SprintView({
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      handleCompleteSprint();
+      // Completed last lead - mark completed and save final logs list
+      const targetId = activeSprintId;
+      if (targetId) {
+        let finalLogs = [];
+        const updatedSprints = sprints.map(s => {
+          if (String(s.id) === String(targetId)) {
+            finalLogs = [...(s.logs || []), logEntry];
+            return {
+              ...s,
+              status: 'completed',
+              currentIdx: currentIdx, // keep currentIdx at last completed position
+              queue: sprintQueue,
+              logs: finalLogs
+            };
+          }
+          return s;
+        });
+        
+        const completedSprint = updatedSprints.find(s => String(s.id) === String(targetId));
+        saveSprintsToStorage(updatedSprints);
+        if (completedSprint) persistSprint(completedSprint);
+        saveActiveSprintIdToStorage(null);
+        setActiveSprint(null);
+        setSprintLogs(finalLogs);
+        setSprintState('finished');
+      }
     }
   };
 
   const handleSkipLead = () => {
-    setSprintLogs(prev => [...prev, { leadName: activeLead.name, action: 'skip' }]);
+    const logEntry = { 
+      leadId: activeLead?.id || '', 
+      leadName: activeLead?.name || 'Unknown Lead', 
+      action: 'skip' 
+    };
+    setSprintLogs(prev => [...prev, logEntry]);
     
     const nextIdx = currentIdx + 1;
     if (nextIdx < sprintQueue.length) {
@@ -648,7 +751,7 @@ export default function SprintView({
 
       const updatedSprints = sprints.map(s => {
         if (String(s.id) === String(activeSprintId)) {
-          return { ...s, currentIdx: nextIdx, logs: [...sprintLogs, { leadName: activeLead.name, action: 'skip' }] };
+          return { ...s, currentIdx: nextIdx, logs: [...(s.logs || []), logEntry] };
         }
         return s;
       });
@@ -658,7 +761,32 @@ export default function SprintView({
       // Scroll back to top so user sees new contact
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      handleCompleteSprint();
+      // Completed last lead via skip - mark completed and save final logs list
+      const targetId = activeSprintId;
+      if (targetId) {
+        let finalLogs = [];
+        const updatedSprints = sprints.map(s => {
+          if (String(s.id) === String(targetId)) {
+            finalLogs = [...(s.logs || []), logEntry];
+            return {
+              ...s,
+              status: 'completed',
+              currentIdx: currentIdx,
+              queue: sprintQueue,
+              logs: finalLogs
+            };
+          }
+          return s;
+        });
+        
+        const completedSprint = updatedSprints.find(s => String(s.id) === String(targetId));
+        saveSprintsToStorage(updatedSprints);
+        if (completedSprint) persistSprint(completedSprint);
+        saveActiveSprintIdToStorage(null);
+        setActiveSprint(null);
+        setSprintLogs(finalLogs);
+        setSprintState('finished');
+      }
     }
   };
 
@@ -715,7 +843,15 @@ export default function SprintView({
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', marginRight: 'auto' }}
+                  onClick={() => setIsOngoingQueueExpanded(!isOngoingQueueExpanded)}
+                >
+                  {isOngoingQueueExpanded ? 'Hide Contacts Queue' : 'View Contacts Queue'}
+                </button>
                 <button 
                   className="btn btn-secondary" 
                   style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
@@ -732,6 +868,117 @@ export default function SprintView({
                   Resume Sprint
                 </button>
               </div>
+
+              {isOngoingQueueExpanded && (
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', borderTop: '1px solid var(--border-light)' }}>
+                  <div style={{ marginBottom: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    SPRINT QUEUE & PROGRESS DETAILS (CLICK TO RESUME FROM ANY CONTACT)
+                  </div>
+                  
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {ongoingSprint.queue && ongoingSprint.queue.map((contact, idx) => {
+                      const contactLogs = ongoingSprint.logs ? ongoingSprint.logs.filter(l => 
+                        (l.leadId && String(l.leadId) === String(contact.id)) || 
+                        (!l.leadId && String(l.leadName) === String(contact.name))
+                      ) : [];
+                      
+                      let statusLabel = 'Pending';
+                      let statusColor = 'var(--text-dark)';
+                      let statusBg = 'rgba(255,255,255,0.03)';
+                      
+                      const hasCallLog = contactLogs.some(l => l.action === 'call');
+                      const hasSkipLog = contactLogs.some(l => l.action === 'skip');
+                      const isCurrent = idx === ongoingSprint.currentIdx;
+                      
+                      if (isCurrent) {
+                        statusLabel = 'Current Active';
+                        statusColor = 'var(--primary)';
+                        statusBg = 'var(--primary-glow)';
+                      } else if (hasCallLog) {
+                        statusLabel = 'Called';
+                        statusColor = '#10b981';
+                        statusBg = 'rgba(16,185,129,0.1)';
+                      } else if (hasSkipLog) {
+                        statusLabel = 'Skipped';
+                        statusColor = 'var(--accent)';
+                        statusBg = 'var(--accent-glow)';
+                      } else if (idx < ongoingSprint.currentIdx) {
+                        statusLabel = 'Skipped';
+                        statusColor = 'var(--accent)';
+                        statusBg = 'var(--accent-glow)';
+                      }
+                      
+                      return (
+                        <div 
+                          key={contact.id || idx} 
+                          style={{ 
+                            padding: '0.4rem 0.5rem', 
+                            borderRadius: '6px', 
+                            background: isCurrent ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)', 
+                            border: isCurrent ? '1px solid var(--primary-glow)' : '1px solid rgba(255,255,255,0.02)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.15rem',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s ease'
+                          }}
+                          onClick={() => {
+                            handleJumpToLead(idx, ongoingSprint.id);
+                          }}
+                          title="Click to jump and resume dialing from this contact"
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <strong style={{ color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                {idx + 1}. {contact.name}
+                              </strong>
+                              {contact.company && (
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginLeft: '0.4rem' }}>
+                                  ({contact.company})
+                                </span>
+                              )}
+                            </div>
+                            <span style={{ 
+                              fontSize: '0.6rem', 
+                              fontWeight: 700, 
+                              padding: '0.05rem 0.3rem', 
+                              borderRadius: '4px',
+                              color: statusColor,
+                              background: statusBg
+                            }}>
+                              {statusLabel.toUpperCase()}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-dark)' }}>
+                            <span>Phone: {contact.phone || 'N/A'}</span>
+                            {contact.value > 0 && (
+                              <span>Value: {getCurrencySymbol(currency)}{contact.value.toLocaleString()}</span>
+                            )}
+                          </div>
+                          
+                          {contactLogs.length > 0 && (
+                            <div style={{ marginTop: '0.15rem', borderTop: '1px dashed rgba(255,255,255,0.03)', paddingTop: '0.15rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                              {contactLogs.map((log, lIdx) => (
+                                <div key={lIdx} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>
+                                    {log.action === 'whatsapp' ? '💬 WhatsApp' : log.action === 'skip' ? '🚫 Skipped' : `📞 Call: ${log.outcome}`}
+                                    {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
+                                  </span>
+                                  {log.notes && (
+                                    <span style={{ fontStyle: 'italic', color: 'var(--text-dark)' }}>
+                                      "{log.notes}"
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1061,13 +1308,23 @@ export default function SprintView({
                 const wonCount = sprint.logs ? sprint.logs.filter(l => l.outcome === 'Deal Won').length : 0;
                 const connCount = sprint.logs ? sprint.logs.filter(l => l.outcome === 'Connected' || l.outcome === 'Demo Booked').length : 0;
                 const skipCount = sprint.logs ? sprint.logs.filter(l => l.action === 'skip').length : 0;
-
+                  
                 return (
-                  <div key={sprint.id} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '8px', marginBottom: '0.5rem', overflow: 'hidden' }}>
+                  <div 
+                    key={sprint.id} 
+                    style={{ 
+                      background: isExpanded ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)', 
+                      border: isExpanded ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)', 
+                      borderRadius: '8px', 
+                      marginBottom: '0.5rem', 
+                      overflow: 'hidden',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setExpandedSprintIds(prev => ({ ...prev, [sprint.id]: !prev[sprint.id] }))}
+                  >
                     
                     <div 
-                      style={{ padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                      onClick={() => setExpandedSprintIds(prev => ({ ...prev, [sprint.id]: !prev[sprint.id] }))}
+                      style={{ padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1079,7 +1336,7 @@ export default function SprintView({
                             color: sprint.status === 'active' ? 'var(--primary)' : sprint.status === 'suspended' ? 'var(--accent)' : '#10b981'
                           }}>
                             {sprint.status.toUpperCase()}
-              </span>
+                          </span>
                         </div>
                         
                         <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -1119,7 +1376,10 @@ export default function SprintView({
                         <button 
                           className="outcome-btn lost" 
                           style={{ padding: '0.3rem' }}
-                          onClick={(e) => handleDeleteSprint(sprint.id, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSprint(sprint.id, e);
+                          }}
                         >
                           <Trash2 size={12} />
                         </button>
@@ -1129,8 +1389,12 @@ export default function SprintView({
                     </div>
 
                     {isExpanded && (
-                      <div style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--border-light)' }} className="fade-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div 
+                        style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--border-light)' }} 
+                        className="fade-in"
+                        onClick={(e) => e.stopPropagation()} // Prevents collapsing when clicking within details
+                      >
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                           <div>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)' }}>{wonCount}</div>
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>WON</div>
@@ -1145,21 +1409,126 @@ export default function SprintView({
                           </div>
                         </div>
 
-                        <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
-                          {sprint.logs && sprint.logs.map((log, index) => (
-                            <div key={index} style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <strong style={{ color: 'var(--text-main)' }}>{log.leadName}</strong>
-                                <span style={{ color: 'var(--text-muted)', marginLeft: '0.35rem' }}>
-                                  {log.action === 'skip' ? 'Skipped' : log.action === 'whatsapp' ? `WhatsApp: ${log.details}` : `Call: ${log.outcome}`}
-                                </span>
+                        {/* Collapsible Queue Listing */}
+                        <div style={{ marginBottom: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                          SPRINT QUEUE & CONTACT PROGRESS
+                        </div>
+                        
+                        <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {sprint.queue && sprint.queue.map((contact, idx) => {
+                            // Find all log entries for this contact
+                            const contactLogs = sprint.logs ? sprint.logs.filter(l => 
+                              (l.leadId && String(l.leadId) === String(contact.id)) || 
+                              (!l.leadId && String(l.leadName) === String(contact.name))
+                            ) : [];
+                            
+                            // Determine status
+                            let statusLabel = 'Pending';
+                            let statusColor = 'var(--text-dark)';
+                            let statusBg = 'rgba(255,255,255,0.03)';
+                            
+                            const hasCallLog = contactLogs.some(l => l.action === 'call');
+                            const hasSkipLog = contactLogs.some(l => l.action === 'skip');
+                            const isCurrent = (sprint.status === 'active' || sprint.status === 'suspended') && idx === sprint.currentIdx;
+                            
+                            if (isCurrent) {
+                              statusLabel = 'Current Active';
+                              statusColor = 'var(--primary)';
+                              statusBg = 'var(--primary-glow)';
+                            } else if (hasCallLog) {
+                              statusLabel = 'Called';
+                              statusColor = '#10b981';
+                              statusBg = 'rgba(16,185,129,0.1)';
+                            } else if (hasSkipLog) {
+                              statusLabel = 'Skipped';
+                              statusColor = 'var(--accent)';
+                              statusBg = 'var(--accent-glow)';
+                            } else if (sprint.status !== 'completed' && idx < sprint.currentIdx) {
+                              statusLabel = 'Skipped';
+                              statusColor = 'var(--accent)';
+                              statusBg = 'var(--accent-glow)';
+                            }
+                            
+                            const isClickable = sprint.status === 'active' || sprint.status === 'suspended';
+                            
+                            return (
+                              <div 
+                                key={contact.id || idx} 
+                                style={{ 
+                                  padding: '0.5rem 0.6rem', 
+                                  borderRadius: '6px', 
+                                  background: isCurrent ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)', 
+                                  border: isCurrent ? '1px solid var(--primary-glow)' : '1px solid rgba(255,255,255,0.02)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.2rem',
+                                  cursor: isClickable ? 'pointer' : 'default',
+                                  transition: 'background 0.2s ease'
+                                }}
+                                onClick={() => {
+                                  if (isClickable) {
+                                    handleJumpToLead(idx, sprint.id);
+                                  }
+                                }}
+                                title={isClickable ? 'Click to jump to this contact in the dialer' : ''}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <strong style={{ color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                      {idx + 1}. {contact.name}
+                                    </strong>
+                                    {contact.company && (
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dark)', marginLeft: '0.4rem' }}>
+                                        ({contact.company})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                                    <span style={{ 
+                                      fontSize: '0.625rem', 
+                                      fontWeight: 700, 
+                                      padding: '0.08rem 0.35rem', 
+                                      borderRadius: '4px',
+                                      color: statusColor,
+                                      background: statusBg
+                                    }}>
+                                      {statusLabel.toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-dark)' }}>
+                                  <span>Phone: {contact.phone || 'N/A'}</span>
+                                  {contact.value > 0 && (
+                                    <span>Value: {getCurrencySymbol(currency)}{contact.value.toLocaleString()}</span>
+                                  )}
+                                </div>
+                                
+                                {/* Grouped logs for this contact */}
+                                {contactLogs.length > 0 && (
+                                  <div style={{ marginTop: '0.2rem', borderTop: '1px dashed rgba(255,255,255,0.03)', paddingTop: '0.2rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                    {contactLogs.map((log, lIdx) => (
+                                      <div key={lIdx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>
+                                          {log.action === 'whatsapp' ? '💬 WhatsApp Outreach' : log.action === 'skip' ? '🚫 Skipped outreach' : `📞 Call Outcome: ${log.outcome}`}
+                                          {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
+                                        </span>
+                                        {log.notes && (
+                                          <span style={{ fontStyle: 'italic', color: 'var(--text-dark)' }}>
+                                            "{log.notes}"
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              {log.notes && <span style={{ color: 'var(--text-dark)', fontStyle: 'italic', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.notes}>"{log.notes}"</span>}
-                            </div>
-                          ))}
-                          {(!sprint.logs || sprint.logs.length === 0) && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dark)', textAlign: 'center', padding: '0.5rem' }}>
-                              No call outreach logged.
+                            );
+                          })}
+                          
+                          {(!sprint.queue || sprint.queue.length === 0) && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dark)', textAlign: 'center', padding: '1rem' }}>
+                              No contacts in this sprint queue.
                             </div>
                           )}
                         </div>

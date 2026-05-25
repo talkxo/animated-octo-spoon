@@ -233,6 +233,19 @@ export default function App() {
       sessionStorage.setItem('crm_logged_in', 'true');
       sessionStorage.setItem('crm_logged_in_user', username);
     }
+
+    // Hydrate user-scoped preferences
+    const userCurrency = localStorage.getItem(`crm_currency_${username}`) || localStorage.getItem('crm_currency') || 'USD';
+    const userTheme = localStorage.getItem(`crm_theme_${username}`) || localStorage.getItem('crm_theme') || 'dark';
+    const userSyncMode = localStorage.getItem(`crm_sync_mode_${username}`) || localStorage.getItem('crm_sync_mode') || 'auto';
+    const userRevision = parseInt(localStorage.getItem(`crm_settings_revision_${username}`) || localStorage.getItem('crm_settings_revision') || '0', 10) || 0;
+
+    setCurrency(userCurrency);
+    setTheme(userTheme);
+    document.documentElement.setAttribute('data-theme', userTheme);
+    setSyncMode(userSyncMode);
+    setSettingsRevision(userRevision);
+
     // Check if there was a pending sheet URL shared via QR/Link
     const pendingUrl = localStorage.getItem('crm_pending_sheet_url');
     let savedUrl = '';
@@ -257,6 +270,22 @@ export default function App() {
     sessionStorage.removeItem('crm_logged_in_user');
     setIsLoggedIn(false);
     setLoggedInUser('');
+
+    // Reset settings states to defaults
+    setCurrency('USD');
+    setTheme('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    setSyncMode('auto');
+    setSettingsRevision(0);
+    setSheetUrl('');
+
+    // Reset leads and CRM tables to default mocks or empty arrays to avoid data leak
+    setLeads(MOCK_LEADS);
+    setNotes(MOCK_NOTES);
+    setPipelines(DEFAULT_PIPELINES);
+    setWhatsappTemplates(DEFAULT_WHATSAPP_TEMPLATES);
+    setSprints([]);
+    setCallingLists([]);
   };
 
   // Navigation & Views State
@@ -272,13 +301,22 @@ export default function App() {
   });
   const [syncStatus, setSyncStatus] = useState(sheetUrl ? 'syncing' : 'offline'); // 'syncing', 'synced', 'offline', 'error', 'pending'
   const [lastSyncTime, setLastSyncTime] = useState(() => localStorage.getItem('crm_last_sync') || '');
-  const [syncMode, setSyncMode] = useState(() => localStorage.getItem('crm_sync_mode') || 'auto');
+  const [syncMode, setSyncMode] = useState(() => {
+    const user = localStorage.getItem('crm_logged_in_user') ||
+                 sessionStorage.getItem('crm_logged_in_user') || '';
+    return user
+      ? (localStorage.getItem(`crm_sync_mode_${user}`) || localStorage.getItem('crm_sync_mode') || 'auto')
+      : (localStorage.getItem('crm_sync_mode') || 'auto');
+  });
   const [syncQueue, setSyncQueue] = useState(() => {
     const saved = localStorage.getItem('crm_sync_queue');
     return saved ? JSON.parse(saved) : [];
   });
   const [settingsRevision, setSettingsRevision] = useState(() => {
-    return parseInt(localStorage.getItem('crm_settings_revision') || '0', 10) || 0;
+    const user = localStorage.getItem('crm_logged_in_user') ||
+                 sessionStorage.getItem('crm_logged_in_user') || '';
+    const key = user ? `crm_settings_revision_${user}` : 'crm_settings_revision';
+    return parseInt(localStorage.getItem(key) || '0', 10) || 0;
   });
 
   const [isSyncExpanded, setIsSyncExpanded] = useState(false);
@@ -375,8 +413,20 @@ export default function App() {
   });
 
   // Theme, Currency & Onboarding Wizard State
-  const [theme, setTheme] = useState(() => localStorage.getItem('crm_theme') || 'dark');
-  const [currency, setCurrency] = useState(() => localStorage.getItem('crm_currency') || 'USD');
+  const [theme, setTheme] = useState(() => {
+    const user = localStorage.getItem('crm_logged_in_user') ||
+                 sessionStorage.getItem('crm_logged_in_user') || '';
+    return user
+      ? (localStorage.getItem(`crm_theme_${user}`) || localStorage.getItem('crm_theme') || 'dark')
+      : (localStorage.getItem('crm_theme') || 'dark');
+  });
+  const [currency, setCurrency] = useState(() => {
+    const user = localStorage.getItem('crm_logged_in_user') ||
+                 sessionStorage.getItem('crm_logged_in_user') || '';
+    return user
+      ? (localStorage.getItem(`crm_currency_${user}`) || localStorage.getItem('crm_currency') || 'USD')
+      : (localStorage.getItem('crm_currency') || 'USD');
+  });
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   const [logoAnimating, setLogoAnimating] = useState(false);
 
@@ -399,17 +449,17 @@ export default function App() {
   const applySettingsPayload = (settings) => {
     if (!settings) return;
 
-    if ('currency' in settings) {
-      setCurrency(settings.currency || 'USD');
+    if (settings.currency) {
+      setCurrency(settings.currency);
     }
-    if ('syncMode' in settings) {
-      setSyncMode(settings.syncMode || 'auto');
+    if (settings.syncMode) {
+      setSyncMode(settings.syncMode);
     }
-    if ('whatsappTemplates' in settings) {
-      setWhatsappTemplates(Array.isArray(settings.whatsappTemplates) ? settings.whatsappTemplates : []);
+    if (Array.isArray(settings.whatsappTemplates)) {
+      setWhatsappTemplates(settings.whatsappTemplates);
     }
-    if ('theme' in settings) {
-      setTheme(settings.theme || 'dark');
+    if (settings.theme) {
+      setTheme(settings.theme);
     }
     setSettingsRevision(Number(settings.revision) || 0);
   };
@@ -446,26 +496,38 @@ export default function App() {
   // Sync theme to root element
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (loggedInUser) {
+      localStorage.setItem(`crm_theme_${loggedInUser}`, theme);
+    }
     localStorage.setItem('crm_theme', theme);
-  }, [theme]);
+  }, [theme, loggedInUser]);
 
   // Sync currency preference
   useEffect(() => {
+    if (loggedInUser) {
+      localStorage.setItem(`crm_currency_${loggedInUser}`, currency);
+    }
     localStorage.setItem('crm_currency', currency);
-  }, [currency]);
+  }, [currency, loggedInUser]);
 
   // Sync mode and queue persistence
   useEffect(() => {
+    if (loggedInUser) {
+      localStorage.setItem(`crm_sync_mode_${loggedInUser}`, syncMode);
+    }
     localStorage.setItem('crm_sync_mode', syncMode);
-  }, [syncMode]);
+  }, [syncMode, loggedInUser]);
 
   useEffect(() => {
     localStorage.setItem('crm_sync_queue', JSON.stringify(syncQueue));
   }, [syncQueue]);
 
   useEffect(() => {
+    if (loggedInUser) {
+      localStorage.setItem(`crm_settings_revision_${loggedInUser}`, String(settingsRevision));
+    }
     localStorage.setItem('crm_settings_revision', String(settingsRevision));
-  }, [settingsRevision]);
+  }, [settingsRevision, loggedInUser]);
 
   // Listen for browser online event to auto-flush in Auto Mode
   useEffect(() => {
@@ -565,7 +627,7 @@ export default function App() {
   }, []);
 
   // Fetch all data from Google Sheet
-  const syncDataFromSheet = async (targetUrl = sheetUrl) => {
+  async function syncDataFromSheet(targetUrl = sheetUrl) {
     if (!targetUrl) {
       setSyncStatus('offline');
       return;
@@ -596,6 +658,14 @@ export default function App() {
         }
         if (data.settings) {
           applySettingsPayload(data.settings);
+        } else if (targetUrl) {
+          // If settings are not yet present in the sheet, initialize them automatically!
+          await syncSettings({
+            currency,
+            syncMode,
+            whatsappTemplates,
+            theme
+          });
         }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
@@ -608,7 +678,7 @@ export default function App() {
       console.error('Sheets Sync Error:', err);
       setSyncStatus('error');
     }
-  };
+  }
 
   // Sprint sync helpers passed down to SprintView
   const syncSprint = (sprint) => handleSyncPush({ action: 'saveSprint', sprint });
@@ -616,7 +686,7 @@ export default function App() {
   const syncCallingLists = (callingLists) => handleSyncPush({ action: 'saveCallingLists', callingLists });
 
   // Settings sync helpers
-  const syncSettings = async (nextSettings) => {
+  async function syncSettings(nextSettings) {
     const result = await handleSyncPush({
       action: 'saveSettings',
       settings: {
@@ -627,9 +697,9 @@ export default function App() {
     if (result?.success && result?.data?.settings) {
       applySettingsPayload(result.data.settings);
     }
-  };
+  }
 
-  const updateCurrency = async (newCurrency) => {
+  async function updateCurrency(newCurrency) {
     setCurrency(newCurrency);
     await syncSettings({
       currency: newCurrency,
@@ -637,9 +707,9 @@ export default function App() {
       whatsappTemplates,
       theme
     });
-  };
+  }
 
-  const updateSyncMode = async (newSyncMode) => {
+  async function updateSyncMode(newSyncMode) {
     setSyncMode(newSyncMode);
     await syncSettings({
       currency,
@@ -647,9 +717,9 @@ export default function App() {
       whatsappTemplates,
       theme
     });
-  };
+  }
 
-  const updateWhatsappTemplates = async (newTemplates) => {
+  async function updateWhatsappTemplates(newTemplates) {
     setWhatsappTemplates(newTemplates);
     await syncSettings({
       currency,
@@ -657,9 +727,9 @@ export default function App() {
       whatsappTemplates: newTemplates,
       theme
     });
-  };
+  }
 
-  const toggleTheme = async () => {
+  async function toggleTheme() {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     await syncSettings({
@@ -668,10 +738,10 @@ export default function App() {
       whatsappTemplates,
       theme: nextTheme
     });
-  };
+  }
 
   // Helper to post API payload to Apps Script
-  const postToSheet = async (payload) => {
+  async function postToSheet(payload) {
     if (!sheetUrl) return { success: true, offline: true };
     
     try {
@@ -736,7 +806,7 @@ export default function App() {
         };
       }
     }
-  };
+  }
 
   const rebaseQueuedPayloads = (queue, responseData) => {
     if (!responseData) return queue;
@@ -774,7 +844,7 @@ export default function App() {
   };
 
   // Process items in the sync queue sequentially (FIFO)
-  const flushSyncQueue = async (queueToFlush = syncQueue) => {
+  async function flushSyncQueue(queueToFlush = syncQueue) {
     if (!sheetUrl || queueToFlush.length === 0) return;
 
     setSyncStatus('syncing');
@@ -804,10 +874,10 @@ export default function App() {
       // Pull latest spreadsheet records to merge and refresh local state
       await syncDataFromSheet();
     }
-  };
+  }
 
   // Route sync tasks dynamically based on Sync Mode
-  const handleSyncPush = async (payload) => {
+  async function handleSyncPush(payload) {
     if (!sheetUrl) {
       setSyncStatus('offline');
       return { success: false, offline: true };
@@ -843,7 +913,7 @@ export default function App() {
         return result;
       }
     }
-  };
+  }
 
   // API Callbacks for Leads
   const saveLead = async (leadData) => {
