@@ -12,7 +12,10 @@ import {
   Moon,
   HelpCircle,
   LogOut,
-  History
+  History,
+  Coins,
+  Download,
+  Upload
 } from 'lucide-react';
 import {
   KBarProvider,
@@ -43,7 +46,19 @@ function PlutoCommandBarResults() {
           <div className="pluto-kbar-section">{item}</div>
         ) : (
           <div className={`pluto-kbar-item ${active ? 'active' : ''}`}>
-            <span className="pluto-kbar-item-name">{item.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {item.icon && (
+                <div className="pluto-kbar-item-icon">
+                  {item.icon}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                <span className="pluto-kbar-item-name">{item.name}</span>
+                {item.subtitle && (
+                  <span className="pluto-kbar-item-subtitle">{item.subtitle}</span>
+                )}
+              </div>
+            </div>
             {item.shortcut?.length > 0 && (
               <div className="pluto-kbar-shortcut">
                 {item.shortcut.map((key, i) => (
@@ -1118,6 +1133,17 @@ export default function App() {
 
   // Actions list for Command Palette
   const actions = [
+    // Quick Actions
+    {
+      id: 'act_new_lead',
+      name: 'Create New Lead / Client',
+      shortcut: ['n', 'l'],
+      keywords: 'add capture record scan contacts sales client deals business card ocr scanner',
+      section: 'Quick Actions',
+      perform: () => setIsNewLeadOpen(true),
+      icon: <UserPlus size={16} />,
+      subtitle: 'Open lead form creation wizard'
+    },
     // Navigation
     {
       id: 'nav_funnel',
@@ -1125,7 +1151,9 @@ export default function App() {
       shortcut: ['g', 'f'],
       keywords: 'kanban deal sales columns stages pipeline board campaign',
       section: 'Navigation',
-      perform: () => setActiveTab('funnel')
+      perform: () => setActiveTab('funnel'),
+      icon: <BarChart3 size={16} />,
+      subtitle: 'View stages, pipelines and deal cards'
     },
     {
       id: 'nav_sprint',
@@ -1133,7 +1161,19 @@ export default function App() {
       shortcut: ['g', 'c'],
       keywords: 'call outreach list whatsapp dialing sprint outreach sprint',
       section: 'Navigation',
-      perform: () => setActiveTab('sprint')
+      perform: () => setActiveTab('sprint'),
+      icon: <PhoneCall size={16} />,
+      subtitle: 'Outreach list dialer and lead details'
+    },
+    {
+      id: 'nav_logs',
+      name: 'Go to Sprints Log',
+      shortcut: ['g', 'l'],
+      keywords: 'sprint logs activity audit database records history timeline',
+      section: 'Navigation',
+      perform: () => setActiveTab('sprints-log'),
+      icon: <History size={16} />,
+      subtitle: 'Track sprint history and system event logs'
     },
     {
       id: 'nav_settings',
@@ -1141,7 +1181,9 @@ export default function App() {
       shortcut: ['g', 's'],
       keywords: 'currency sheets credentials configuration api templates wa funnels properties preferences',
       section: 'Navigation',
-      perform: () => setActiveTab('settings')
+      perform: () => setActiveTab('settings'),
+      icon: <Settings size={16} />,
+      subtitle: 'Manage currency, sheets sync, and templates'
     },
     // Campaign Sync
     {
@@ -1156,7 +1198,9 @@ export default function App() {
         } else {
           alert('Please connect a Google Sheet first via Settings or the Setup Wizard.');
         }
-      }
+      },
+      icon: <Download size={16} />,
+      subtitle: 'Fetch the latest rows from Google Sheets'
     },
     {
       id: 'sync_push',
@@ -1170,7 +1214,9 @@ export default function App() {
         } else {
           alert('Please connect a Google Sheet first via Settings or the Setup Wizard.');
         }
-      }
+      },
+      icon: <Upload size={16} />,
+      subtitle: 'Upload pending offline edits to the sheet'
     },
     // Preferences (Theme & Currency)
     {
@@ -1179,70 +1225,54 @@ export default function App() {
       shortcut: ['t', 't'],
       keywords: 'color mode toggle sun moon dark light style theme switch',
       section: 'Preferences',
-      perform: () => toggleTheme()
+      perform: () => toggleTheme(),
+      icon: theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />,
+      subtitle: 'Switch between light and dark UI modes'
     },
     {
       id: 'pref_curr_usd',
       name: 'Set Account Currency to USD ($)',
       keywords: 'settings currency symbol dollar usd money united states',
       section: 'Preferences',
-      perform: () => updateCurrency('USD')
+      perform: () => updateCurrency('USD'),
+      icon: <Coins size={16} />,
+      subtitle: 'Change display currency to USD ($)'
     },
     {
       id: 'pref_curr_inr',
       name: 'Set Account Currency to INR (₹)',
       keywords: 'settings currency symbol rupee inr money india',
       section: 'Preferences',
-      perform: () => updateCurrency('INR')
+      perform: () => updateCurrency('INR'),
+      icon: <Coins size={16} />,
+      subtitle: 'Change display currency to INR (₹)'
     },
     {
       id: 'pref_curr_eur',
       name: 'Set Account Currency to EUR (€)',
       keywords: 'settings currency symbol euro eur money europe',
       section: 'Preferences',
-      perform: () => updateCurrency('EUR')
+      perform: () => updateCurrency('EUR'),
+      icon: <Coins size={16} />,
+      subtitle: 'Change display currency to EUR (€)'
     },
     {
       id: 'pref_curr_gbp',
       name: 'Set Account Currency to GBP (£)',
       keywords: 'settings currency symbol pound gbp money united kingdom uk',
       section: 'Preferences',
-      perform: () => updateCurrency('GBP')
+      perform: () => updateCurrency('GBP'),
+      icon: <Coins size={16} />,
+      subtitle: 'Change display currency to GBP (£)'
     },
     {
       id: 'pref_curr_aed',
       name: 'Set Account Currency to AED (د.إ)',
       keywords: 'settings currency symbol dirham aed money dubai uae',
       section: 'Preferences',
-      perform: () => updateCurrency('AED')
-    },
-    // Quick Actions
-    {
-      id: 'act_new_lead',
-      name: 'Create New Lead / Client',
-      shortcut: ['n', 'l'],
-      keywords: 'add capture record scan contacts sales client deals business card ocr scanner',
-      section: 'Quick Actions',
-      perform: () => setIsNewLeadOpen(true)
-    },
-    {
-      id: 'act_wizard',
-      name: 'Launch DIY Onboarding Wizard',
-      shortcut: ['s', 'w'],
-      keywords: 'guide onboarding sheets spreadsheet connection integration credentials setup help instructions tutorials diy',
-      section: 'Quick Actions',
-      perform: () => setIsSetupWizardOpen(true)
-    },
-    {
-      id: 'act_cosmic_disco',
-      name: '🚀 Activate Cosmic Disco (Secret)',
-      keywords: 'easter egg secret space pluto heart fly fun magic disco neon quote transition',
-      section: 'Quick Actions',
-      perform: () => {
-        const randomQuote = COSMIC_QUOTES[Math.floor(Math.random() * COSMIC_QUOTES.length)];
-        setCosmicQuote(randomQuote);
-        setIsCosmicActive(true);
-      }
+      perform: () => updateCurrency('AED'),
+      icon: <Coins size={16} />,
+      subtitle: 'Change display currency to AED (د.إ)'
     }
   ];
 

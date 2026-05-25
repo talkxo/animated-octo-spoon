@@ -14,7 +14,12 @@ import {
   Sliders,
   Trash,
   Smartphone,
-  Shield
+  Shield,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Target
 } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 
@@ -205,10 +210,10 @@ export default function SettingsView({
       
       {/* 0. LOCAL PREFERENCES & CONFIGURATION */}
       <div className="glass-card settings-card-body">
-        <h3 className="settings-section-title">
-          <Settings size={18} style={{ color: 'var(--primary)' }} />
+        <div className="section-label" style={{ marginBottom: '0.35rem' }}>
+          <Settings size={14} />
           Local Preferences & Configuration
-        </h3>
+        </div>
         <div className="settings-grid">
           <div className="form-group">
             <label className="form-label">Global Currency</label>
@@ -244,10 +249,10 @@ export default function SettingsView({
 
       {/* 1. GOOGLE SHEETS BINDER PANEL */}
       <div className="glass-card settings-card-body">
-        <h3 className="settings-section-title">
-          <Database size={18} style={{ color: 'var(--primary)' }} />
+        <div className="section-label" style={{ marginBottom: '0.35rem' }}>
+          <Database size={14} />
           Google Sheets Database Configuration
-        </h3>
+        </div>
 
         <form onSubmit={handleConnectSheet} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div className="form-group">
@@ -284,7 +289,7 @@ export default function SettingsView({
                 <span style={{ color: 'var(--text-muted)' }}>Sheet sync active (GET / POST rows ready).</span>
                 {lastSyncTime && <div style={{ fontSize: '0.68rem', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
               </div>
-              <button className="outcome-btn" style={{ padding: '0.35rem 0.65rem' }} onClick={onSyncClick}>
+              <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', height: '32px' }} onClick={onSyncClick}>
                 <RefreshCw size={12} />
                 <span>Fetch Now</span>
               </button>
@@ -304,11 +309,11 @@ export default function SettingsView({
                   <img 
                     key={qrKey}
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                      window.location.origin + window.location.pathname + 
-                      '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
-                      '&currency=' + encodeURIComponent(currency) + 
-                      '&theme=' + encodeURIComponent(theme || 'dark') +
-                      '&expiresAt=' + expiresAt
+                       window.location.origin + window.location.pathname + 
+                       '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
+                       '&currency=' + encodeURIComponent(currency) + 
+                       '&theme=' + encodeURIComponent(theme || 'dark') +
+                       '&expiresAt=' + expiresAt
                     )}`} 
                     alt="Scan to sync" 
                     style={{ width: '110px', height: '110px', display: 'block' }}
@@ -338,8 +343,8 @@ export default function SettingsView({
 
                   <button 
                     type="button" 
-                    className="outcome-btn" 
-                    style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', alignSelf: 'flex-start', display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                    className="btn btn-secondary" 
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', height: '32px', alignSelf: 'flex-start', display: 'flex', gap: '0.35rem', alignItems: 'center' }}
                     onClick={() => {
                       const shareUrl = window.location.origin + window.location.pathname + 
                         '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
@@ -361,9 +366,9 @@ export default function SettingsView({
 
         {/* SHEETS BACKEND INSTALL TUTORIAL */}
         <div className="settings-tutorial-box">
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <FileSpreadsheet size={15} style={{ color: 'var(--primary)' }} />
-            HOW TO SETUP GOOGLE SHEET IN 3 MINUTES
+          <div className="section-label" style={{ marginBottom: '0.5rem' }}>
+            <FileSpreadsheet size={14} />
+            <span>How to setup Google Sheet in 3 minutes</span>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
@@ -408,8 +413,8 @@ export default function SettingsView({
           >
             <Shield size={14} style={{ color: 'var(--primary)' }} />
             <span>🔒 Security, Privacy & Auth FAQ</span>
-            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              {showSecurityFaq ? 'Hide ▲' : 'Show ▼'}
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+              {showSecurityFaq ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </span>
           </button>
           
@@ -462,10 +467,10 @@ export default function SettingsView({
       {/* 1.5 LOCAL-FIRST SYNC MANAGER */}
       {sheetUrl && (
         <div className="glass-card settings-card-body">
-          <h3 className="settings-section-title">
-            <RefreshCw size={18} style={{ color: 'var(--primary)' }} />
+          <div className="section-label" style={{ marginBottom: '0.35rem' }}>
+            <RefreshCw size={14} />
             Sync & Queue Configuration
-          </h3>
+          </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
             Pluto is designed local-first. All your edits are immediately written to your browser database and work completely offline. Select how changes sync to your Google Sheet:
           </p>
@@ -478,8 +483,9 @@ export default function SettingsView({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: syncMode === 'auto' ? 'var(--primary)' : 'var(--text-main)' }}>
-                    ⚡ Auto background sync
+                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: syncMode === 'auto' ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Zap size={14} style={{ color: 'var(--primary)' }} />
+                    Auto background sync
                   </span>
                   <input 
                     type="radio" 
@@ -502,8 +508,9 @@ export default function SettingsView({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: syncMode === 'manual' ? 'var(--primary)' : 'var(--text-main)' }}>
-                    🎯 Manual batch sync
+                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: syncMode === 'manual' ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Target size={14} style={{ color: 'var(--primary)' }} />
+                    Manual batch sync
                   </span>
                   <input 
                     type="radio" 
@@ -537,8 +544,8 @@ export default function SettingsView({
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button 
                     type="button" 
-                    className="outcome-btn" 
-                    style={{ padding: '0.4rem 0.75rem', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '0.75rem' }} 
+                    className="btn btn-secondary" 
+                    style={{ padding: '0.4rem 0.75rem', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '0.75rem', height: '32px' }} 
                     onClick={clearSyncQueue}
                   >
                     Discard Edits
@@ -582,12 +589,12 @@ export default function SettingsView({
       {/* 2. SALES PIPELINES / FUNNELS EDITOR */}
       <div className="glass-card settings-card-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 className="settings-section-title">
-            <Sliders size={18} style={{ color: 'var(--primary)' }} />
+          <div className="section-label" style={{ marginBottom: '0.35rem' }}>
+            <Sliders size={14} />
             Pipeline Campaigns & Stages Manager
-          </h3>
+          </div>
           
-          <button className="outcome-btn" style={{ padding: '0.4rem 0.65rem' }} onClick={handleAddPipeline}>
+          <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', height: '32px' }} onClick={handleAddPipeline}>
             <Plus size={13} />
             <span>Add Pipeline</span>
           </button>
@@ -668,12 +675,12 @@ export default function SettingsView({
       {/* 3. WHATSAPP TEMPLATES PANEL */}
       <div className="glass-card settings-card-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 className="settings-section-title" style={{ color: '#10b981' }}>
-            <MessageSquare size={18} />
+          <div className="section-label" style={{ marginBottom: '0.35rem', color: '#10b981' }}>
+            <MessageSquare size={14} />
             WhatsApp Outreach Slugs Templates
-          </h3>
+          </div>
           
-          <button className="outcome-btn" style={{ padding: '0.4rem 0.65rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.2)', background: 'rgba(16,185,129,0.05)' }} onClick={handleAddTemplate}>
+          <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', height: '32px', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.2)' }} onClick={handleAddTemplate}>
             <Plus size={13} />
             <span>Add Template</span>
           </button>
@@ -747,7 +754,10 @@ export default function SettingsView({
       {/* 4. DANGER RESET SYSTEM ACTIONS */}
       <div className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderColor: 'rgba(239, 68, 68, 0.2)', background: 'rgba(239,68,68,0.03)', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h4 style={{ color: '#ef4444', fontSize: '0.95rem', fontWeight: 700 }}>Dangerous Area</h4>
+          <div className="section-label" style={{ color: '#ef4444', marginBottom: '0.35rem' }}>
+            <AlertTriangle size={14} />
+            Danger Zone
+          </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem', margin: 0 }}>Reset all records, cached sync URLs, pipelines and templates.</p>
         </div>
         

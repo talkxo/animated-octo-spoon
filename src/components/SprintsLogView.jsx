@@ -14,6 +14,7 @@ import {
   Award,
   ListCollapse
 } from 'lucide-react';
+import EmptyState from './EmptyState';
 
 const getCurrencySymbol = (currencyCode) => {
   switch (currencyCode) {
@@ -73,7 +74,8 @@ export default function SprintsLogView({
     if (!s.logs) return acc;
     const successLogsCount = s.logs.filter(l => 
       l.outcome === 'Deal Won' || 
-      l.outcome === 'Share Details'
+      l.outcome === 'Share Details' ||
+      l.outcome === 'Demo Booked'
     ).length;
     return acc + successLogsCount;
   }, 0);
@@ -105,52 +107,59 @@ export default function SprintsLogView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
       {/* 1. OUTREACH ANALYTICS DASHBOARD */}
-      <div className="glass-card" style={{ padding: '1.25rem' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
-          <TrendingUp size={18} style={{ color: 'var(--primary)' }} />
+      <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
           Outreach Performance Analytics
         </h3>
 
-        <div className="grid-metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div className="metric-box" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '10px', padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.6rem', borderRadius: '8px' }}>
-              <Activity size={20} />
+        {/* Single unified stats box with internal dividers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '1px solid var(--border-light)', borderRadius: '10px', overflow: 'hidden' }}>
+          
+          {/* Sprints Run */}
+          <div style={{ padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', borderRight: '1px solid var(--border-light)' }}>
+            <div style={{ background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+              <Activity size={16} />
             </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{totalSprints}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL SPRINTS RUN</div>
-            </div>
-          </div>
-
-          <div className="metric-box" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '10px', padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ background: 'var(--accent-glow)', color: 'var(--accent)', padding: '0.6rem', borderRadius: '8px' }}>
-              <PhoneCall size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{totalDials}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL DIAL OUTREACHES</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{totalSprints}</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>SPRINTS RUN</div>
             </div>
           </div>
 
-          <div className="metric-box" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '10px', padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '0.6rem', borderRadius: '8px' }}>
-              <CheckCircle2 size={20} />
+          {/* Total Dials */}
+          <div style={{ padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', borderRight: '1px solid var(--border-light)' }}>
+            <div style={{ background: 'var(--accent-glow)', color: 'var(--accent)', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+              <PhoneCall size={16} />
             </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{connectionRate}%</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>CONNECTION RATE</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{totalDials}</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>TOTAL DIALS</div>
             </div>
           </div>
 
-          <div className="metric-box" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '10px', padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ background: 'rgba(219,39,119,0.1)', color: '#db2777', padding: '0.6rem', borderRadius: '8px' }}>
-              <Award size={20} />
+          {/* Connection Rate */}
+          <div style={{ padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', borderRight: '1px solid var(--border-light)' }}>
+            <div style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+              <CheckCircle2 size={16} />
             </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{conversionRate}%</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>CONVERSION RATE</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{connectionRate}%</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONNECTION RATE</div>
             </div>
           </div>
+
+          {/* Conversion Rate — no right border (last cell) */}
+          <div style={{ padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={{ background: 'rgba(219,39,119,0.1)', color: '#db2777', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+              <Award size={16} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{conversionRate}%</div>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONVERSION RATE</div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -205,10 +214,12 @@ export default function SprintsLogView({
               })}
 
               {sprints.length === 0 && (
-                <div style={{ color: 'var(--text-dark)', fontSize: '0.8rem', textAlign: 'center', margin: 'auto 0', padding: '2rem' }}>
-                  <AlertCircle size={32} style={{ color: 'var(--text-dark)', marginBottom: '0.5rem', opacity: 0.5 }} />
-                  <div>No historical sprints recorded yet. Start a calling sprint to generate reports!</div>
-                </div>
+                <EmptyState
+                  icon={<AlertCircle size={20} />}
+                  heading="No sprints yet"
+                  sub="Run your first calling sprint to see reports here."
+                  style={{ margin: 'auto 0' }}
+                />
               )}
             </div>
           </div>
@@ -429,10 +440,12 @@ export default function SprintsLogView({
 
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', color: 'var(--text-dark)', textAlign: 'center' }}>
-                <ListCollapse size={40} style={{ marginBottom: '0.75rem', opacity: 0.5 }} />
-                <div>Select a sprint from the left panel to inspect detailed logs and tabular reports.</div>
-              </div>
+              <EmptyState
+                icon={<ListCollapse size={20} />}
+                heading="No sprint selected"
+                sub="Select a sprint from the left panel to inspect detailed logs and reports."
+                style={{ height: '100%', minHeight: '300px' }}
+              />
             )}
           </div>
         </div>

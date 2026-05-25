@@ -10,8 +10,12 @@ import {
   ChevronLeft,
   Filter,
   ChevronDown,
-  Check
+  Check,
+  Inbox,
+  Layers,
+  Activity
 } from 'lucide-react';
+import EmptyState from './EmptyState';
 
 const getCurrencySymbol = (currencyCode) => {
   const mapping = {
@@ -92,6 +96,8 @@ export default function FunnelView({
     l => l.status !== 'Lost' && l.status !== 'Closed Lost' && l.status !== 'Won' && l.status !== 'Closed Won'
   ).length;
 
+  const avgDealValue = activeDealsCount > 0 ? Math.round(totalPipelineValue / activeDealsCount) : 0;
+
   // Move lead stage helper (left or right)
   const shiftLeadStage = (e, lead, direction) => {
     e.stopPropagation(); // prevent opening details modal
@@ -125,8 +131,8 @@ export default function FunnelView({
   return (
     <div className="funnel-container">
       
-      {/* Top filter and switcher bar */}
-      <div className="funnel-header-actions">
+      {/* Top Bar (Selector & Actions) */}
+      <div className="funnel-top-bar">
         <div className="pipeline-selector-wrapper" ref={dropdownRef}>
           <TrendingUp size={20} style={{ color: 'var(--primary)' }} />
           <div className="custom-dropdown-container">
@@ -159,7 +165,7 @@ export default function FunnelView({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="funnel-actions">
           <button className="btn btn-primary" onClick={onNewLeadClick}>
             <Plus size={16} />
             <span>Add Lead</span>
@@ -167,29 +173,44 @@ export default function FunnelView({
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid-metrics">
-        <div className="glass-card metrics-card">
-          <div className="metrics-icon-primary">
-            <DollarSign size={20} />
+      {/* Metrics Row (Unified 'boxes inside a box' card layout) */}
+      <div className="funnel-metrics-box">
+        {/* Active Pipeline Value */}
+        <div className="funnel-metric-cell">
+          <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+            <DollarSign size={16} />
           </div>
-          <div className="metrics-content">
-            <div className="metrics-label">ACTIVE PIPELINE</div>
+          <div>
             <div className="metrics-value">
               {getCurrencySymbol(currency)}{totalPipelineValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </div>
+            <div className="metrics-label">ACTIVE PIPELINE</div>
           </div>
         </div>
 
-        <div className="glass-card metrics-card">
-          <div className="metrics-icon-accent">
-            <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
+        {/* Active Deals Count */}
+        <div className="funnel-metric-cell">
+          <div style={{ background: 'var(--accent-glow)', color: 'var(--accent)', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+            <Layers size={16} />
           </div>
-          <div className="metrics-content">
-            <div className="metrics-label">ACTIVE DEALS</div>
+          <div>
             <div className="metrics-value">
-              {activeDealsCount} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>leads</span>
+              {activeDealsCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>leads</span>
             </div>
+            <div className="metrics-label">ACTIVE DEALS</div>
+          </div>
+        </div>
+
+        {/* Average Deal Value */}
+        <div className="funnel-metric-cell">
+          <div style={{ background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.45rem', borderRadius: '8px', flexShrink: 0, display: 'flex' }}>
+            <Activity size={16} />
+          </div>
+          <div>
+            <div className="metrics-value">
+              {getCurrencySymbol(currency)}{avgDealValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </div>
+            <div className="metrics-label">AVG DEAL VALUE</div>
           </div>
         </div>
       </div>
@@ -212,7 +233,7 @@ export default function FunnelView({
           <div className="tag-filter-container">
             <button 
               onClick={() => setSelectedTag('')}
-              className={`deal-tag tag-filter-btn ${selectedTag === '' ? 'tag-filter-btn-active' : ''}`}
+              className={`tag-filter-btn ${selectedTag === '' ? 'tag-filter-btn-active' : ''}`}
             >
               All
             </button>
@@ -220,7 +241,7 @@ export default function FunnelView({
               <button 
                 key={tag}
                 onClick={() => setSelectedTag(tag)}
-                className={`deal-tag tag-filter-btn ${selectedTag === tag ? 'tag-filter-btn-active' : ''}`}
+                className={`tag-filter-btn ${selectedTag === tag ? 'tag-filter-btn-active' : ''}`}
               >
                 {tag}
               </button>
@@ -256,9 +277,11 @@ export default function FunnelView({
               {/* Lane Cards Scroll View */}
               <div className="lane-cards">
                 {stageLeads.length === 0 ? (
-                  <div className="lane-empty-placeholder">
-                    No leads in stage
-                  </div>
+                  <EmptyState
+                    icon={<Inbox size={16} />}
+                    heading="No leads"
+                    sub="Add a new lead to populate this stage."
+                  />
                 ) : (
                   stageLeads.map(lead => (
                     <div 
