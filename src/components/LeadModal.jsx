@@ -17,7 +17,7 @@ import {
   Check,
   AlertTriangle
 } from 'lucide-react';
-import OCRScanner from './OCRScanner';
+
 
 const getCurrencySymbol = (currencyCode) => {
   const mapping = {
@@ -106,7 +106,6 @@ export default function LeadModal({
   const [status, setStatus] = useState(currentLead?.status || currentPipeline?.stages?.[0] || '');
   const [value, setValue] = useState(currentLead?.value || 0);
   const [tags, setTags] = useState(currentLead?.tags !== undefined && currentLead?.tags !== null ? String(currentLead.tags) : '');
-  const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -383,7 +382,7 @@ export default function LeadModal({
         
         {/* Modal Header */}
         <div className="modal-header">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {isNew ? (
               <>
                 <Sparkles size={18} style={{ color: 'var(--primary)' }} />
@@ -408,7 +407,7 @@ export default function LeadModal({
 
             {/* LEFT / SINGLE PROFILE FORM EDITOR */}
             <form onSubmit={handleSubmit} className="modal-form-column">
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
                 LEAD ATTRIBUTES
               </div>
 
@@ -425,7 +424,7 @@ export default function LeadModal({
                     type="button"
                     className="btn btn-secondary"
                     onClick={handleSwitchToEdit}
-                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                    style={{ padding: '0.35rem 0.65rem', fontSize: 'var(--text-xs)', borderRadius: '6px', whiteSpace: 'nowrap' }}
                   >
                     Edit Instead
                   </button>
@@ -587,18 +586,6 @@ export default function LeadModal({
                 )}
               </div>
 
-              {isNew && (
-                <div style={{ marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', border: '1px dashed var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', padding: '0.6rem 1rem', borderRadius: '8px' }}
-                    onClick={() => setIsScanning(true)}
-                  >
-                    📷 Scan Business Card with AI
-                  </button>
-                </div>
-              )}
 
               {/* Action row for form */}
               <div className="sprint-progress-row" style={{ marginTop: '0.75rem' }}>
@@ -609,7 +596,7 @@ export default function LeadModal({
                         <button 
                           type="button" 
                           className="btn btn-danger" 
-                          style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
+                          style={{ padding: '0.45rem 0.75rem', fontSize: 'var(--text-sm)' }}
                           onClick={() => onDelete(currentLead.id)}
                         >
                           Confirm
@@ -617,7 +604,7 @@ export default function LeadModal({
                         <button 
                           type="button" 
                           className="btn btn-secondary" 
-                          style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
+                          style={{ padding: '0.45rem 0.75rem', fontSize: 'var(--text-sm)' }}
                           onClick={() => setConfirmDelete(false)}
                         >
                           Cancel
@@ -691,7 +678,7 @@ export default function LeadModal({
                 {/* WHATSAPP TEMPLATE SLUGS ACCORDION */}
                 {whatsappTemplates?.length > 0 && (
                   <div className="whatsapp-triggers-box">
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
                       <MessageSquare size={13} />
                       QUICK WHATSAPP outreach LINKS
                     </div>
@@ -715,7 +702,7 @@ export default function LeadModal({
                 )}
 
                 {/* TIMELINE logger */}
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.25rem' }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.25rem' }}>
                   TIMELINE & LOG ACTIVITIES
                 </div>
 
@@ -726,7 +713,7 @@ export default function LeadModal({
                     rows={2}
                     placeholder="Log a call outcome, custom note or client request..."
                     required
-                    style={{ resize: 'none', fontSize: '0.8rem' }}
+                    style={{ resize: 'none', fontSize: 'var(--text-sm)' }}
                     value={newNoteText}
                     onChange={(e) => setNewNoteText(e.target.value)}
                   />
@@ -736,7 +723,7 @@ export default function LeadModal({
                       <button
                         type="button"
                         className={`outcome-btn ${newNoteType === 'manual' ? 'active' : ''}`}
-                        style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px' }}
+                        style={{ padding: '0.3rem 0.5rem', fontSize: 'var(--text-xs)', borderRadius: '4px' }}
                         onClick={() => setNewNoteType('manual')}
                       >
                         📝 Note
@@ -744,7 +731,7 @@ export default function LeadModal({
                       <button
                         type="button"
                         className={`outcome-btn ${newNoteType === 'call' ? 'active' : ''}`}
-                        style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px' }}
+                        style={{ padding: '0.3rem 0.5rem', fontSize: 'var(--text-xs)', borderRadius: '4px' }}
                         onClick={() => setNewNoteType('call')}
                       >
                         📞 Call
@@ -752,14 +739,14 @@ export default function LeadModal({
                       <button
                         type="button"
                         className={`outcome-btn ${newNoteType === 'whatsapp' ? 'active' : ''}`}
-                        style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px' }}
+                        style={{ padding: '0.3rem 0.5rem', fontSize: 'var(--text-xs)', borderRadius: '4px' }}
                         onClick={() => setNewNoteType('whatsapp')}
                       >
                         💬 Whatsapp
                       </button>
                     </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', borderRadius: '6px' }}>
+                    <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-sm)', borderRadius: '6px' }}>
                       <span>Add Log</span>
                     </button>
                   </div>
@@ -768,7 +755,7 @@ export default function LeadModal({
                 {/* Timeline display loop */}
                 <div className="timeline-list-container" style={{ maxHeight: '200px' }}>
                   {activeLeadNotes.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-dark)', fontSize: '0.8rem' }}>
+                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-dark)', fontSize: 'var(--text-sm)' }}>
                       No activity logged yet
                     </div>
                   ) : (
@@ -798,20 +785,6 @@ export default function LeadModal({
         </div>
       </div>
 
-      {isScanning && (
-        <OCRScanner 
-          onClose={() => setIsScanning(false)}
-          onImportLead={(parsed) => {
-            if (parsed.name) setName(parsed.name);
-            if (parsed.company) setCompany(parsed.company);
-            if (parsed.phone) setPhone(parsed.phone);
-            if (parsed.email) setEmail(parsed.email);
-            if (parsed.tags) setTags(parsed.tags);
-            if (parsed.value) setValue(parsed.value);
-            setIsScanning(false);
-          }}
-        />
-      )}
 
     </div>
   );

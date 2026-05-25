@@ -107,14 +107,14 @@ export default function SprintsLogView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       
       {/* 1. OUTREACH ANALYTICS DASHBOARD */}
-      <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
-        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
+      <div className="glass-card" style={{ padding: '1rem' }}>
+        <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+          <TrendingUp size={16} style={{ color: 'var(--primary)' }} />
           Outreach Performance Analytics
         </h3>
 
         {/* Single unified stats box with internal dividers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', border: '1px solid var(--border-light)', borderRadius: '10px', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
           
           {/* Sprints Run */}
           <div style={{ padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.65rem', borderRight: '1px solid var(--border-light)' }}>
@@ -122,8 +122,8 @@ export default function SprintsLogView({
               <Activity size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{totalSprints}</div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>SPRINTS RUN</div>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, lineHeight: 1.1 }}>{totalSprints}</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>SPRINTS RUN</div>
             </div>
           </div>
 
@@ -133,8 +133,8 @@ export default function SprintsLogView({
               <PhoneCall size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{totalDials}</div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>TOTAL DIALS</div>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, lineHeight: 1.1 }}>{totalDials}</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>TOTAL DIALS</div>
             </div>
           </div>
 
@@ -144,8 +144,8 @@ export default function SprintsLogView({
               <CheckCircle2 size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{connectionRate}%</div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONNECTION RATE</div>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, lineHeight: 1.1 }}>{connectionRate}%</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONNECTION RATE</div>
             </div>
           </div>
 
@@ -155,8 +155,8 @@ export default function SprintsLogView({
               <Award size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>{conversionRate}%</div>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONVERSION RATE</div>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, lineHeight: 1.1 }}>{conversionRate}%</div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem', whiteSpace: 'nowrap' }}>CONVERSION RATE</div>
             </div>
           </div>
 
@@ -169,7 +169,7 @@ export default function SprintsLogView({
         {/* Left Side: Sprint Selector List */}
         <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div className="glass-card" style={{ padding: '1rem', height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+            <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
               <History size={16} style={{ color: 'var(--primary)' }} />
               Sprint Selection
             </h3>
@@ -195,9 +195,9 @@ export default function SprintsLogView({
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.825rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{s.name}</span>
+                      <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{s.name}</span>
                       <span className={`lane-badge ${s.status}`} style={{
-                        fontSize: '0.6rem',
+                        fontSize: 'var(--text-2xs)',
                         padding: '0.05rem 0.3rem',
                         background: s.status === 'active' ? 'var(--primary-glow)' : s.status === 'suspended' ? 'var(--accent-glow)' : 'rgba(16,185,129,0.1)',
                         color: s.status === 'active' ? 'var(--primary)' : s.status === 'suspended' ? 'var(--accent)' : '#10b981'
@@ -206,7 +206,7 @@ export default function SprintsLogView({
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                       {s.type === 'pipeline' ? 'Pipeline' : 'Custom List'} • {s.queue?.length || 0} Contacts ({pct}%)
                     </div>
                   </div>
@@ -227,15 +227,19 @@ export default function SprintsLogView({
 
         {/* Right Side: Tabular Details Canvas */}
         <div style={{ flex: '2 1 500px', minWidth: '320px' }}>
-          <div className="glass-card" style={{ padding: '1.25rem', height: '100%', minHeight: '400px' }}>
+          <div className="glass-card" style={{ padding: '1rem', height: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+              <ListCollapse size={16} style={{ color: 'var(--primary)' }} />
+              Sprint Details
+            </h3>
             {selectedSprint ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 
                 {/* Sprint Details Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedSprint.name}</h2>
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <h2 style={{ fontWeight: 800 }}>{selectedSprint.name}</h2>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                       <span>Source: <strong style={{ color: 'var(--text-main)' }}>{selectedSprint.type === 'pipeline' ? 'Pipeline' : 'Custom List'}</strong> ({selectedSprint.sourceName})</span>
                       <span>Created: {formatDateSafe(selectedSprint.createdAt)}</span>
                     </div>
@@ -245,7 +249,7 @@ export default function SprintsLogView({
                     {selectedSprint.status === 'suspended' && (
                       <button 
                         className="btn btn-secondary" 
-                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                         onClick={() => onResumeSprint(selectedSprint.id)}
                       >
                         <Play size={11} fill="white" />
@@ -271,7 +275,7 @@ export default function SprintsLogView({
                     : 0;
                   return (
                     <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '0.6rem 0.8rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.3rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: '0.3rem' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Sprint Completion Progress</span>
                         <span>{selectedSprint.currentIdx}/{selectedSprint.queue?.length || 0} Contacts ({pct}%)</span>
                       </div>
@@ -295,16 +299,16 @@ export default function SprintsLogView({
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', padding: '0.6rem 0.5rem' }}>
                       <div>
-                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary)' }}>{won}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>WON / INTERESTED</div>
+                        <div style={{ fontSize: 'var(--text-title-3)', fontWeight: 800, color: 'var(--primary)' }}>{won}</div>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>WON / INTERESTED</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent)' }}>{conn}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>CONNECTED</div>
+                        <div style={{ fontSize: 'var(--text-title-3)', fontWeight: 800, color: 'var(--accent)' }}>{conn}</div>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>CONNECTED</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>{skip}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>SKIPPED / EXITED</div>
+                        <div style={{ fontSize: 'var(--text-title-3)', fontWeight: 800, color: 'var(--text-muted)' }}>{skip}</div>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>SKIPPED / EXITED</div>
                       </div>
                     </div>
                   );
@@ -312,12 +316,12 @@ export default function SprintsLogView({
 
                 {/* Contacts Queue Table Canvas */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     Detailed Logs Grid
                   </div>
                   
                   <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                    <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                    <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <th style={{ padding: '0.5rem 0.6rem', color: 'var(--text-muted)', width: '30px' }}>#</th>
@@ -382,7 +386,7 @@ export default function SprintsLogView({
                               <td style={{ padding: '0.5rem 0.6rem' }}>
                                 <div style={{ fontWeight: 600, color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)' }}>{contact.name}</div>
                                 {contact.company && (
-                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-dark)' }}>{contact.company}</div>
+                                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-dark)' }}>{contact.company}</div>
                                 )}
                               </td>
                               <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-muted)' }}>{contact.phone || '-'}</td>
@@ -391,7 +395,7 @@ export default function SprintsLogView({
                               </td>
                               <td style={{ padding: '0.5rem 0.6rem', textAlign: 'center' }}>
                                 <span style={{ 
-                                  fontSize: '0.625rem', 
+                                  fontSize: 'var(--text-2xs)', 
                                   fontWeight: 700, 
                                   padding: '0.1rem 0.4rem', 
                                   borderRadius: '4px',
@@ -407,7 +411,7 @@ export default function SprintsLogView({
                                 {contactLogs.length > 0 ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                                     {contactLogs.map((log, lIdx) => (
-                                      <div key={lIdx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                      <div key={lIdx} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                                         <span style={{ fontWeight: 500 }}>
                                           {log.action === 'whatsapp' ? '💬 WhatsApp' : log.action === 'skip' ? '🚫 Skipped' : `📞 ${log.outcome}`}
                                         </span>
@@ -444,7 +448,7 @@ export default function SprintsLogView({
                 icon={<ListCollapse size={20} />}
                 heading="No sprint selected"
                 sub="Select a sprint from the left panel to inspect detailed logs and reports."
-                style={{ height: '100%', minHeight: '300px' }}
+                style={{ margin: 'auto 0' }}
               />
             )}
           </div>

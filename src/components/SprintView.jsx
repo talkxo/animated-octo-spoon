@@ -846,11 +846,11 @@ export default function SprintView({
             <div className="glass-card" style={{ border: '1px solid var(--accent)', background: 'var(--accent-glow)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <h3 style={{ fontSize: 'var(--text-title-2)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <Activity size={18} className="text-accent" />
                     On-going Outreach Sprint Detected
                   </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                     <strong>{ongoingSprint.name}</strong> ({ongoingSprint.sourceName}) is currently {ongoingSprint.status}.
                   </p>
                 </div>
@@ -867,7 +867,7 @@ export default function SprintView({
                     background: 'var(--accent)'
                   }}></div>
                 </div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>
                   {ongoingSprint.currentIdx}/{ongoingSprint.queue.length}
                 </span>
               </div>
@@ -876,21 +876,21 @@ export default function SprintView({
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', marginRight: 'auto' }}
+                  style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', marginRight: 'auto' }}
                   onClick={() => setIsOngoingQueueExpanded(!isOngoingQueueExpanded)}
                 >
                   {isOngoingQueueExpanded ? 'Hide Contacts Queue' : 'View Contacts Queue'}
                 </button>
                 <button 
                   className="btn btn-secondary" 
-                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                  style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)' }}
                   onClick={() => handleCompleteSprint(ongoingSprint.id)}
                 >
                   Mark Completed
                 </button>
                 <button 
                   className="btn btn-accent" 
-                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                   onClick={() => handleResumeSprint(ongoingSprint.id)}
                 >
                   <Play size={12} fill="currentColor" />
@@ -900,7 +900,7 @@ export default function SprintView({
 
               {isOngoingQueueExpanded && (
                 <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', borderTop: '1px solid var(--border-light)' }}>
-                  <div style={{ marginBottom: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  <div style={{ marginBottom: '0.5rem', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-muted)' }}>
                     SPRINT QUEUE & PROGRESS DETAILS (CLICK TO RESUME FROM ANY CONTACT)
                   </div>
                   
@@ -958,17 +958,17 @@ export default function SprintView({
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
-                              <strong style={{ color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)', fontSize: '0.75rem' }}>
+                              <strong style={{ color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
                                 {idx + 1}. {contact.name}
                               </strong>
                               {contact.company && (
-                                <span style={{ fontSize: '0.65rem', color: 'var(--text-dark)', marginLeft: '0.4rem' }}>
+                                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-dark)', marginLeft: '0.4rem' }}>
                                   ({contact.company})
                                 </span>
                               )}
                             </div>
                             <span style={{ 
-                              fontSize: '0.6rem', 
+                              fontSize: 'var(--text-2xs)', 
                               fontWeight: 700, 
                               padding: '0.05rem 0.3rem', 
                               borderRadius: '4px',
@@ -978,7 +978,7 @@ export default function SprintView({
                               {statusLabel.toUpperCase()}
                             </span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-dark)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-2xs)', color: 'var(--text-dark)' }}>
                             <span>Phone: {contact.phone || 'N/A'}</span>
                             {contact.value > 0 && (
                               <span>Value: {getCurrencySymbol(currency)}{contact.value.toLocaleString()}</span>
@@ -988,7 +988,7 @@ export default function SprintView({
                           {contactLogs.length > 0 && (
                             <div style={{ marginTop: '0.15rem', borderTop: '1px dashed rgba(255,255,255,0.03)', paddingTop: '0.15rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                               {contactLogs.map((log, lIdx) => (
-                                <div key={lIdx} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                <div key={lIdx} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
                                   <span>
                                     {log.action === 'whatsapp' ? '💬 WhatsApp' : log.action === 'skip' ? '🚫 Skipped' : `📞 Call: ${log.outcome}`}
                                     {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
@@ -1011,14 +1011,17 @@ export default function SprintView({
             </div>
           )}
 
-          {/* START NEW SPRINT CARD */}
-          <div className="glass-card sprint-setup-card">
+          <div className="sprint-setup-grid">
+            {/* Column 1: Config Form */}
+            <div className="sprint-setup-column">
+              {/* START NEW SPRINT CARD */}
+              <div className="glass-card sprint-setup-card">
             <div className="lead-sprint-profile" style={{ padding: '0.5rem 0 1rem 0' }}>
               <div className="profile-avatar" style={{ border: 'none' }}>
                 <PhoneCall size={28} style={{ color: 'var(--primary)' }} />
               </div>
-              <h2 className="profile-name" style={{ fontSize: '1.5rem' }}>Outreach Calling Sprint</h2>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem', padding: '0 1rem' }}>
+              <h2 className="profile-name" style={{ fontSize: 'var(--text-title-1)' }}>Outreach Calling Sprint</h2>
+              <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', marginTop: '0.25rem', padding: '0 1rem' }}>
                 Select a CRM pipeline or import a custom list, and systematically run through leads.
               </p>
             </div>
@@ -1116,7 +1119,7 @@ export default function SprintView({
             {newSprintSourceId && (
               <div className="sync-queue-container" style={{ marginTop: 0, marginBottom: '1rem' }}>
                 <div className="sprint-progress-row" style={{ marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <ClipboardList size={16} style={{ color: 'var(--primary)' }} />
                     OUTREACH DIALER PREVIEW
                   </div>
@@ -1129,7 +1132,7 @@ export default function SprintView({
                   {compileSprintQueue(newSprintSourceType, newSprintSourceId, stageFilter, sortBy)
                     .slice(0, 5)
                     .map((l, idx) => (
-                      <div key={l.id || idx} className="sprint-progress-row" style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '4px' }}>
+                      <div key={l.id || idx} className="sprint-progress-row" style={{ fontSize: 'var(--text-xs)', padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '4px' }}>
                         <div>
                           <span style={{ fontWeight: 600 }}>{l.name}</span>
                           {l.company && <span style={{ color: 'var(--text-dark)', marginLeft: '0.35rem' }}>({l.company})</span>}
@@ -1139,13 +1142,13 @@ export default function SprintView({
                     ))}
                   
                   {compileSprintQueue(newSprintSourceType, newSprintSourceId, stageFilter, sortBy).length > 5 && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dark)', textAlign: 'center', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-dark)', textAlign: 'center', marginTop: '0.25rem' }}>
                       + and {compileSprintQueue(newSprintSourceType, newSprintSourceId, stageFilter, sortBy).length - 5} more in queue...
                     </div>
                   )}
 
                   {compileSprintQueue(newSprintSourceType, newSprintSourceId, stageFilter, sortBy).length === 0 && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', textAlign: 'center', padding: '0.5rem' }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-dark)', textAlign: 'center', padding: '0.5rem' }}>
                       No contacts matching filters found in selected source.
                     </div>
                   )}
@@ -1163,17 +1166,20 @@ export default function SprintView({
               <span>Launch Outreach Sprint</span>
             </button>
           </div>
+        </div>
 
+        {/* Column 2: Lists & Importer */}
+        <div className="sprint-setup-column">
           {/* CUSTOM CALLING LISTS MANAGER */}
           <div className="glass-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <FolderPlus size={18} style={{ color: 'var(--primary)' }} />
                 Custom Calling Lists
               </h3>
               <button 
                 className="btn btn-secondary" 
-                style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                 onClick={() => setIsListCreatorOpen(!isListCreatorOpen)}
               >
                 {isListCreatorOpen ? 'Hide Importer' : 'Import CSV List'}
@@ -1205,8 +1211,8 @@ export default function SprintView({
                     />
                     <label htmlFor="csv-file-picker" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                       <Upload size={28} style={{ color: 'var(--primary)' }} />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Select CSV File</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Click to browse files</span>
+                      <span style={{ fontSize: 'var(--text-body)', fontWeight: 700 }}>Select CSV File</span>
+                      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>Click to browse files</span>
                     </label>
                   </div>
 
@@ -1216,7 +1222,7 @@ export default function SprintView({
                       className="form-input" 
                       rows={5}
                       placeholder="Name, Phone, Company, Email, Value&#10;Alice, +1999888, Apple, a@apple.com, 5000&#10;Bob, +1777666, Acme, b@acme.com, 1200"
-                      style={{ fontSize: '0.8rem', fontFamily: 'monospace', resize: 'none' }}
+                      style={{ fontSize: 'var(--text-sm)', fontFamily: 'monospace', resize: 'none' }}
                       value={newListPasteText}
                       onChange={handlePasteChange}
                     />
@@ -1224,7 +1230,7 @@ export default function SprintView({
                 </div>
 
                 {parseWarning && (
-                  <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(249,115,22,0.1)', color: 'var(--primary)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(249,115,22,0.1)', color: 'var(--primary)', borderRadius: '6px', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <AlertCircle size={14} />
                     <span>{parseWarning}</span>
                   </div>
@@ -1233,12 +1239,12 @@ export default function SprintView({
                 {parsedPreviewLeads.length > 0 && (
                   <div style={{ marginBottom: '1.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-muted)' }}>
                         PARSED LEADS PREVIEW (Showing first 5 of {parsedPreviewLeads.length})
                       </span>
                     </div>
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
-                      <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                      <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)' }}>
                         <thead>
                           <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-light)' }}>
                             <th style={{ padding: '0.45rem 0.6rem', textAlign: 'left' }}>Name</th>
@@ -1267,7 +1273,7 @@ export default function SprintView({
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                   <button 
                     className="btn btn-secondary" 
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: 'var(--text-xs)' }}
                     onClick={() => {
                       setNewListName('');
                       setNewListPasteText('');
@@ -1280,7 +1286,7 @@ export default function SprintView({
                   </button>
                   <button 
                     className="btn btn-primary" 
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: 'var(--text-xs)' }}
                     disabled={parsedPreviewLeads.length === 0}
                     onClick={handleSaveCallingList}
                   >
@@ -1309,7 +1315,7 @@ export default function SprintView({
                       <div 
                         className="sprint-progress-row" 
                         style={{ 
-                          fontSize: '0.85rem', 
+                          fontSize: 'var(--text-body)', 
                           padding: '0.6rem 0.8rem', 
                           cursor: 'pointer',
                           display: 'flex',
@@ -1320,8 +1326,8 @@ export default function SprintView({
                       >
                         <div>
                           <span style={{ fontWeight: 700 }}>{list.name}</span>
-                          <span style={{ color: 'var(--text-dark)', marginLeft: '0.4rem', fontSize: '0.8rem' }}>({list.leads.length} contacts)</span>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {formatDateSafe(list.createdAt)}</div>
+                          <span style={{ color: 'var(--text-dark)', marginLeft: '0.4rem', fontSize: 'var(--text-xs)' }}>({list.leads.length} contacts)</span>
+                          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {formatDateSafe(list.createdAt)}</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <button 
@@ -1348,7 +1354,7 @@ export default function SprintView({
                           }}
                         >
                           <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-                            <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                            <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-xs)', textAlign: 'left' }}>
                               <thead>
                                 <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                   <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Name</th>
@@ -1386,7 +1392,7 @@ export default function SprintView({
                   );
                 })}
                 {callingLists.length === 0 && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', textAlign: 'center', padding: '1rem' }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-dark)', textAlign: 'center', padding: '1rem' }}>
                     No custom uploaded lists. Paste/upload above to get started.
                   </div>
                 )}
@@ -1395,9 +1401,12 @@ export default function SprintView({
 
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  )}
 
 
+      {/* STEP 2: ACTIVE SPRINT MODE */}
       {/* STEP 2: ACTIVE SPRINT MODE */}
       {sprintState === 'active' && activeLead && (
         <div className="glass-card sprint-active-card">
@@ -1420,222 +1429,232 @@ export default function SprintView({
               ></div>
             </div>
 
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-muted)' }}>
               {currentIdx + 1} / {sprintQueue.length}
             </span>
           </div>
 
-          {/* Lead Card Detail Profile */}
-          <div className="sprint-active-profile" onClick={() => String(activeLead?.id || '').startsWith('lead-') && onSelectLead(activeLead.id)} style={{ cursor: String(activeLead?.id || '').startsWith('lead-') ? 'pointer' : 'default' }}>
-            <div className="profile-avatar">
-              {String(activeLead?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
-            <div className="profile-name">{activeLead.name}</div>
-            {activeLead.company && <div className="profile-company">{activeLead.company}</div>}
-            {activeLead.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{activeLead.email}</div>}
+          <div className="sprint-active-grid">
             
-            <div className="deal-tags" style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
-              <span className="lead-tag-badge" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
-                {getCurrencySymbol(currency)}{(activeLead.value || 0).toLocaleString()}
-              </span>
-              <span className="lead-tag-badge">
-                {activeLead.status}
-              </span>
-              {String(activeLead?.id || '').startsWith('lead-') ? (
-                <span className="lead-tag-badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <Check size={10} />
-                  CRM Lead
-                </span>
-              ) : (
-                <span className="lead-tag-badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)' }}>
-                  Prospect List
-                </span>
-              )}
-            </div>
-          </div>
+            {/* Column 1: Profile & Dialing Actions */}
+            <div className="sprint-active-column">
+              {/* Lead Card Detail Profile */}
+              <div className="sprint-active-profile" onClick={() => String(activeLead?.id || '').startsWith('lead-') && onSelectLead(activeLead.id)} style={{ cursor: String(activeLead?.id || '').startsWith('lead-') ? 'pointer' : 'default' }}>
+                <div className="profile-avatar">
+                  {String(activeLead?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="profile-name">{activeLead.name}</div>
+                {activeLead.company && <div className="profile-company">{activeLead.company}</div>}
+                {activeLead.email && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{activeLead.email}</div>}
+                
+                <div className="deal-tags" style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
+                  <span className="lead-tag-badge" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                    {getCurrencySymbol(currency)}{(activeLead.value || 0).toLocaleString()}
+                  </span>
+                  <span className="lead-tag-badge">
+                    {activeLead.status}
+                  </span>
+                  {String(activeLead?.id || '').startsWith('lead-') ? (
+                    <span className="lead-tag-badge" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Check size={10} />
+                      CRM Lead
+                    </span>
+                  ) : (
+                    <span className="lead-tag-badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)' }}>
+                      Prospect List
+                    </span>
+                  )}
+                </div>
+              </div>
 
-          {/* BIG DIAL BUTTON & CONVERT LEAD ACTION */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
-            <a 
-              href={`tel:${activeLead.phone}`}
-              className="btn btn-accent btn-call-sprint"
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => {
-                setCallOutcome('Connected');
-              }}
-            >
-              <Phone size={22} fill="white" />
-              <span>Call Phone Now ({activeLead.phone})</span>
-            </a>
+              {/* BIG DIAL BUTTON & CONVERT LEAD ACTION */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
+                <a 
+                  href={`tel:${activeLead.phone}`}
+                  className="btn btn-accent btn-call-sprint"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    setCallOutcome('Connected');
+                  }}
+                >
+                  <Phone size={22} fill="white" />
+                  <span>Call Phone Now ({activeLead.phone})</span>
+                </a>
 
-            {/* Prospect Convert to Lead trigger */}
-            {!String(activeLead?.id || '').startsWith('lead-') && (
-              <div style={{ width: '100%', marginTop: '0.25rem' }}>
-                {!isConverting ? (
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', borderColor: 'var(--primary-glow)' }}
-                    onClick={() => setIsConverting(true)}
-                  >
-                    <UserPlus size={15} style={{ color: 'var(--primary)' }} />
-                    <span>Convert to CRM Lead</span>
-                  </button>
-                ) : (
-                  <div className="glass-card" style={{ padding: '0.75rem', marginTop: '0.5rem', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', width: '100%' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <UserPlus size={14} style={{ color: 'var(--primary)' }} />
-                      CONVERT PROSPECT TO CRM LEAD
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label" style={{ fontSize: '0.7rem' }}>CRM Pipeline</label>
-                        <select 
-                          className="form-select" 
-                          style={{ fontSize: '0.75rem', padding: '0.3rem' }}
-                          value={conversionPipelineId}
-                          onChange={(e) => setConversionPipelineId(e.target.value)}
-                        >
-                          {pipelines.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label" style={{ fontSize: '0.7rem' }}>Starting Stage</label>
-                        <select 
-                          className="form-select" 
-                          style={{ fontSize: '0.75rem', padding: '0.3rem' }}
-                          value={conversionStage}
-                          onChange={(e) => setConversionStage(e.target.value)}
-                        >
-                          {pipelines.find(p => String(p.id) === String(conversionPipelineId))?.stages.map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                {/* Prospect Convert to Lead trigger */}
+                {!String(activeLead?.id || '').startsWith('lead-') && (
+                  <div style={{ width: '100%', marginTop: '0.25rem' }}>
+                    {!isConverting ? (
                       <button 
                         className="btn btn-secondary" 
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                        onClick={() => setIsConverting(false)}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', borderColor: 'var(--primary-glow)' }}
+                        onClick={() => setIsConverting(true)}
                       >
-                        Cancel
+                        <UserPlus size={15} style={{ color: 'var(--primary)' }} />
+                        <span>Convert to CRM Lead</span>
                       </button>
-                      <button 
-                        className="btn btn-primary" 
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                        onClick={handleConfirmConversion}
-                      >
-                        Confirm Convert
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="glass-card" style={{ padding: '0.75rem', marginTop: '0.5rem', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', width: '100%' }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <UserPlus size={14} style={{ color: 'var(--primary)' }} />
+                          CONVERT PROSPECT TO CRM LEAD
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>CRM Pipeline</label>
+                            <select 
+                              className="form-select" 
+                              style={{ fontSize: 'var(--text-xs)', padding: '0.3rem' }}
+                              value={conversionPipelineId}
+                              onChange={(e) => setConversionPipelineId(e.target.value)}
+                            >
+                              {pipelines.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>Starting Stage</label>
+                            <select 
+                              className="form-select" 
+                              style={{ fontSize: 'var(--text-xs)', padding: '0.3rem' }}
+                              value={conversionStage}
+                              onChange={(e) => setConversionStage(e.target.value)}
+                            >
+                              {pipelines.find(p => String(p.id) === String(conversionPipelineId))?.stages.map(st => (
+                                <option key={st} value={st}>{st}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-xs)' }}
+                            onClick={() => setIsConverting(false)}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-xs)' }}
+                            onClick={handleConfirmConversion}
+                          >
+                            Confirm Convert
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* QUICK OUTCOMES */}
-          <div className="form-group">
-            <label className="form-label">Call Feedback Outcome</label>
-            <div className="sprint-outcome-btn-grid">
-              {outcomes.map(item => (
-                <button
-                  key={item.value}
-                  className={`outcome-btn ${callOutcome === item.value ? 'active' : ''} ${item.value === 'Deal Won' ? 'won' : ''} ${item.value === 'Deal Lost' ? 'lost' : ''}`}
-                  onClick={() => setCallOutcome(item.value)}
-                >
-                  <span>{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+              {/* WHATSAPP TRIGGER */}
+              {whatsappTemplates.length > 0 && (
+                <div className="whatsapp-triggers-box" style={{ width: '100%', marginTop: '0.75rem' }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981' }}>
+                    <MessageSquare size={13} />
+                    WhatsApp Quick Outreaches
+                  </label>
+                  
+                  <div className="whatsapp-slug-list">
+                    {whatsappTemplates.map(temp => (
+                      <a
+                        key={temp.id}
+                        href={getWhatsAppLink(temp.text, activeLead)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="whatsapp-slug-btn"
+                        onClick={() => handleWhatsAppTrigger(temp.title)}
+                      >
+                        <span>{temp.title}</span>
+                        <ChevronRight size={14} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* WHATSAPP TRIGGER */}
-          {whatsappTemplates.length > 0 && (
-            <div className="whatsapp-triggers-box">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981' }}>
-                <MessageSquare size={13} />
-                WhatsApp Quick Outreaches
-              </label>
-              
-              <div className="whatsapp-slug-list">
-                {whatsappTemplates.map(temp => (
-                  <a
-                    key={temp.id}
-                    href={getWhatsAppLink(temp.text, activeLead)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="whatsapp-slug-btn"
-                    onClick={() => handleWhatsAppTrigger(temp.title)}
-                  >
-                    <span>{temp.title}</span>
-                    <ChevronRight size={14} />
-                  </a>
-                ))}
+            {/* Column 2: Outcomes & Notes Form */}
+            <div className="sprint-active-column">
+              {/* QUICK OUTCOMES */}
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">Call Feedback Outcome</label>
+                <div className="sprint-outcome-btn-grid">
+                  {outcomes.map(item => (
+                    <button
+                      key={item.value}
+                      className={`outcome-btn ${callOutcome === item.value ? 'active' : ''} ${item.value === 'Deal Won' ? 'won' : ''} ${item.value === 'Deal Lost' ? 'lost' : ''}`}
+                      onClick={() => setCallOutcome(item.value)}
+                    >
+                      <span>{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* CUSTOM NOTES */}
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">Outreach Notes / Update</label>
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  placeholder="Spoke to prospect, they need X SLA changed before meeting..."
+                  style={{ resize: 'none', fontSize: 'var(--text-title-3)' }}
+                  value={callNotes}
+                  onChange={(e) => setCallNotes(e.target.value)}
+                />
+              </div>
+
+              {/* BOTTOM CONTROLS */}
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', width: '100%' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ flex: 1 }}
+                  onClick={handleSkipLead}
+                >
+                  Skip
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ flex: 2, display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
+                  onClick={handleNextLead}
+                >
+                  <span>Save & Continue</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+
+              {/* Premature End Button */}
+              <button 
+                className="btn btn-secondary" 
+                style={{ width: '100%', marginTop: '0.5rem', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}
+                onClick={() => handleCompleteSprint()}
+              >
+                End Sprint Prematurely & Save Outcomes
+              </button>
             </div>
-          )}
 
-          {/* CUSTOM NOTES */}
-          <div className="form-group">
-            <label className="form-label">Outreach Notes / Update</label>
-            <textarea
-              className="form-input"
-              rows={3}
-              placeholder="Spoke to prospect, they need X SLA changed before meeting..."
-              style={{ resize: 'none', fontSize: '0.875rem' }}
-              value={callNotes}
-              onChange={(e) => setCallNotes(e.target.value)}
-            />
           </div>
-
-          {/* BOTTOM CONTROLS */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button 
-              className="btn btn-secondary" 
-              style={{ flex: 1 }}
-              onClick={handleSkipLead}
-            >
-              Skip
-            </button>
-            <button 
-              className="btn btn-primary" 
-              style={{ flex: 2, display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
-              onClick={handleNextLead}
-            >
-              <span>Save & Continue</span>
-              <ArrowRight size={16} />
-            </button>
-          </div>
-
-          {/* Premature End Button */}
-          <button 
-            className="btn btn-secondary" 
-            style={{ width: '100%', marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}
-            onClick={() => handleCompleteSprint()}
-          >
-            End Sprint Prematurely & Save Outcomes
-          </button>
 
         </div>
       )}
 
       {/* STEP 3: FINISHED SCREEN */}
       {sprintState === 'finished' && (
-        <div className="glass-card sprint-setup-card" style={{ textAlign: 'center', padding: '2rem 1.5rem' }}>
+        <div className="glass-card sprint-setup-card" style={{ textAlign: 'center', padding: '2rem 1.5rem', maxWidth: '600px', margin: '0 auto' }}>
           <div style={{ display: 'inline-flex', background: 'rgba(16,185,129,0.1)', padding: '1rem', borderRadius: '50%', color: '#10b981', alignSelf: 'center', marginBottom: '0.5rem' }}>
             <Trophy size={38} />
           </div>
           
           <div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Sprint Completed!</h2>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            <h2 style={{ fontSize: 'var(--text-title-1)' }}>Sprint Completed!</h2>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
               Awesome job! You have run through your outreach calling list.
             </p>
           </div>
@@ -1643,29 +1662,29 @@ export default function SprintView({
           {/* Call Stats Summary */}
           <div className="grid-metrics" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '12px', padding: '1.25rem', margin: '0.5rem 0' }}>
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, color: 'var(--primary)' }}>
                 {sprintLogs.length}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>OUTREACH ACTIONS</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>OUTREACH ACTIONS</div>
             </div>
 
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>
+              <div style={{ fontSize: 'var(--text-title-1)', fontWeight: 800, color: '#10b981' }}>
                 {sprintLogs.filter(l => l.outcome === 'Connected' || l.outcome === 'Demo Booked' || l.outcome === 'Deal Won').length}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>CONNECTIONS MADE</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>CONNECTIONS MADE</div>
             </div>
           </div>
 
           {/* Logs of the sprint */}
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
               SPRINT LOG ACTIVITY
             </div>
             
             <div className="sprint-logs-list" style={{ maxHeight: '160px' }}>
               {sprintLogs.map((log, index) => (
-                <div key={index} className="sprint-progress-row" style={{ fontSize: '0.8rem', padding: '0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', borderLeft: '3px solid var(--primary)' }}>
+                <div key={index} className="sprint-progress-row" style={{ fontSize: 'var(--text-sm)', padding: '0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', borderLeft: '3px solid var(--primary)' }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{log.leadName}</span>
                     <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
@@ -1676,7 +1695,7 @@ export default function SprintView({
               ))}
               
               {sprintLogs.length === 0 && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', textAlign: 'center' }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-dark)', textAlign: 'center' }}>
                   No activities completed during this sprint
                 </div>
               )}

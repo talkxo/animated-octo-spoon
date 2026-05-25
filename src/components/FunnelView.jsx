@@ -195,7 +195,7 @@ export default function FunnelView({
           </div>
           <div>
             <div className="metrics-value">
-              {activeDealsCount} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>leads</span>
+              {activeDealsCount} <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 500 }}>leads</span>
             </div>
             <div className="metrics-label">ACTIVE DEALS</div>
           </div>

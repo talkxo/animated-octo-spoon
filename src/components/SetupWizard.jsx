@@ -69,7 +69,7 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
         
         {/* Wizard Header */}
         <div className="modal-header">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Sparkles size={18} style={{ color: 'var(--primary)' }} />
             Pluto DIY Google Sheets Onboarding Wizard
           </h2>
@@ -141,6 +141,9 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                   <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>📁 Leads Table</span>
                   <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>📝 Notes Table</span>
                   <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>⚙️ Pipelines Table</span>
+                  <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>🏃 Sprints Table</span>
+                  <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>📋 Calling Lists</span>
+                  <span className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)' }}>⚙️ Settings</span>
                 </div>
               </div>
             </div>
@@ -156,17 +159,17 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                 <div>
                   <h3 className="setup-wizard-title">Step 2: Paste the Pluto Apps Script Code</h3>
                   <p className="setup-wizard-description">
-                    Inside your new spreadsheet header menu, click on <strong>Extensions ➔ Apps Script</strong>. Copy the code block below and paste it in, deleting any default empty functions.
+                    Inside your new spreadsheet header menu, click on <strong>Extensions ➔ Apps Script</strong>. Copy the code block below and paste it in, deleting any default code. Then click the <strong>Save</strong> icon.
                   </p>
                 </div>
               </div>
 
               <div className="setup-code-container">
                 <div className="setup-code-header">
-                  <label className="form-label" style={{ fontSize: '0.7rem' }}>CONNECTOR SCRIPT CODE</label>
+                  <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>CONNECTOR SCRIPT CODE</label>
                   <button 
                     className="outcome-btn" 
-                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} 
+                    style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-xs)' }} 
                     onClick={handleCopyCode}
                   >
                     {copied ? <Check size={12} style={{ color: '#10b981' }} /> : <Copy size={12} />}
@@ -203,18 +206,26 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                 </div>
                 <div className="setup-deploy-step">
                   <span className="setup-deploy-step-number">2.</span>
-                  <span>Click the gear icon and select **Web App** as the type.</span>
+                  <span>Click the gear icon ⚙️ next to "Select type" and choose **Web app**.</span>
                 </div>
                 <div className="setup-deploy-step">
                   <span className="setup-deploy-step-number">3.</span>
                   <span>Set configuration exactly as:
-                    <br />• **Execute as:** `Me (your-email)`
+                    <br />• **Execute as:** `Me` (your Google account)
                     <br />• **Who has access:** `Anyone` (Crucial for API connectivity without sign-in barriers)
                   </span>
                 </div>
                 <div className="setup-deploy-step">
                   <span className="setup-deploy-step-number">4.</span>
-                  <span>Click **Deploy**, click **Authorize Access** (sign in and click "Advanced → Go to Untitled Project (unsafe)"), and copy the resulting **Web App URL**!</span>
+                  <span>Click **Deploy**, then click **Authorize access** when prompted.</span>
+                </div>
+                <div className="setup-deploy-step">
+                  <span className="setup-deploy-step-number">5.</span>
+                  <span>If you see an "Unverified App" warning: click **Advanced** → **Go to Untitled Project (unsafe)** → **Allow**.</span>
+                </div>
+                <div className="setup-deploy-step">
+                  <span className="setup-deploy-step-number">6.</span>
+                  <span>Copy the **Web App URL** that appears (starts with `https://script.google.com/macros/s/...`)</span>
                 </div>
               </div>
 
@@ -225,7 +236,7 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                 background: 'rgba(251, 191, 36, 0.03)',
                 border: '1px solid rgba(251, 191, 36, 0.15)',
                 borderRadius: '10px',
-                fontSize: '0.75rem',
+                fontSize: 'var(--text-xs)',
                 color: 'var(--text-muted)',
                 lineHeight: 1.45
               }}>
@@ -239,6 +250,9 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                   </div>
                   <div>
                     <strong>Why deploy with "Who has access: Anyone"?</strong> This allows this local web app (running entirely inside your browser) to sync lead data directly to your Sheet without going through any third-party middleman server. Your Web App URL acts as a private pre-shared API token, stored only in your browser's local storage.
+                  </div>
+                  <div>
+                    <strong>Can anyone access my data?</strong> Your Web App URL contains a unique, random script ID that's essentially impossible to guess. As long as you don't share this URL, your data remains private. The Apps Script only has access to this specific spreadsheet — nothing else in your Google Drive.
                   </div>
                 </div>
               </div>
@@ -267,7 +281,7 @@ export default function SetupWizard({ sheetUrl, setSheetUrl, syncStatus, onClose
                     type="url" 
                     className="form-input" 
                     placeholder="https://script.google.com/macros/s/.../exec"
-                    style={{ flex: 1, fontSize: '0.85rem' }}
+                    style={{ flex: 1, fontSize: 'var(--text-sm)' }}
                     value={inputUrl}
                     onChange={(e) => setInputUrl(e.target.value)}
                   />

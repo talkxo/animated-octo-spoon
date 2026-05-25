@@ -77,6 +77,12 @@
   --text-lg:  1.0625rem; /* 17px — section headings */
   --text-xl:  1.25rem;   /* 20px — modal titles, KPIs */
 
+  /* Core Semantic Typography Tokens */
+  --text-title-1: 1.5rem;         /* 24px — main page/hero headers */
+  --text-title-2: 1.125rem;       /* 18px — modal titles, section card headers */
+  --text-title-3: 0.875rem;       /* 14px — secondary kpis, list labels */
+  --text-body:    0.85rem;        /* 13.6px — default UI copy, descriptions, details */
+
   /* Legacy aliases — keep working during migration */
   --ui-text-xs: var(--text-xs);
   --ui-text-sm: var(--text-sm);
@@ -161,6 +167,8 @@ body {
   background-attachment: fixed;
   color: var(--text-main);
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--text-body);
+  line-height: 1.5;
   overflow: hidden;
   height: 100vh;
   height: 100dvh;
@@ -169,11 +177,48 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1, .title-1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: var(--text-title-1);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-main);
+}
+
+h2, .title-2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: var(--text-title-2);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--text-main);
+}
+
+h3, .title-3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: var(--text-title-3);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.010em;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+
+h4, h5, h6 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+}
+
+p, .body-text {
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0;
 }
 
 /* App container */
@@ -885,14 +930,54 @@ main {
 
 /* Calling Sprint UI Styles */
 .sprint-view-wrapper {
-  max-width: 600px;
   width: 100%;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   box-sizing: border-box;
 }
+
+/* Responsive grid layout columns for Calling Sprint Setup Screen */
+.sprint-setup-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .sprint-setup-grid {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.sprint-setup-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Responsive grid layout columns for Active Sprint Mode screen */
+.sprint-active-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .sprint-active-grid {
+    grid-template-columns: 1.2fr 1.1fr;
+  }
+}
+
+.sprint-active-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
 
 /* Responsive 2-col grid — stacks on mobile */
 .sprint-two-col {
@@ -1140,66 +1225,6 @@ main {
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
 }
 
-/* Photo AI Scanner Overlay styles */
-.ocr-scanner-wrapper {
-  position: relative;
-  width: 100%;
-  height: 240px;
-  background: #000;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 2px solid var(--border-light);
-}
-
-.ocr-scanner-camera-feed {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.8;
-}
-
-.ocr-scanner-frame {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  right: 15px;
-  bottom: 15px;
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  border-radius: 8px;
-  pointer-events: none;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-}
-
-/* Glow Corner Hooks */
-.ocr-corner {
-  position: absolute;
-  width: 15px;
-  height: 15px;
-  border: 3px solid var(--primary);
-  pointer-events: none;
-}
-
-.ocr-top-left { top: -2px; left: -2px; border-right: none; border-bottom: none; }
-.ocr-top-right { top: -2px; right: -2px; border-left: none; border-bottom: none; }
-.ocr-bottom-left { bottom: -2px; left: -2px; border-right: none; border-top: none; }
-.ocr-bottom-right { bottom: -2px; right: -2px; border-left: none; border-top: none; }
-
-.ocr-scanner-radar {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, transparent 10%, var(--primary) 50%, transparent 90%);
-  box-shadow: 0 0 15px var(--primary);
-  animation: radarScan 2.5s infinite linear;
-  pointer-events: none;
-}
-
-@keyframes radarScan {
-  0% { top: 0%; }
-  50% { top: 100%; }
-  100% { top: 0%; }
-}
 
 /* Modal Dialog Framework */
 .modal-overlay {
@@ -1373,18 +1398,19 @@ main {
 .sync-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   height: 32px;
   width: 32px;
-  border-radius: 16px;
+  border-radius: 8px; /* matches other header icon buttons */
   padding: 0;
-  padding-left: 8px; /* Centers 14px icons perfectly inside 32px width */
   overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
   box-sizing: border-box;
   flex-shrink: 0;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-muted);
   appearance: none;
   -webkit-appearance: none;
   background-clip: padding-box;
@@ -1393,8 +1419,7 @@ main {
               padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               background-color 0.3s ease,
               border-color 0.3s ease,
-              color 0.3s ease,
-              box-shadow 0.3s ease;
+              color 0.3s ease;
 }
 
 .sync-badge span {
@@ -1414,11 +1439,12 @@ main {
   flex-shrink: 0;
 }
 
-/* Expansion state is controlled programmatically for active sync states only */
+/* Expansion state — widens to show label text */
 .sync-badge.expanded {
   width: auto;
   max-width: 220px;
-  padding: 0 12px;
+  padding: 0 10px;
+  justify-content: flex-start;
 }
 
 .sync-badge.expanded span {
@@ -1437,25 +1463,58 @@ main {
 }
 
 /* Dark mode colors (default) */
+/* Syncing: compact icon with a spinning arc ring around the border */
 .sync-badge.syncing {
-  background: rgba(124, 58, 237, 0.12);
-  color: #a78bfa;
-  border-color: rgba(124, 58, 237, 0.25);
+  background: var(--primary-glow);
+  color: var(--primary);
+  border-color: transparent;
+  position: relative;
+  overflow: visible;
 }
+
+.sync-rect-spinner {
+  position: absolute;
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sync-rect-spinner rect {
+  stroke: var(--primary);
+  stroke-dasharray: 30 70;
+  stroke-dashoffset: 100;
+  animation: sync-rect-trace 1.4s linear infinite;
+}
+
+@keyframes sync-rect-trace {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* synced & offline: neutral, matches btn-secondary — no colour noise */
+.sync-badge.synced,
+.sync-badge.offline {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-light);
+}
+.sync-badge.synced:hover,
+.sync-badge.offline:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* pending & error: coloured — needs user attention */
 .sync-badge.pending {
   background: rgba(245, 158, 11, 0.12);
   color: #fbbf24;
   border-color: rgba(245, 158, 11, 0.25);
-}
-.sync-badge.synced {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.25);
-}
-.sync-badge.offline {
-  background: rgba(148, 163, 184, 0.12);
-  color: #94a3b8;
-  border-color: rgba(148, 163, 184, 0.25);
 }
 .sync-badge.error {
   background: rgba(239, 68, 68, 0.12);
@@ -1465,24 +1524,26 @@ main {
 
 /* Light mode overrides */
 [data-theme="light"] .sync-badge.syncing {
-  background: rgba(124, 58, 237, 0.08);
-  color: #7c3aed;
-  border-color: rgba(124, 58, 237, 0.18);
+  background: var(--primary-glow);
+  color: var(--primary);
+  border-color: transparent;
+}
+
+[data-theme="light"] .sync-badge.synced,
+[data-theme="light"] .sync-badge.offline {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-light);
+}
+[data-theme="light"] .sync-badge.synced:hover,
+[data-theme="light"] .sync-badge.offline:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.14);
 }
 [data-theme="light"] .sync-badge.pending {
   background: rgba(245, 158, 11, 0.08);
   color: #d97706;
   border-color: rgba(245, 158, 11, 0.18);
-}
-[data-theme="light"] .sync-badge.synced {
-  background: rgba(16, 185, 129, 0.08);
-  color: #059669;
-  border-color: rgba(16, 185, 129, 0.18);
-}
-[data-theme="light"] .sync-badge.offline {
-  background: rgba(115, 95, 75, 0.08);
-  color: #735f4b;
-  border-color: rgba(115, 95, 75, 0.18);
 }
 [data-theme="light"] .sync-badge.error {
   background: rgba(220, 38, 38, 0.08);
@@ -1907,12 +1968,45 @@ main {
 
 /* 4. Settings Panel Layouts */
 .settings-container {
-  max-width: 800px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
+
+/* Two-column layout grid for settings panels on desktop */
+.settings-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .settings-layout-grid {
+    grid-template-columns: 1.15fr 1fr;
+  }
+}
+
+.settings-layout-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Responsive row for preferences & mobile QR sync cards */
+.settings-pref-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+@media (min-width: 600px) {
+  .settings-pref-row.connected {
+    grid-template-columns: 1fr 1.35fr;
+  }
+}
+
 
 .settings-card-body {
   display: flex;
@@ -1974,7 +2068,7 @@ main {
 .sync-mode-card-active {
   border-color: var(--primary) !important;
   background: var(--primary-glow) !important;
-  box-shadow: 0 0 12px var(--primary-glow);
+  box-shadow: none;
 }
 
 .sync-queue-container {
@@ -2366,173 +2460,6 @@ main {
   background: rgba(255, 255, 255, 0.01);
 }
 
-/* OCR Scanner layout helper classes */
-.ocr-scanner-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.ocr-upload-zone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.01);
-  border: 2px dashed var(--border-light);
-}
-
-.ocr-upload-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem;
-}
-
-.ocr-icon-container {
-  background: var(--primary-glow);
-  color: var(--primary);
-  padding: 0.85rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ocr-upload-text-wrapper {
-  text-align: center;
-}
-
-.ocr-upload-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.ocr-upload-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.15rem;
-}
-
-.ocr-scanner-status-bar {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  right: 10px;
-  background: rgba(6, 7, 13, 0.85);
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.75rem;
-  color: var(--text-main);
-  text-align: center;
-  font-weight: 600;
-  z-index: 5;
-}
-
-.ocr-parsed-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-}
-
-.ocr-preview-small {
-  height: 140px;
-}
-
-.ocr-scanner-camera-feed.dimmed {
-  opacity: 0.5;
-}
-
-.ocr-badge-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sync-badge.success-large {
-  background: rgba(16, 185, 129, 0.2);
-  padding: 0.5rem 1rem;
-}
-
-.ocr-details-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.ocr-details-header {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 0.25rem;
-}
-
-.ocr-details-row {
-  display: grid;
-  grid-template-columns: 80px 1fr;
-  font-size: 0.85rem;
-}
-
-.ocr-details-label {
-  color: var(--text-dark);
-  font-weight: 600;
-}
-
-.ocr-details-value {
-  color: var(--text-main);
-}
-
-.ocr-details-value.bold {
-  font-weight: 600;
-}
-
-.ocr-details-value.muted {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.ocr-presets-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.ocr-presets-header {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.ocr-presets-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.ocr-preset-item-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.ocr-preset-item-title {
-  font-weight: 600;
-}
 
 /* Pluto Logo Click Animation & Calling Sprint Upgrades Styles */
 @keyframes logoPop {
@@ -2800,7 +2727,7 @@ main {
   border: 1px solid var(--border-light);
   border-radius: 20px;
   padding: 2rem 1.5rem;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
   box-sizing: border-box;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChart3, 
   PhoneCall, 
@@ -416,6 +416,26 @@ export default function App() {
     const saved = localStorage.getItem('crm_sync_queue');
     return saved ? JSON.parse(saved) : [];
   });
+  const syncQueueRef = useRef([]);
+  const isSyncingRef = useRef(false);
+  const leadRevisionsRef = useRef({});
+  const settingsRevisionRef = useRef(0);
+  const lastWriteTimeRef = useRef(0);
+
+  // Keep refs and queue in sync on mount
+  useEffect(() => {
+    syncQueueRef.current = syncQueue;
+    settingsRevisionRef.current = settingsRevision;
+    leads.forEach(l => {
+      leadRevisionsRef.current[l.id] = Number(l.revision) || 0;
+    });
+  }, []);
+
+  const updateSyncQueue = (newQueue) => {
+    syncQueueRef.current = newQueue;
+    setSyncQueue(newQueue);
+    localStorage.setItem('crm_sync_queue', JSON.stringify(newQueue));
+  };
   const [settingsRevision, setSettingsRevision] = useState(() => {
     const user = localStorage.getItem('crm_logged_in_user') ||
                  sessionStorage.getItem('crm_logged_in_user') || '';
@@ -441,12 +461,12 @@ export default function App() {
       className: 'syncing',
       label: 'Syncing...',
       title: 'Syncing data with Google Sheets...',
-      icon: <div className="loader-spinner" style={{ width: '12px', height: '12px' }}></div>,
+      icon: <Wifi size={14} />,
       onClick: undefined
     },
     pending: {
       className: 'pending',
-      label: `${syncQueue.length} pending sync`,
+      label: `${syncQueue.length} pending`,
       title: 'Click to push pending edits now',
       icon: <WifiOff size={14} />,
       onClick: () => flushSyncQueue()
@@ -477,7 +497,8 @@ export default function App() {
   const activeSyncIndicator = syncIndicatorConfig[syncIndicatorState];
 
   useEffect(() => {
-    const shouldExpand = ['syncing', 'pending', 'error'].includes(syncIndicatorState);
+    // Only expand for states that need user attention (not syncing — that uses a ring animation)
+    const shouldExpand = ['pending', 'error'].includes(syncIndicatorState);
     setIsSyncExpanded(shouldExpand);
   }, [syncIndicatorState]);
 
@@ -565,7 +586,9 @@ export default function App() {
     if (settings.theme) {
       setTheme(settings.theme);
     }
-    setSettingsRevision(Number(settings.revision) || 0);
+    const nextRev = Number(settings.revision) || 0;
+    settingsRevisionRef.current = nextRev;
+    setSettingsRevision(nextRev);
   };
 
   // Persistence to localstorage
@@ -723,7 +746,7 @@ export default function App() {
   useEffect(() => {
     if (sheetUrl) {
       if (syncQueue.length > 0 && syncMode === 'auto') {
-        flushSyncQueue(syncQueue);
+        flushSyncQueue();
       } else if (syncQueue.length === 0) {
         syncDataFromSheet(sheetUrl);
       }
@@ -737,6 +760,7 @@ export default function App() {
       return;
     }
     
+    const fetchStartedAt = Date.now();
     setSyncStatus('syncing');
     try {
       const response = await fetch(`${targetUrl}?action=readAll`);
@@ -744,8 +768,18 @@ export default function App() {
       const data = await response.json();
       
       if (data.success) {
+        // If a write is in progress, or queue has pending edits, or a write occurred while fetching, ignore this stale data to avoid overwriting local edits
+        if (isSyncingRef.current || syncQueueRef.current.length > 0 || lastWriteTimeRef.current > fetchStartedAt) {
+          console.warn('Ignoring stale sheet pull to protect local edits');
+          setSyncStatus('synced');
+          return;
+        }
+
         if (data.leads && data.leads.length > 0) {
           setLeads(data.leads);
+          data.leads.forEach(l => {
+            leadRevisionsRef.current[l.id] = Number(l.revision) || 0;
+          });
         }
         if (data.notes && data.notes.length > 0) {
           setNotes(data.notes);
@@ -809,18 +843,43 @@ export default function App() {
     setActiveTab('sprint');
   };
 
+  // Reads the current revision from ref, queues the payload with that revision as baseRevision,
+  // then immediately increments the ref so all subsequent rapid actions see the updated value.
+  // This is the standard ref-first optimistic locking pattern for offline-first apps.
+  const queueWithRevision = (buildPayload, refKey, idOrNull = null) => {
+    let currentRev;
+    if (refKey === 'settings') {
+      currentRev = settingsRevisionRef.current;
+      settingsRevisionRef.current = currentRev + 1;
+      // Persist the new rev immediately so a page reload picks it up
+      setSettingsRevision(currentRev + 1);
+      if (loggedInUser) {
+        localStorage.setItem(`crm_settings_revision_${loggedInUser}`, String(currentRev + 1));
+      }
+      localStorage.setItem('crm_settings_revision', String(currentRev + 1));
+    } else {
+      // Lead revision keyed by lead id
+      const id = idOrNull;
+      currentRev = leadRevisionsRef.current[id] !== undefined ? leadRevisionsRef.current[id] : 0;
+      leadRevisionsRef.current[id] = currentRev + 1;
+    }
+    return buildPayload(currentRev);
+  };
+
   // Settings sync helpers
   async function syncSettings(nextSettings) {
-    const result = await handleSyncPush({
-      action: 'saveSettings',
-      settings: {
-        ...nextSettings,
-        baseRevision: settingsRevision
-      }
-    });
-    if (result?.success && result?.data?.settings) {
-      applySettingsPayload(result.data.settings);
-    }
+    // Use ref-first pattern: read current ref, increment immediately, queue with old value as baseRevision
+    const payload = queueWithRevision(
+      (currentRev) => ({
+        action: 'saveSettings',
+        settings: {
+          ...nextSettings,
+          baseRevision: currentRev
+        }
+      }),
+      'settings'
+    );
+    await handleSyncPush(payload);
   }
 
   async function updateCurrency(newCurrency) {
@@ -932,71 +991,48 @@ export default function App() {
     }
   }
 
-  const rebaseQueuedPayloads = (queue, responseData) => {
-    if (!responseData) return queue;
+  // Process items in the sync queue sequentially (FIFO).
+  // Revisions are already baked into each queued payload at action time (ref-first),
+  // so we never need to rebase — just slice and shift on success.
+  async function flushSyncQueue() {
+    if (!sheetUrl) return;
 
-    return queue.map(item => {
-      if (responseData.lead && item.action === 'saveLead' && String(item.lead?.id) === String(responseData.lead.id)) {
-        return {
-          ...item,
-          lead: {
-            ...item.lead,
-            baseRevision: Number(responseData.lead.revision) || 0
-          }
-        };
-      }
-
-      if (responseData.lead && item.action === 'deleteLead' && String(item.id) === String(responseData.lead.id)) {
-        return {
-          ...item,
-          baseRevision: Number(responseData.lead.revision) || 0
-        };
-      }
-
-      if (responseData.settings && item.action === 'saveSettings') {
-        return {
-          ...item,
-          settings: {
-            ...item.settings,
-            baseRevision: Number(responseData.settings.revision) || 0
-          }
-        };
-      }
-
-      return item;
-    });
-  };
-
-  // Process items in the sync queue sequentially (FIFO)
-  async function flushSyncQueue(queueToFlush = syncQueue) {
-    if (!sheetUrl || queueToFlush.length === 0) return;
-
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setSyncStatus('syncing');
-    let currentQueue = [...queueToFlush];
+
     let failed = false;
 
-    for (const item of currentQueue) {
+    while (syncQueueRef.current.length > 0) {
+      const item = syncQueueRef.current[0];
       const result = await postToSheet(item);
+
       if (result.success) {
-        currentQueue = rebaseQueuedPayloads(currentQueue.slice(1), result.data);
-        setSyncQueue(currentQueue);
-        localStorage.setItem('crm_sync_queue', JSON.stringify(currentQueue));
+        lastWriteTimeRef.current = Date.now();
+        // Revisions were already incremented in the ref when the action was queued.
+        // Just remove the item we just successfully sent.
+        updateSyncQueue(syncQueueRef.current.slice(1));
       } else {
         failed = true;
         if (result.conflict) {
-          alert(result.error || 'A newer version exists in Google Sheets. Pulling the latest data now.');
+          // On conflict, clear the whole queue and re-pull the authoritative server state.
+          // The user's local ref revisions will be refreshed from the server data.
+          updateSyncQueue([]);
+          isSyncingRef.current = false;
+          alert(result.error || 'A conflict was detected. Pulling the latest data from Google Sheets.');
           await syncDataFromSheet();
+          return;
         }
         break;
       }
     }
 
+    isSyncingRef.current = false;
+
     if (failed) {
       setSyncStatus('error');
     } else {
       setSyncStatus('synced');
-      // Pull latest spreadsheet records to merge and refresh local state
-      await syncDataFromSheet();
     }
   }
 
@@ -1008,69 +1044,63 @@ export default function App() {
     }
 
     if (syncMode === 'manual') {
-      setSyncQueue(prev => [...prev, payload]);
+      const nextQueue = [...syncQueueRef.current, payload];
+      updateSyncQueue(nextQueue);
       setSyncStatus('pending');
       return { success: true, queued: true };
     }
 
-    // Auto Sync Mode
-    if (syncQueue.length > 0) {
-      const updatedQueue = [...syncQueue, payload];
-      setSyncQueue(updatedQueue);
-      flushSyncQueue(updatedQueue);
-      return { success: true, queued: true };
-    } else {
-      setSyncStatus('syncing');
-      const result = await postToSheet(payload);
-      if (result.success) {
-        setSyncStatus('synced');
-        return result;
-      } else {
-        setSyncQueue([payload]);
-        setSyncStatus('error');
-        if (result.conflict) {
-          setSyncQueue([]);
-          localStorage.setItem('crm_sync_queue', JSON.stringify([]));
-          alert(result.error || 'A newer version exists in Google Sheets. Pulling the latest data now.');
-          await syncDataFromSheet();
-        }
-        return result;
-      }
-    }
+    // Auto Sync Mode: Queue and flush
+    const nextQueue = [...syncQueueRef.current, payload];
+    updateSyncQueue(nextQueue);
+    
+    // Trigger sequential flush (will skip if already flushing)
+    flushSyncQueue();
+
+    return { success: true, queued: true };
   }
 
   // API Callbacks for Leads
   const saveLead = async (leadData) => {
     const isNew = !leadData.id;
-    const finalLead = {
-      ...leadData,
-      id: leadData.id || `lead-${Date.now()}`,
-      pipelineId: leadData.pipelineId || activePipelineId,
-      lastContacted: leadData.lastContacted || '',
-      revision: Number(leadData.revision) || 0
-    };
+    const finalId = leadData.id || `lead-${Date.now()}`;
 
-    upsertLeadLocally(finalLead);
+    // Seed the ref if this lead has never been seen before
+    if (leadRevisionsRef.current[finalId] === undefined) {
+      leadRevisionsRef.current[finalId] = Number(leadData.revision) || 0;
+    }
+
+    // Build and queue the payload using the ref-first pattern:
+    // reads current revision, increments the ref immediately, returns the payload.
+    const payload = queueWithRevision(
+      (currentRev) => ({
+        action: 'saveLead',
+        lead: {
+          ...leadData,
+          id: finalId,
+          pipelineId: leadData.pipelineId || activePipelineId,
+          lastContacted: leadData.lastContacted || '',
+          revision: currentRev,
+          baseRevision: currentRev
+        }
+      }),
+      'lead',
+      finalId
+    );
+
+    // Optimistically update local state with the new revision already applied
+    const optimisticLead = { ...payload.lead, revision: leadRevisionsRef.current[finalId] };
+    upsertLeadLocally(optimisticLead);
 
     if (isNew) {
       addNote({
-        leadId: finalLead.id,
+        leadId: finalId,
         text: 'Lead created in CRM.',
         type: 'system'
       });
     }
 
-    const result = await handleSyncPush({
-      action: 'saveLead',
-      lead: {
-        ...finalLead,
-        baseRevision: Number(leadData.revision) || 0
-      }
-    });
-
-    if (result?.success && result?.data?.lead) {
-      upsertLeadLocally(result.data.lead);
-    }
+    await handleSyncPush(payload);
   };
 
   const deleteLead = async (id) => {
@@ -1079,10 +1109,18 @@ export default function App() {
     
     if (String(selectedLeadId) === String(id)) setSelectedLeadId(null);
 
+    // Read current revision from ref (already incremented by any prior actions)
+    const currentRev = leadRevisionsRef.current[id] !== undefined
+      ? leadRevisionsRef.current[id]
+      : (Number(leads.find(l => String(l.id) === String(id))?.revision) || 0);
+
+    // Clean up ref — lead is gone
+    delete leadRevisionsRef.current[id];
+
     await handleSyncPush({
       action: 'deleteLead',
       id: id,
-      baseRevision: Number(leads.find(l => String(l.id) === String(id))?.revision) || 0
+      baseRevision: currentRev
     });
   };
 
@@ -1098,20 +1136,11 @@ export default function App() {
 
     const relatedLead = leads.find(l => String(l.id) === String(noteData.leadId)) || null;
     if (relatedLead && (noteData.type === 'call' || noteData.type === 'whatsapp')) {
-      const updatedLead = { ...relatedLead, lastContacted: finalNote.timestamp };
-      upsertLeadLocally(updatedLead);
-
-      const leadSyncResult = await handleSyncPush({
-        action: 'saveLead',
-        lead: {
-          ...updatedLead,
-          baseRevision: Number(relatedLead.revision) || 0
-        }
+      // Use saveLead which already applies the ref-first revision pattern
+      await saveLead({
+        ...relatedLead,
+        lastContacted: finalNote.timestamp
       });
-
-      if (leadSyncResult?.success && leadSyncResult?.data?.lead) {
-        upsertLeadLocally(leadSyncResult.data.lead);
-      }
     }
 
     await handleSyncPush({
@@ -1330,7 +1359,7 @@ export default function App() {
               title="Launch Google Sheets Setup Onboarding Wizard"
             >
               <HelpCircle size={16} style={{ color: 'var(--primary)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700 }} className="mobile-hide">Setup Wizard</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }} className="mobile-hide">Setup Wizard</span>
             </button>
           )}
 
@@ -1353,6 +1382,22 @@ export default function App() {
             aria-label={activeSyncIndicator.label}
             disabled={!activeSyncIndicator.onClick}
           >
+            {syncIndicatorState === 'syncing' && (
+              <svg className="sync-rect-spinner" viewBox="0 0 36 36">
+                <rect 
+                  x="1" 
+                  y="1" 
+                  width="34" 
+                  height="34" 
+                  rx="9" 
+                  fill="none" 
+                  stroke="var(--primary)" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  pathLength="100" 
+                />
+              </svg>
+            )}
             {activeSyncIndicator.icon}
             <span>{activeSyncIndicator.label}</span>
           </button>
@@ -1493,13 +1538,13 @@ export default function App() {
             syncQueue={syncQueue}
             clearSyncQueue={() => {
               if (confirm('Are you sure you want to discard all pending offline edits? This cannot be undone.')) {
-                setSyncQueue([]);
-                localStorage.setItem('crm_sync_queue', JSON.stringify([]));
+                updateSyncQueue([]);
                 setSyncStatus('synced');
               }
             }}
             flushSyncQueue={flushSyncQueue}
             theme={theme}
+            toggleTheme={toggleTheme}
           />
         )}
       </main>
