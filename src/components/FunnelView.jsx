@@ -196,34 +196,15 @@ export default function FunnelView({
 
       {/* Filters & Search Row */}
       <div className="filter-search-row">
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <div className="search-box-wrapper">
-            <Search size={16} className="search-icon-inside" />
-            <input 
-              type="text" 
-              className="form-input search-input" 
-              placeholder="Search leads, companies..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          {allTags.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }} className="mobile-hide">
-              <Filter size={14} style={{ color: 'var(--text-dark)' }} />
-              <select
-                className="form-select"
-                style={{ padding: '0.45rem', fontSize: '0.8rem', borderRadius: '8px' }}
-                value={selectedTag}
-                onChange={(e) => setSelectedTag(e.target.value)}
-              >
-                <option value="">All Tags</option>
-                {allTags.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-          )}
+        <div className="search-box-wrapper">
+          <Search size={16} className="search-icon-inside" />
+          <input 
+            type="text" 
+            className="form-input search-input" 
+            placeholder="Search leads, companies..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
         {/* Dynamic Tag Filter Pills */}
