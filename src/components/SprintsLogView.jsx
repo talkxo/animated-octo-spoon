@@ -302,7 +302,7 @@ export default function SprintsLogView({
                 {/* Contacts Queue Table Canvas */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Detailed Sprints Log Grid
+                    Detailed Logs Grid
                   </div>
                   
                   <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '8px' }}>

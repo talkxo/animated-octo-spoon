@@ -1282,7 +1282,7 @@ export default function App() {
           onClick={() => setActiveTab('sprints-log')}
         >
           <History className="nav-icon" />
-          <span className="nav-label">Sprints Log</span>
+          <span className="nav-label">Logs</span>
         </button>
 
         <button 
