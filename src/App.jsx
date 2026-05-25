@@ -214,6 +214,29 @@ const DEFAULT_WHATSAPP_TEMPLATES = [
   }
 ];
 
+const COSMIC_QUOTES = [
+  {
+    text: "Always remember: Pluto is 4.67 billion miles away, and we still reached it. Your cold leads aren't that far.",
+    tagline: "Start small, reach far!"
+  },
+  {
+    text: "Pluto was demoted to a dwarf planet, but it's still out there closing orbital deals. Keep spinning.",
+    tagline: "Start small, reach far!"
+  },
+  {
+    text: "Even at -375°F, Pluto keeps revolving. No cold outreach list is too frozen for a solid pitch.",
+    tagline: "Start small, reach far!"
+  },
+  {
+    text: "It took New Horizons 9.5 years to reach Pluto. Sometimes the longest sales cycle leads to the sweetest heart of gold.",
+    tagline: "Start small, reach far!"
+  },
+  {
+    text: "Pluto doesn't care that it's small or remote; it still holds a giant heart on its surface.",
+    tagline: "Start small, reach far!"
+  }
+];
+
 export default function App() {
   // Auth State — check localStorage (remember me) or sessionStorage (session only)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -224,6 +247,56 @@ export default function App() {
     return localStorage.getItem('crm_logged_in_user') ||
            sessionStorage.getItem('crm_logged_in_user') || '';
   });
+
+  // Cosmic Disco Easter Egg States
+  const [isCosmicActive, setIsCosmicActive] = useState(false);
+  const [cosmicQuote, setCosmicQuote] = useState({ text: '', tagline: '' });
+  const [cosmicClicks, setCosmicClicks] = useState([]);
+  const [stars, setStars] = useState([]);
+
+  // Generate random stars on mount so they remain stable
+  useEffect(() => {
+    const generatedStars = Array.from({ length: 60 }).map((_, i) => ({
+      id: i,
+      size: Math.random() * 2 + 1,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: Math.random() * 3 + 1.5,
+      delay: Math.random() * 2
+    }));
+    setStars(generatedStars);
+  }, []);
+
+  // Timer effect to automatically dismiss Cosmic Disco
+  useEffect(() => {
+    if (!isCosmicActive) return;
+    const timer = setTimeout(() => {
+      setIsCosmicActive(false);
+    }, 9000);
+    return () => clearTimeout(timer);
+  }, [isCosmicActive]);
+
+  // Click handler for logo click tracking
+  const handleLogoClick = () => {
+    setActiveTab('funnel');
+    setIsSetupWizardOpen(false);
+    setLogoAnimating(true);
+    setTimeout(() => setLogoAnimating(false), 600);
+
+    const now = Date.now();
+    const windowStart = now - 5000; // 5-second window
+    setCosmicClicks(prev => {
+      const filtered = prev.filter(t => t > windowStart);
+      const nextClicks = [...filtered, now];
+      if (nextClicks.length >= 8) {
+        const randomQuote = COSMIC_QUOTES[Math.floor(Math.random() * COSMIC_QUOTES.length)];
+        setCosmicQuote(randomQuote);
+        setIsCosmicActive(true);
+        return []; // Reset clicks
+      }
+      return nextClicks;
+    });
+  };
 
   const handleLogin = (username, rememberMe) => {
     setIsLoggedIn(true);
@@ -1159,6 +1232,17 @@ export default function App() {
       keywords: 'guide onboarding sheets spreadsheet connection integration credentials setup help instructions tutorials diy',
       section: 'Quick Actions',
       perform: () => setIsSetupWizardOpen(true)
+    },
+    {
+      id: 'act_cosmic_disco',
+      name: '🚀 Activate Cosmic Disco (Secret)',
+      keywords: 'easter egg secret space pluto heart fly fun magic disco neon quote transition',
+      section: 'Quick Actions',
+      perform: () => {
+        const randomQuote = COSMIC_QUOTES[Math.floor(Math.random() * COSMIC_QUOTES.length)];
+        setCosmicQuote(randomQuote);
+        setIsCosmicActive(true);
+      }
     }
   ];
 
@@ -1176,12 +1260,7 @@ export default function App() {
       <header>
         <div 
           className={`logo-container ${logoAnimating ? 'logo-pop-active' : ''}`} 
-          onClick={() => {
-            setActiveTab('funnel');
-            setIsSetupWizardOpen(false);
-            setLogoAnimating(true);
-            setTimeout(() => setLogoAnimating(false), 600);
-          }} 
+          onClick={handleLogoClick} 
           style={{ cursor: 'pointer' }} 
           title="Go to Home Dashboard"
         >
@@ -1453,6 +1532,60 @@ export default function App() {
           onClose={() => setIsSetupWizardOpen(false)}
         />
       )}
+
+      {/* Cosmic Disco Easter Egg Overlay */}
+      <div className={`cosmic-overlay ${isCosmicActive ? 'active' : ''}`}>
+        <div className="disco-transition-layer"></div>
+        <div className="stars-field">
+          {stars.map(star => (
+            <div
+              key={star.id}
+              className="star"
+              style={{
+                width: `${star.size}px`,
+                height: `${star.size}px`,
+                left: `${star.left}%`,
+                top: `${star.top}%`,
+                animationDuration: `${star.duration}s`,
+                animationDelay: `${star.delay}s`
+              }}
+            />
+          ))}
+        </div>
+        <div className="cosmic-content">
+          <div className="cosmic-heart-icon">
+            <svg viewBox="0 0 32 32" width="100" height="100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', filter: 'drop-shadow(0 0 30px rgba(249, 115, 22, 0.45)) drop-shadow(0 0 50px rgba(236, 72, 153, 0.35))' }}>
+              <defs>
+                <radialGradient id="plutoPlanetGradCosmic" cx="30%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#ffeedd" />
+                  <stop offset="60%" stopColor="var(--primary)" />
+                  <stop offset="100%" stopColor="#7c2d12" />
+                </radialGradient>
+              </defs>
+              <circle cx="16" cy="16" r="12" fill="url(#plutoPlanetGradCosmic)" />
+              <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+                <path 
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" 
+                  fill="#ffffff" 
+                  opacity="0.95"
+                />
+              </g>
+              <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.25)" strokeWidth="0.5" />
+            </svg>
+          </div>
+          <div className="cosmic-quote">
+            "{cosmicQuote.text}"
+            <em>{cosmicQuote.tagline}</em>
+          </div>
+          <button 
+            type="button"
+            className="btn-return" 
+            onClick={() => setIsCosmicActive(false)}
+          >
+            Return to Earth
+          </button>
+        </div>
+      </div>
 
       </div>
     </KBarProvider>

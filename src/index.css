@@ -2963,3 +2963,176 @@ main {
     min-height: auto;
   }
 }
+
+/* --- COSMIC DISCO EASTER EGG STYLES --- */
+.cosmic-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease-in-out;
+  background: #000;
+}
+
+.cosmic-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.disco-transition-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.cosmic-overlay.active .disco-transition-layer {
+  animation: discoFlash 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes discoFlash {
+  0% {
+    opacity: 0.85;
+    background: radial-gradient(circle, var(--accent) 0%, rgba(0,0,0,1) 80%);
+  }
+  15% {
+    background: radial-gradient(circle, #06b6d4 0%, rgba(0,0,0,1) 85%);
+  }
+  30% {
+    background: radial-gradient(circle, #eab308 0%, rgba(0,0,0,1) 80%);
+  }
+  45% {
+    background: radial-gradient(circle, #a855f7 0%, rgba(0,0,0,1) 85%);
+  }
+  60% {
+    background: radial-gradient(circle, #10b981 0%, rgba(0,0,0,1) 80%);
+  }
+  80% {
+    opacity: 0.6;
+    background: radial-gradient(circle, var(--primary) 0%, rgba(0,0,0,1) 90%);
+  }
+  100% {
+    opacity: 0;
+    background: transparent;
+  }
+}
+
+.stars-field {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out 1.2s;
+}
+
+.cosmic-overlay.active .stars-field {
+  opacity: 0.85;
+}
+
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: starTwinkle 3s infinite ease-in-out;
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.cosmic-content {
+  position: relative;
+  z-index: 10;
+  width: 90%;
+  max-width: 750px;
+  text-align: center;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
+  transform: scale(0.9) translateY(30px);
+  opacity: 0;
+  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1) 2.2s;
+}
+
+.cosmic-overlay.active .cosmic-content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.cosmic-heart-icon {
+  font-size: 5rem;
+  animation: heartbeat 1.8s infinite ease-in-out;
+  filter: drop-shadow(0 0 20px rgba(236, 72, 153, 0.4));
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  45% { transform: scale(0.96); }
+  60% { transform: scale(1.05); }
+}
+
+.cosmic-quote {
+  font-size: 1.8rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: #fff;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.3), 
+               0 0 30px rgba(249, 115, 22, 0.2);
+}
+
+.cosmic-quote em {
+  display: block;
+  margin-top: 1rem;
+  font-style: normal;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.2));
+}
+
+.btn-return {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  padding: 0.7rem 1.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.btn-return:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
