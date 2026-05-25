@@ -142,7 +142,7 @@ export default function SprintsLogView({
             </div>
           </div>
 
-          <div className="metric-box" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '0.6rem', borderRadius: '8px' }}>
+          <div className="metric-box" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '10px', padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <div style={{ background: 'rgba(219,39,119,0.1)', color: '#db2777', padding: '0.6rem', borderRadius: '8px' }}>
               <Award size={20} />
             </div>
