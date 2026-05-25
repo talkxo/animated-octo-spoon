@@ -107,6 +107,8 @@ export default function LeadModal({
   const [value, setValue] = useState(currentLead?.value || 0);
   const [tags, setTags] = useState(currentLead?.tags !== undefined && currentLead?.tags !== null ? String(currentLead.tags) : '');
   const [isScanning, setIsScanning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Add Note Input state
   const [newNoteText, setNewNoteText] = useState('');
@@ -284,25 +286,39 @@ export default function LeadModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !company) {
       alert('Name and Company are required!');
       return;
     }
 
-    onSave({
-      id: currentLead ? currentLead.id : undefined,
-      name,
-      company,
-      phone,
-      email,
-      status,
-      value: parseFloat(value) || 0,
-      tags,
-      pipelineId,
-      lastContacted: currentLead ? currentLead.lastContacted : ''
-    });
+    setIsSaving(true);
+    setIsSaved(false);
+
+    try {
+      await onSave({
+        id: currentLead ? currentLead.id : undefined,
+        name,
+        company,
+        phone,
+        email,
+        status,
+        value: parseFloat(value) || 0,
+        tags,
+        pipelineId,
+        lastContacted: currentLead ? currentLead.lastContacted : ''
+      });
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Error saving lead:', err);
+      alert('Failed to save details. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddNoteSubmit = (e) => {
@@ -625,8 +641,44 @@ export default function LeadModal({
                   <button type="button" className="btn btn-secondary" onClick={onClose}>
                     Close
                   </button>
-                  <button type="submit" className="btn btn-primary">
-                    {isNew ? 'Create Lead' : 'Save Details'}
+                  <button 
+                    type="submit" 
+                    className={`btn ${isSaved ? 'btn-success' : 'btn-primary'}`}
+                    disabled={isSaving}
+                    style={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: '0.4rem', 
+                      minWidth: isNew ? 'auto' : '110px', 
+                      justifyContent: 'center' 
+                    }}
+                  >
+                    {isSaving ? (
+                      <>
+                        <span 
+                          className="spinner-border spinner-border-sm" 
+                          role="status" 
+                          aria-hidden="true" 
+                          style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            border: '2px solid currentColor', 
+                            borderRightColor: 'transparent', 
+                            borderRadius: '50%', 
+                            display: 'inline-block', 
+                            animation: 'spin 0.75s linear infinite' 
+                          }}
+                        ></span>
+                        <span>Saving...</span>
+                      </>
+                    ) : isSaved ? (
+                      <>
+                        <Check size={14} />
+                        <span>Saved!</span>
+                      </>
+                    ) : (
+                      <span>{isNew ? 'Create Lead' : 'Save Details'}</span>
+                    )}
                   </button>
                 </div>
               </div>
