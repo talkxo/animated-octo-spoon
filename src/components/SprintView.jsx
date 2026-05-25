@@ -108,6 +108,7 @@ export default function SprintView({
 
   // Expanded Log IDs for Sprints Log
   const [expandedSprintIds, setExpandedSprintIds] = useState({});
+  const [expandedListIds, setExpandedListIds] = useState({});
   const [isOngoingQueueExpanded, setIsOngoingQueueExpanded] = useState(false);
 
   // Sync state helpers
@@ -1263,24 +1264,99 @@ export default function SprintView({
 
             {/* Custom Lists Directory */}
             <div style={{ marginTop: '1.25rem' }}>
-              <div className="sprint-logs-list" style={{ maxHeight: '200px' }}>
-                {callingLists.map(list => (
-                  <div key={list.id} className="sprint-progress-row" style={{ fontSize: '0.85rem', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-                    <div>
-                      <span style={{ fontWeight: 700 }}>{list.name}</span>
-                      <span style={{ color: 'var(--text-dark)', marginLeft: '0.4rem', fontSize: '0.8rem' }}>({list.leads.length} contacts)</span>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {formatDateSafe(list.createdAt)}</div>
-                    </div>
-                    <button 
-                      className="outcome-btn lost" 
-                      style={{ padding: '0.3rem', borderRadius: '4px' }}
-                      onClick={(e) => handleDeleteCallingList(list.id, e)}
-                      title="Delete calling list"
+              <div className="sprint-logs-list" style={{ maxHeight: '300px' }}>
+                {callingLists.map(list => {
+                  const isListExpanded = expandedListIds[list.id];
+                  return (
+                    <div 
+                      key={list.id} 
+                      style={{ 
+                        background: isListExpanded ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)', 
+                        border: isListExpanded ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)', 
+                        borderRadius: '8px', 
+                        marginBottom: '0.5rem', 
+                        overflow: 'hidden' 
+                      }}
                     >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
+                      <div 
+                        className="sprint-progress-row" 
+                        style={{ 
+                          fontSize: '0.85rem', 
+                          padding: '0.6rem 0.8rem', 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                        onClick={() => setExpandedListIds(prev => ({ ...prev, [list.id]: !prev[list.id] }))}
+                      >
+                        <div>
+                          <span style={{ fontWeight: 700 }}>{list.name}</span>
+                          <span style={{ color: 'var(--text-dark)', marginLeft: '0.4rem', fontSize: '0.8rem' }}>({list.leads.length} contacts)</span>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Imported {formatDateSafe(list.createdAt)}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button 
+                            className="outcome-btn lost" 
+                            style={{ padding: '0.3rem', borderRadius: '4px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCallingList(list.id, e);
+                            }}
+                            title="Delete calling list"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          {isListExpanded ? <ChevronUp size={15} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={15} style={{ color: 'var(--text-muted)' }} />}
+                        </div>
+                      </div>
+
+                      {isListExpanded && (
+                        <div 
+                          style={{ 
+                            padding: '0.5rem 0.75rem 0.75rem', 
+                            background: 'rgba(0,0,0,0.15)', 
+                            borderTop: '1px solid var(--border-light)' 
+                          }}
+                        >
+                          <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                            <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                              <thead>
+                                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Name</th>
+                                  <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Phone</th>
+                                  <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Company</th>
+                                  <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Email</th>
+                                  <th style={{ padding: '0.45rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)' }}>Value</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {list.leads.map((lead, lIdx) => (
+                                  <tr key={lead.id || lIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                    <td style={{ padding: '0.45rem 0.6rem', fontWeight: 600 }}>{lead.name}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>{lead.phone || '-'}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-dark)' }}>{lead.company || '-'}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-dark)' }}>{lead.email || '-'}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', fontWeight: 600 }}>
+                                      {lead.value > 0 ? `${getCurrencySymbol(currency)}${lead.value.toLocaleString()}` : '-'}
+                                    </td>
+                                  </tr>
+                                ))}
+                                {list.leads.length === 0 && (
+                                  <tr>
+                                    <td colSpan="5" style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-dark)' }}>
+                                      No contacts in this list.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {callingLists.length === 0 && (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', textAlign: 'center', padding: '1rem' }}>
                     No custom uploaded lists. Paste/upload above to get started.
@@ -1397,7 +1473,6 @@ export default function SprintView({
                       <div 
                         style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--border-light)' }} 
                         className="fade-in"
-                        onClick={(e) => e.stopPropagation()} // Prevents collapsing when clicking within details
                       >
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                           <div>
@@ -1419,123 +1494,128 @@ export default function SprintView({
                           SPRINT QUEUE & CONTACT PROGRESS
                         </div>
                         
-                        <div style={{ maxHeight: '250px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {sprint.queue && sprint.queue.map((contact, idx) => {
-                            // Find all log entries for this contact
-                            const contactLogs = sprint.logs ? sprint.logs.filter(l => 
-                              (l.leadId && String(l.leadId) === String(contact.id)) || 
-                              (!l.leadId && String(l.leadName) === String(contact.name))
-                            ) : [];
-                            
-                            // Determine status
-                            let statusLabel = 'Pending';
-                            let statusColor = 'var(--text-dark)';
-                            let statusBg = 'rgba(255,255,255,0.03)';
-                            
-                            const hasCallLog = contactLogs.some(l => l.action === 'call');
-                            const hasSkipLog = contactLogs.some(l => l.action === 'skip');
-                            const isCurrent = (sprint.status === 'active' || sprint.status === 'suspended') && idx === sprint.currentIdx;
-                            
-                            if (isCurrent) {
-                              statusLabel = 'Current Active';
-                              statusColor = 'var(--primary)';
-                              statusBg = 'var(--primary-glow)';
-                            } else if (hasCallLog) {
-                              statusLabel = 'Called';
-                              statusColor = '#10b981';
-                              statusBg = 'rgba(16,185,129,0.1)';
-                            } else if (hasSkipLog) {
-                              statusLabel = 'Skipped';
-                              statusColor = 'var(--accent)';
-                              statusBg = 'var(--accent-glow)';
-                            } else if (sprint.status !== 'completed' && idx < sprint.currentIdx) {
-                              statusLabel = 'Skipped';
-                              statusColor = 'var(--accent)';
-                              statusBg = 'var(--accent-glow)';
-                            }
-                            
-                            const isClickable = sprint.status === 'active' || sprint.status === 'suspended';
-                            
-                            return (
-                              <div 
-                                key={contact.id || idx} 
-                                style={{ 
-                                  padding: '0.5rem 0.6rem', 
-                                  borderRadius: '6px', 
-                                  background: isCurrent ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)', 
-                                  border: isCurrent ? '1px solid var(--primary-glow)' : '1px solid rgba(255,255,255,0.02)',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '0.2rem',
-                                  cursor: isClickable ? 'pointer' : 'default',
-                                  transition: 'background 0.2s ease'
-                                }}
-                                onClick={() => {
-                                  if (isClickable) {
-                                    handleJumpToLead(idx, sprint.id);
-                                  }
-                                }}
-                                title={isClickable ? 'Click to jump to this contact in the dialer' : ''}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div>
-                                    <strong style={{ color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                      {idx + 1}. {contact.name}
-                                    </strong>
-                                    {contact.company && (
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dark)', marginLeft: '0.4rem' }}>
-                                        ({contact.company})
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                                    <span style={{ 
-                                      fontSize: '0.625rem', 
-                                      fontWeight: 700, 
-                                      padding: '0.08rem 0.35rem', 
-                                      borderRadius: '4px',
-                                      color: statusColor,
-                                      background: statusBg
-                                    }}>
-                                      {statusLabel.toUpperCase()}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-dark)' }}>
-                                  <span>Phone: {contact.phone || 'N/A'}</span>
-                                  {contact.value > 0 && (
-                                    <span>Value: {getCurrencySymbol(currency)}{contact.value.toLocaleString()}</span>
-                                  )}
-                                </div>
+                        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px', maxHeight: '280px', overflowY: 'auto' }}>
+                          <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', width: '30px' }}>#</th>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Contact</th>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Phone</th>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', textAlign: 'right' }}>Value</th>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', textAlign: 'center', width: '110px' }}>Status</th>
+                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Outreach Logs & Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sprint.queue && sprint.queue.map((contact, idx) => {
+                                // Find all log entries for this contact
+                                const contactLogs = sprint.logs ? sprint.logs.filter(l => 
+                                  (l.leadId && String(l.leadId) === String(contact.id)) || 
+                                  (!l.leadId && String(l.leadName) === String(contact.name))
+                                ) : [];
                                 
-                                {/* Grouped logs for this contact */}
-                                {contactLogs.length > 0 && (
-                                  <div style={{ marginTop: '0.2rem', borderTop: '1px dashed rgba(255,255,255,0.03)', paddingTop: '0.2rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                    {contactLogs.map((log, lIdx) => (
-                                      <div key={lIdx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>
-                                          {log.action === 'whatsapp' ? '💬 WhatsApp Outreach' : log.action === 'skip' ? '🚫 Skipped outreach' : `📞 Call Outcome: ${log.outcome}`}
-                                          {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
-                                        </span>
-                                        {log.notes && (
-                                          <span style={{ fontStyle: 'italic', color: 'var(--text-dark)' }}>
-                                            "{log.notes}"
-                                          </span>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          
-                          {(!sprint.queue || sprint.queue.length === 0) && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dark)', textAlign: 'center', padding: '1rem' }}>
-                              No contacts in this sprint queue.
-                            </div>
-                          )}
+                                // Determine status
+                                let statusLabel = 'Pending';
+                                let statusColor = 'var(--text-dark)';
+                                let statusBg = 'rgba(255,255,255,0.03)';
+                                
+                                const hasCallLog = contactLogs.some(l => l.action === 'call');
+                                const hasSkipLog = contactLogs.some(l => l.action === 'skip');
+                                const isCurrent = (sprint.status === 'active' || sprint.status === 'suspended') && idx === sprint.currentIdx;
+                                
+                                if (isCurrent) {
+                                  statusLabel = 'Current Active';
+                                  statusColor = 'var(--primary)';
+                                  statusBg = 'var(--primary-glow)';
+                                } else if (hasCallLog) {
+                                  statusLabel = 'Called';
+                                  statusColor = '#10b981';
+                                  statusBg = 'rgba(16,185,129,0.1)';
+                                } else if (hasSkipLog) {
+                                  statusLabel = 'Skipped';
+                                  statusColor = 'var(--accent)';
+                                  statusBg = 'var(--accent-glow)';
+                                } else if (sprint.status !== 'completed' && idx < sprint.currentIdx) {
+                                  statusLabel = 'Skipped';
+                                  statusColor = 'var(--accent)';
+                                  statusBg = 'var(--accent-glow)';
+                                }
+                                
+                                const isClickable = sprint.status === 'active' || sprint.status === 'suspended';
+                                
+                                return (
+                                  <tr 
+                                    key={contact.id || idx} 
+                                    style={{ 
+                                      borderBottom: '1px solid rgba(255,255,255,0.02)',
+                                      background: isCurrent ? 'rgba(255,255,255,0.04)' : 'transparent',
+                                      cursor: isClickable ? 'pointer' : 'default'
+                                    }}
+                                    onClick={() => {
+                                      if (isClickable) {
+                                        handleJumpToLead(idx, sprint.id);
+                                      }
+                                    }}
+                                    title={isClickable ? 'Click to jump to this contact in the dialer' : ''}
+                                  >
+                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem' }}>
+                                      <div style={{ fontWeight: 600, color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)' }}>{contact.name}</div>
+                                      {contact.company && (
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-dark)' }}>{contact.company}</div>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>{contact.phone || '-'}</td>
+                                    <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', fontWeight: 600 }}>
+                                      {contact.value > 0 ? `${getCurrencySymbol(currency)}${contact.value.toLocaleString()}` : '-'}
+                                    </td>
+                                    <td style={{ padding: '0.45rem 0.6rem', textAlign: 'center' }}>
+                                      <span style={{ 
+                                        fontSize: '0.625rem', 
+                                        fontWeight: 700, 
+                                        padding: '0.1rem 0.4rem', 
+                                        borderRadius: '4px',
+                                        color: statusColor,
+                                        background: statusBg,
+                                        display: 'inline-block',
+                                        whiteSpace: 'nowrap'
+                                      }}>
+                                        {statusLabel.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '0.45rem 0.6rem' }}>
+                                      {contactLogs.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                          {contactLogs.map((log, lIdx) => (
+                                            <div key={lIdx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                              <span style={{ fontWeight: 500 }}>
+                                                {log.action === 'whatsapp' ? '💬 WhatsApp' : log.action === 'skip' ? '🚫 Skipped' : `📞 ${log.outcome}`}
+                                                {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
+                                              </span>
+                                              {log.notes && (
+                                                <span style={{ fontStyle: 'italic', color: 'var(--text-dark)', marginLeft: '0.35rem' }}>
+                                                  - "{log.notes}"
+                                                </span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-dark)', fontStyle: 'italic' }}>-</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {(!sprint.queue || sprint.queue.length === 0) && (
+                                <tr>
+                                  <td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-dark)' }}>
+                                    No contacts in this sprint queue.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     )}
