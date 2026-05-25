@@ -1317,14 +1317,19 @@ export default function SprintView({
                       border: isExpanded ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)', 
                       borderRadius: '8px', 
                       marginBottom: '0.5rem', 
-                      overflow: 'hidden',
-                      cursor: 'pointer'
+                      overflow: 'hidden'
                     }}
-                    onClick={() => setExpandedSprintIds(prev => ({ ...prev, [sprint.id]: !prev[sprint.id] }))}
                   >
                     
                     <div 
-                      style={{ padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      style={{ 
+                        padding: '0.75rem', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setExpandedSprintIds(prev => ({ ...prev, [sprint.id]: !prev[sprint.id] }))}
                     >
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
