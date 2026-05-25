@@ -67,6 +67,10 @@
   --ui-text-sm: 0.82rem;
   --ui-text-md: 0.88rem;
   --ui-text-lg: 1.02rem;
+
+  /* Navigation styling variables */
+  --nav-item-hover-bg: rgba(255, 255, 255, 0.04);
+  --nav-item-active-bg: rgba(249, 115, 22, 0.1);
 }
 
 [data-theme="light"] {
@@ -112,6 +116,10 @@
   --accent-hover: hsl(42, 95%, 43%);
   --accent-shadow: rgba(217, 119, 6, 0.35);
   --accent-shadow-hover: rgba(217, 119, 6, 0.5);
+
+  /* Navigation styling variables (light theme) */
+  --nav-item-hover-bg: rgba(0, 0, 0, 0.03);
+  --nav-item-active-bg: rgba(249, 115, 22, 0.07);
 }
 
 /* Base Resets */
@@ -266,20 +274,19 @@ nav {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: none;
+  background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   font-family: inherit;
-  transition: color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0.7rem 0.5rem;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 10px;
   position: relative;
   gap: 0.32rem;
   overflow: hidden;
-  z-index: 0;
+  z-index: 1;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -288,7 +295,6 @@ nav {
     min-height: 48px;
     padding: 0;
     gap: 0;
-    transform: none;
     display: grid;
     place-items: center;
   }
@@ -298,101 +304,47 @@ nav {
   .nav-item {
     flex-direction: row;
     justify-content: flex-start;
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 0.95rem;
     gap: 0.75rem;
-    overflow: visible;
   }
 }
 
-.nav-item::before {
-  content: '';
-  position: absolute;
-  inset: 0.12rem 0.18rem;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(249, 115, 22, 0.18), rgba(217, 119, 6, 0.08));
-  opacity: 0;
-  transform: scale(0.82);
-  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-  z-index: -1;
-}
-
-@media (max-width: 768px) {
-  .nav-item::before {
-    display: none;
-  }
-}
-
+/* Background capsules using transition directly on the button */
 .nav-item:hover {
   color: var(--text-main);
-  transform: translateY(-1px);
+  background-color: var(--nav-item-hover-bg);
 }
 
 .nav-item.active {
-  color: var(--text-muted);
-  transform: translateY(-2px);
+  color: var(--primary);
+  background-color: var(--nav-item-active-bg);
 }
 
 @media (max-width: 768px) {
   .nav-item:hover,
   .nav-item.active {
-    transform: none;
-  }
-}
-
-.nav-item:hover::before {
-  opacity: 0.45;
-  transform: scale(0.96);
-}
-
-.nav-item.active::before {
-  opacity: 1;
-  transform: scale(1);
-  box-shadow: none;
-}
-
-@media (max-width: 768px) {
-  .nav-item:hover::before {
-    opacity: 0;
-  }
-
-  .nav-item.active::before {
-    opacity: 0;
-  }
-}
-
-@media (min-width: 769px) {
-  .nav-item.active::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 20%;
-    height: 60%;
-    width: 3px;
-    background: var(--primary);
-    border-radius: 0 4px 4px 0;
-    box-shadow: none;
+    background-color: transparent; /* No backgrounds on mobile tab bar, just icon highlighting */
   }
 }
 
 .nav-icon {
   width: 18px;
   height: 18px;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  color: inherit;
+  transition: transform 0.2s ease;
 }
 
 @media (max-width: 768px) {
   .nav-icon {
-    width: 19px;
-    height: 19px;
-    color: var(--text-muted);
+    width: 20px;
+    height: 20px;
   }
 }
 
 @media (min-width: 769px) {
   .nav-icon {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -400,8 +352,8 @@ nav {
   font-size: 0.78rem;
   font-weight: 600;
   line-height: 1;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.24s ease;
+  color: inherit;
+  transition: transform 0.2s ease;
 }
 
 @media (max-width: 768px) {
@@ -418,11 +370,7 @@ nav {
 }
 
 .nav-item.active .nav-icon {
-  transform: translateY(-1px) scale(1.04);
-}
-
-.nav-item.active .nav-label {
-  transform: translateY(0);
+  transform: scale(1.05);
 }
 
 .nav-item:focus,

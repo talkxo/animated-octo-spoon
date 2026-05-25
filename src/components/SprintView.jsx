@@ -68,12 +68,10 @@ export default function SprintView({
   sprints = [],
   setSprints,
   callingLists = [],
-  setCallingLists
+  setCallingLists,
+  activeSprintId,
+  saveActiveSprintIdToStorage
 }) {
-  const [activeSprintId, setActiveSprintId] = useState(() => {
-    return localStorage.getItem('crm_active_sprint_id') || null;
-  });
-
   // Sprint Management States
   const [sprintState, setSprintState] = useState('setup'); // 'setup', 'active', 'finished'
   const [sprintQueue, setSprintQueue] = useState([]);
@@ -122,19 +120,42 @@ export default function SprintView({
     syncCallingLists(updatedLists);
   };
 
-  const saveActiveSprintIdToStorage = (id) => {
-    setActiveSprintId(id);
-    if (id) {
-      localStorage.setItem('crm_active_sprint_id', id);
-    } else {
-      localStorage.removeItem('crm_active_sprint_id');
-    }
-  };
-
-  // Helper: save sprint both locally and to Sheets
   const persistSprint = (sprint) => {
     syncSprint(sprint);
   };
+
+  // Auto-resume sprint on mount/update if it is active
+  useEffect(() => {
+    if (activeSprintId && sprints.length > 0) {
+      const match = sprints.find(s => String(s.id) === String(activeSprintId));
+      if (match && match.status === 'active') {
+        setActiveSprint(match);
+        setSprintQueue(match.queue || []);
+        setCurrentIdx(match.currentIdx || 0);
+        setSprintLogs(match.logs || []);
+        setSprintState('active');
+      } else if (match && match.status === 'suspended') {
+        // If it is suspended, load it so the setup screen detects it, but stay on setup screen
+        setActiveSprint(match);
+        setSprintQueue(match.queue || []);
+        setCurrentIdx(match.currentIdx || 0);
+        setSprintLogs(match.logs || []);
+        setSprintState('setup');
+      } else {
+        setActiveSprint(null);
+        setSprintQueue([]);
+        setCurrentIdx(0);
+        setSprintLogs([]);
+        setSprintState('setup');
+      }
+    } else {
+      setActiveSprint(null);
+      setSprintQueue([]);
+      setCurrentIdx(0);
+      setSprintLogs([]);
+      setSprintState('setup');
+    }
+  }, [activeSprintId, sprints]);
 
   // Synchronize dynamic default values
   useEffect(() => {
@@ -791,14 +812,21 @@ export default function SprintView({
     }
   };
 
-  const outcomes = [
-    { label: 'Connected & Talked', value: 'Connected', icon: '✅' },
-    { label: 'No Answer / Voicemail', value: 'No Answer', icon: '🚫' },
-    { label: 'Busy / Call Back Later', value: 'Busy', icon: '⏳' },
-    { label: 'Meeting / Demo Scheduled', value: 'Demo Booked', icon: '📅' },
-    { label: 'Deal Won & Closed', value: 'Deal Won', icon: '🏆' },
-    { label: 'Deal Lost / Refused', value: 'Deal Lost', icon: '💀' }
-  ];
+  const outcomes = activeSprint?.type === 'list' 
+    ? [
+        { label: 'Connected', value: 'Connected', icon: '✅' },
+        { label: 'Share Details', value: 'Share Details', icon: '✉️' },
+        { label: 'Call Later', value: 'Call Later', icon: '⏳' },
+        { label: 'Exit', value: 'Exit', icon: '🚫' }
+      ]
+    : [
+        { label: 'Connected & Talked', value: 'Connected', icon: '✅' },
+        { label: 'No Answer / Voicemail', value: 'No Answer', icon: '🚫' },
+        { label: 'Busy / Call Back Later', value: 'Busy', icon: '⏳' },
+        { label: 'Meeting / Demo Scheduled', value: 'Demo Booked', icon: '📅' },
+        { label: 'Deal Won & Closed', value: 'Deal Won', icon: '🏆' },
+        { label: 'Deal Lost / Refused', value: 'Deal Lost', icon: '💀' }
+      ];
 
   // Lookup ongoing/suspended sprint if exists
   const ongoingSprint = sprints.find(s => String(s.id) === String(activeSprintId) && (s.status === 'active' || s.status === 'suspended'));
@@ -1366,274 +1394,9 @@ export default function SprintView({
             </div>
 
           </div>
-
-          {/* OUTREACH SPRINT LOGS HISTORY */}
-          <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
-              <History size={18} style={{ color: 'var(--primary)' }} />
-              Sprint Logs & History
-            </h3>
-
-            <div className="sprint-logs-list" style={{ maxHeight: '360px' }}>
-              {sprints.map(sprint => {
-                const isExpanded = expandedSprintIds[sprint.id];
-                const completedPct = sprint.queue && sprint.queue.length > 0 
-                  ? Math.round((sprint.currentIdx / sprint.queue.length) * 100) 
-                  : 0;
-                  
-                const wonCount = sprint.logs ? sprint.logs.filter(l => l.outcome === 'Deal Won').length : 0;
-                const connCount = sprint.logs ? sprint.logs.filter(l => l.outcome === 'Connected' || l.outcome === 'Demo Booked').length : 0;
-                const skipCount = sprint.logs ? sprint.logs.filter(l => l.action === 'skip').length : 0;
-                  
-                return (
-                  <div 
-                    key={sprint.id} 
-                    style={{ 
-                      background: isExpanded ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)', 
-                      border: isExpanded ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)', 
-                      borderRadius: '8px', 
-                      marginBottom: '0.5rem', 
-                      overflow: 'hidden'
-                    }}
-                  >
-                    
-                    <div 
-                      style={{ 
-                        padding: '0.75rem', 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => setExpandedSprintIds(prev => ({ ...prev, [sprint.id]: !prev[sprint.id] }))}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{sprint.name}</span>
-                          <span className={`lane-badge ${sprint.status}`} style={{
-                            fontSize: '0.7rem',
-                            padding: '0.1rem 0.4rem',
-                            background: sprint.status === 'active' ? 'var(--primary-glow)' : sprint.status === 'suspended' ? 'var(--accent-glow)' : 'rgba(16,185,129,0.1)',
-                            color: sprint.status === 'active' ? 'var(--primary)' : sprint.status === 'suspended' ? 'var(--accent)' : '#10b981'
-                          }}>
-                            {sprint.status.toUpperCase()}
-                          </span>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          <span>Source: <strong style={{ color: 'var(--text-main)' }}>{sprint.type === 'pipeline' ? 'Pipeline' : 'Custom List'}</strong> ({sprint.sourceName})</span>
-                          <span>Created: {formatDateSafe(sprint.createdAt)}</span>
-                        </div>
-
-                        {/* Progress slider bar */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
-                          <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '2px', overflow: 'hidden' }}>
-                            <div style={{
-                              width: `${completedPct}%`,
-                              height: '100%',
-                              background: sprint.status === 'active' ? 'var(--primary)' : sprint.status === 'suspended' ? 'var(--accent)' : '#10b981',
-                              borderRadius: '2px'
-                            }}></div>
-                          </div>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-dark)' }}>{sprint.currentIdx}/{sprint.queue?.length || 0} ({completedPct}%)</span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '1rem' }}>
-                        {sprint.status === 'suspended' && (
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleResumeSprint(sprint.id);
-                            }}
-                          >
-                            <Play size={10} fill="white" />
-                            Resume
-                          </button>
-                        )}
-                        
-                        <button 
-                          className="outcome-btn lost" 
-                          style={{ padding: '0.3rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSprint(sprint.id, e);
-                          }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-
-                        {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div 
-                        style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--border-light)' }} 
-                        className="fade-in"
-                      >
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                          <div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)' }}>{wonCount}</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>WON</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--accent)' }}>{connCount}</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>CONNECTED</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-muted)' }}>{skipCount}</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SKIPPED</div>
-                          </div>
-                        </div>
-
-                        {/* Collapsible Queue Listing */}
-                        <div style={{ marginBottom: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                          SPRINT QUEUE & CONTACT PROGRESS
-                        </div>
-                        
-                        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px', maxHeight: '280px', overflowY: 'auto' }}>
-                          <table className="preview-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
-                            <thead>
-                              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', width: '30px' }}>#</th>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Contact</th>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Phone</th>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', textAlign: 'right' }}>Value</th>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)', textAlign: 'center', width: '110px' }}>Status</th>
-                                <th style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>Outreach Logs & Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sprint.queue && sprint.queue.map((contact, idx) => {
-                                // Find all log entries for this contact
-                                const contactLogs = sprint.logs ? sprint.logs.filter(l => 
-                                  (l.leadId && String(l.leadId) === String(contact.id)) || 
-                                  (!l.leadId && String(l.leadName) === String(contact.name))
-                                ) : [];
-                                
-                                // Determine status
-                                let statusLabel = 'Pending';
-                                let statusColor = 'var(--text-dark)';
-                                let statusBg = 'rgba(255,255,255,0.03)';
-                                
-                                const hasCallLog = contactLogs.some(l => l.action === 'call');
-                                const hasSkipLog = contactLogs.some(l => l.action === 'skip');
-                                const isCurrent = (sprint.status === 'active' || sprint.status === 'suspended') && idx === sprint.currentIdx;
-                                
-                                if (isCurrent) {
-                                  statusLabel = 'Current Active';
-                                  statusColor = 'var(--primary)';
-                                  statusBg = 'var(--primary-glow)';
-                                } else if (hasCallLog) {
-                                  statusLabel = 'Called';
-                                  statusColor = '#10b981';
-                                  statusBg = 'rgba(16,185,129,0.1)';
-                                } else if (hasSkipLog) {
-                                  statusLabel = 'Skipped';
-                                  statusColor = 'var(--accent)';
-                                  statusBg = 'var(--accent-glow)';
-                                } else if (sprint.status !== 'completed' && idx < sprint.currentIdx) {
-                                  statusLabel = 'Skipped';
-                                  statusColor = 'var(--accent)';
-                                  statusBg = 'var(--accent-glow)';
-                                }
-                                
-                                const isClickable = sprint.status === 'active' || sprint.status === 'suspended';
-                                
-                                return (
-                                  <tr 
-                                    key={contact.id || idx} 
-                                    style={{ 
-                                      borderBottom: '1px solid rgba(255,255,255,0.02)',
-                                      background: isCurrent ? 'rgba(255,255,255,0.04)' : 'transparent',
-                                      cursor: isClickable ? 'pointer' : 'default'
-                                    }}
-                                    onClick={() => {
-                                      if (isClickable) {
-                                        handleJumpToLead(idx, sprint.id);
-                                      }
-                                    }}
-                                    title={isClickable ? 'Click to jump to this contact in the dialer' : ''}
-                                  >
-                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                    <td style={{ padding: '0.45rem 0.6rem' }}>
-                                      <div style={{ fontWeight: 600, color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)' }}>{contact.name}</div>
-                                      {contact.company && (
-                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-dark)' }}>{contact.company}</div>
-                                      )}
-                                    </td>
-                                    <td style={{ padding: '0.45rem 0.6rem', color: 'var(--text-muted)' }}>{contact.phone || '-'}</td>
-                                    <td style={{ padding: '0.45rem 0.6rem', textAlign: 'right', fontWeight: 600 }}>
-                                      {contact.value > 0 ? `${getCurrencySymbol(currency)}${contact.value.toLocaleString()}` : '-'}
-                                    </td>
-                                    <td style={{ padding: '0.45rem 0.6rem', textAlign: 'center' }}>
-                                      <span style={{ 
-                                        fontSize: '0.625rem', 
-                                        fontWeight: 700, 
-                                        padding: '0.1rem 0.4rem', 
-                                        borderRadius: '4px',
-                                        color: statusColor,
-                                        background: statusBg,
-                                        display: 'inline-block',
-                                        whiteSpace: 'nowrap'
-                                      }}>
-                                        {statusLabel.toUpperCase()}
-                                      </span>
-                                    </td>
-                                    <td style={{ padding: '0.45rem 0.6rem' }}>
-                                      {contactLogs.length > 0 ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                          {contactLogs.map((log, lIdx) => (
-                                            <div key={lIdx} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                              <span style={{ fontWeight: 500 }}>
-                                                {log.action === 'whatsapp' ? '💬 WhatsApp' : log.action === 'skip' ? '🚫 Skipped' : `📞 ${log.outcome}`}
-                                                {log.action === 'whatsapp' && log.details && ` ("${log.details}")`}
-                                              </span>
-                                              {log.notes && (
-                                                <span style={{ fontStyle: 'italic', color: 'var(--text-dark)', marginLeft: '0.35rem' }}>
-                                                  - "{log.notes}"
-                                                </span>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <span style={{ color: 'var(--text-dark)', fontStyle: 'italic' }}>-</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                              {(!sprint.queue || sprint.queue.length === 0) && (
-                                <tr>
-                                  <td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-dark)' }}>
-                                    No contacts in this sprint queue.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-                );
-              })}
-
-              {sprints.length === 0 && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', textAlign: 'center', padding: '1.5rem' }}>
-                  No historical outreach logs. Launch a sprint above!
-                </div>
-              )}
-            </div>
-          </div>
-
         </div>
       )}
+
 
       {/* STEP 2: ACTIVE SPRINT MODE */}
       {sprintState === 'active' && activeLead && (
@@ -1873,7 +1636,7 @@ export default function SprintView({
           <div>
             <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Sprint Completed!</h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Awesome job! You've run through your outreach calling list.
+              Awesome job! You have run through your outreach calling list.
             </p>
           </div>
 

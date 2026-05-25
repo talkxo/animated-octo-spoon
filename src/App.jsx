@@ -11,7 +11,8 @@ import {
   Sun,
   Moon,
   HelpCircle,
-  LogOut
+  LogOut,
+  History
 } from 'lucide-react';
 import {
   KBarProvider,
@@ -28,6 +29,7 @@ import SettingsView from './components/SettingsView';
 import LeadModal from './components/LeadModal';
 import SetupWizard from './components/SetupWizard';
 import Login from './components/Login';
+import SprintsLogView from './components/SprintsLogView';
 
 // Custom KBar results list renderer with high-end styles
 function PlutoCommandBarResults() {
@@ -286,10 +288,24 @@ export default function App() {
     setWhatsappTemplates(DEFAULT_WHATSAPP_TEMPLATES);
     setSprints([]);
     setCallingLists([]);
+    setActiveSprintId(null);
+    localStorage.removeItem('crm_active_sprint_id');
   };
 
   // Navigation & Views State
   const [activeTab, setActiveTab] = useState('funnel');
+  const [activeSprintId, setActiveSprintId] = useState(() => {
+    return localStorage.getItem('crm_active_sprint_id') || null;
+  });
+
+  const saveActiveSprintIdToStorage = (id) => {
+    setActiveSprintId(id);
+    if (id) {
+      localStorage.setItem('crm_active_sprint_id', id);
+    } else {
+      localStorage.removeItem('crm_active_sprint_id');
+    }
+  };
   
   // Settings & Sync State — sheet URL bootstrapped from user-scoped key
   const [sheetUrl, setSheetUrl] = useState(() => {
@@ -684,6 +700,26 @@ export default function App() {
   const syncSprint = (sprint) => handleSyncPush({ action: 'saveSprint', sprint });
   const deleteSprintFromSheet = (id) => handleSyncPush({ action: 'deleteSprint', id });
   const syncCallingLists = (callingLists) => handleSyncPush({ action: 'saveCallingLists', callingLists });
+
+  const onResumeSprint = (sprintId, contactIdx = null) => {
+    const updatedSprints = sprints.map(s => {
+      if (String(s.id) === String(sprintId)) {
+        const updated = { ...s, status: 'active' };
+        if (contactIdx !== null) {
+          updated.currentIdx = contactIdx;
+        }
+        return updated;
+      }
+      return s;
+    });
+    setSprints(updatedSprints);
+    const sprintToSync = updatedSprints.find(s => String(s.id) === String(sprintId));
+    if (sprintToSync) {
+      syncSprint(sprintToSync);
+    }
+    saveActiveSprintIdToStorage(sprintId);
+    setActiveTab('sprint');
+  };
 
   // Settings sync helpers
   async function syncSettings(nextSettings) {
@@ -1242,6 +1278,14 @@ export default function App() {
         </button>
 
         <button 
+          className={`nav-item ${activeTab === 'sprints-log' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sprints-log')}
+        >
+          <History className="nav-icon" />
+          <span className="nav-label">Sprints Log</span>
+        </button>
+
+        <button 
           className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
@@ -1283,6 +1327,21 @@ export default function App() {
             setSprints={setSprints}
             callingLists={callingLists}
             setCallingLists={setCallingLists}
+            activeSprintId={activeSprintId}
+            saveActiveSprintIdToStorage={saveActiveSprintIdToStorage}
+          />
+        )}
+
+        {activeTab === 'sprints-log' && (
+          <SprintsLogView 
+            sprints={sprints}
+            setSprints={setSprints}
+            deleteSprintFromSheet={deleteSprintFromSheet}
+            currency={currency}
+            activeSprintId={activeSprintId}
+            saveActiveSprintIdToStorage={saveActiveSprintIdToStorage}
+            onResumeSprint={onResumeSprint}
+            onSelectLead={(id) => setSelectedLeadId(id)}
           />
         )}
 
