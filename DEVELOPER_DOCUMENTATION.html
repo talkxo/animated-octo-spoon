@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pluto CRM — Internal Developer Documentation</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM & VARIABLES
+       ========================================================================== */
+    :root[data-theme="dark"] {
+      --bg-base: #080b11;
+      --bg-surface: #0f131a;
+      --bg-card: rgba(22, 28, 38, 0.6);
+      --bg-code: #131924;
+      
+      --border-light: rgba(255, 255, 255, 0.06);
+      --border-medium: rgba(255, 255, 255, 0.12);
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dark: #6b7280;
+      
+      --primary: #f97316; /* Pluto Orange */
+      --primary-hover: #ea580c;
+      --primary-glow: rgba(249, 115, 22, 0.15);
+      
+      --accent: #a855f7; /* Purple accents */
+      --accent-glow: rgba(168, 85, 247, 0.1);
+      
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.1);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.1);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.1);
+      
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.6);
+      --shadow-inset: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    :root[data-theme="light"] {
+      --bg-base: #f9fafb;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.8);
+      --bg-code: #f3f4f6;
+      
+      --border-light: rgba(0, 0, 0, 0.06);
+      --border-medium: rgba(0, 0, 0, 0.12);
+      
+      --text-main: #1f2937;
+      --text-muted: #4b5563;
+      --text-dark: #9ca3af;
+      
+      --primary: #ea580c;
+      --primary-hover: #c2410c;
+      --primary-glow: rgba(234, 88, 12, 0.08);
+      
+      --accent: #8b5cf6;
+      --accent-glow: rgba(139, 92, 246, 0.06);
+      
+      --success: #059669;
+      --success-glow: rgba(5, 150, 105, 0.08);
+      --warning: #d97706;
+      --warning-glow: rgba(217, 119, 6, 0.08);
+      --danger: #dc2626;
+      --danger-glow: rgba(220, 38, 38, 0.08);
+      
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
+      --shadow-inset: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Core typography tokens corresponding directly to crm codebase specs */
+    --text-title-1: 1.5rem;    /* 24px */
+    --text-title-2: 1.125rem;  /* 18px */
+    --text-title-3: 0.875rem;  /* 14px */
+    --text-body: 0.85rem;      /* 13.6px */
+    --text-sm: 0.8125rem;      /* 13px */
+    --text-xs: 0.75rem;        /* 12px */
+    --text-2xs: 0.6875rem;     /* 11px */
+
+    /* Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-medium) transparent;
+    }
+
+    /* Scrollbars Custom */
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    *::-webkit-scrollbar-thumb {
+      background-color: var(--border-medium);
+      border-radius: 3px;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-size: var(--text-body);
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* ==========================================================================
+       LAYOUT STRUCTURE
+       ========================================================================== */
+    aside {
+      width: 280px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-light);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    main {
+      margin-left: 280px;
+      flex: 1;
+      padding: 3rem 4rem;
+      max-width: 1200px;
+    }
+
+    /* Sidebar Logo */
+    .sidebar-logo {
+      padding: 1.75rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .logo-symbol {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: radial-gradient(30% 30% at 30% 30%, #ffeedd 0%, var(--primary) 60%, #7c2d12 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .logo-heart {
+      fill: #ffffff;
+      opacity: 0.95;
+      transform: rotate(-20deg) scale(0.35);
+    }
+
+    .sidebar-logo h1 {
+      font-size: var(--text-title-2);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-main);
+    }
+
+    .sidebar-logo .badge {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      background: var(--primary-glow);
+      color: var(--primary);
+      border: 1px solid rgba(249, 115, 22, 0.2);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Sidebar Search */
+    .sidebar-search {
+      padding: 1rem 1.5rem;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-code);
+      border: 1px solid var(--border-light);
+      padding: 0.5rem 0.75rem 0.5rem 2rem;
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: var(--text-sm);
+      outline: none;
+      transition: all 0.25s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-glow);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dark);
+      pointer-events: none;
+    }
+
+    /* Navigation Links */
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .nav-section-title {
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: var(--text-sm);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .nav-item:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .nav-item.active {
+      color: var(--text-main);
+      background: var(--primary-glow);
+      font-weight: 600;
+      border: 1px solid rgba(249, 115, 22, 0.15);
+    }
+
+    /* Sidebar Footer Toggle */
+    .sidebar-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-code);
+      border: 1px solid var(--border-light);
+      color: var(--text-main);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--primary);
+    }
+
+    /* ==========================================================================
+       CONTENT ELEMENTS
+       ========================================================================== */
+    header {
+      margin-bottom: 3rem;
+      position: relative;
+    }
+
+    .meta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--text-xs);
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 0.25rem 0.6rem;
+      border-radius: 100px;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      border: 1px solid rgba(168, 85, 247, 0.15);
+    }
+
+    header h2 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--text-main) 30%, var(--text-dark) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: var(--text-title-2);
+      font-weight: 300;
+    }
+
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 2rem;
+    }
+
+    .section-title {
+      font-size: var(--text-title-1);
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border-medium), transparent);
+    }
+
+    p.text-block {
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Cards Grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    @media (min-width: 768px) {
+      .card-grid.cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card-grid.cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(16px);
+      transition: border-color 0.25s, transform 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+    }
+
+    .glass-card.highlight {
+      border-left: 3px solid var(--primary);
+    }
+
+    .glass-card h4 {
+      font-size: var(--text-title-2);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .glass-card p {
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+
+    /* Alerts */
+    .alert-box {
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      border: 1px solid transparent;
+    }
+
+    .alert-box.info {
+      background: var(--accent-glow);
+      border-color: rgba(168, 85, 247, 0.2);
+      color: var(--text-main);
+    }
+
+    .alert-box.info svg { color: var(--accent); }
+
+    .alert-box.warning {
+      background: var(--warning-glow);
+      border-color: rgba(245, 158, 11, 0.2);
+      color: var(--text-main);
+    }
+
+    .alert-box.warning svg { color: var(--warning); }
+
+    .alert-box.danger {
+      background: var(--danger-glow);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--text-main);
+    }
+
+    .alert-box.danger svg { color: var(--danger); }
+
+    .alert-box svg {
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+
+    /* Diagrams & SVGs */
+    .diagram-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 1.75rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-inset);
+    }
+
+    .diagram-svg {
+      width: 100%;
+      max-width: 780px;
+      height: auto;
+    }
+
+    /* Data Tables */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      margin: 1.5rem 0;
+      box-shadow: var(--shadow-sm);
+      background: var(--bg-surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: var(--text-sm);
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-main);
+      font-weight: 700;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-light);
+      text-transform: uppercase;
+      font-size: var(--text-xs);
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-muted);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.01);
+      color: var(--text-main);
+    }
+
+    .prop-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .prop-type {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-xs);
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    /* Code Blocks */
+    .code-container {
+      background: var(--bg-code);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      margin: 1.5rem 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .code-header {
+      background: rgba(0, 0, 0, 0.15);
+      padding: 0.5rem 1.25rem;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .code-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .code-copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dark);
+      cursor: pointer;
+      font-size: var(--text-xs);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .code-copy-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    pre {
+      padding: 1.25rem;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--text-sm);
+      color: #9cdcfe;
+    }
+
+    /* Syntax Highlighting */
+    .hljs-comment { color: #6a9955; }
+    .hljs-keyword { color: #569cd6; }
+    .hljs-string { color: #ce9178; }
+    .hljs-number { color: #b5cea8; }
+    .hljs-function { color: #dcdcaa; }
+    .hljs-variable { color: #9cdcfe; }
+    .hljs-type { color: #4ec9b0; }
+
+    /* Tags */
+    .badge-outline {
+      border: 1px solid var(--border-medium);
+      color: var(--text-muted);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: var(--text-2xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .badge-outline.success {
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--success);
+      background: var(--success-glow);
+    }
+
+    .badge-outline.warning {
+      border-color: rgba(245, 158, 11, 0.3);
+      color: var(--warning);
+      background: var(--warning-glow);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside>
+    <div class="sidebar-logo">
+      <div class="logo-symbol">
+        <svg viewBox="0 0 32 32" width="22" height="22">
+          <g>
+            <path class="logo-heart" d="M16 26.35l-1.45-1.32C9.4 20.36 6 17.28 6 13.5 6 10.42 8.42 8 11.5 8c1.74 0 3.41.81 4.5 2.09C17.09 8.81 18.76 8 20.5 8 23.58 8 26 10.42 26 13.5c0 3.78-3.4 6.86-8.55 11.54L16 26.35z"/>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h1>Pluto CRM</h1>
+      </div>
+      <span class="badge">Docs</span>
+    </div>
+
+    <div class="sidebar-search">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="doc-search" class="search-input" placeholder="Search documentation...">
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">System Architecture</div>
+      <a href="#overview" class="nav-item active">System Overview</a>
+      <a href="#dual-mode" class="nav-item">Dual Offline/Cloud Logic</a>
+      <a href="#sync-engine" class="nav-item">Sheets Sync Engine</a>
+      
+      <div class="nav-section-title">Database &amp; Storage</div>
+      <a href="#firestore-schema" class="nav-item">Firestore Schema</a>
+      <a href="#sheets-schema" class="nav-item">Google Sheets Schema</a>
+      
+      <div class="nav-section-title">UI &amp; Visual Design</div>
+      <a href="#typography" class="nav-item">Typography System</a>
+      <a href="#spacing-standard" class="nav-item">Grid &amp; Card Spacing</a>
+      
+      <div class="nav-section-title">Quickstart Setup</div>
+      <a href="#local-env" class="nav-item">Environment Configuration</a>
+      <a href="#sheets-setup" class="nav-item">Apps Script Backend</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle-btn" id="theme-toggle">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <span>Toggle Theme</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN DOCUMENTATION CONTENT -->
+  <main>
+    
+    <!-- Header banner -->
+    <header>
+      <span class="meta-tag">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        Internal Architecture Reference v2.4
+      </span>
+      <h2>Pluto CRM Developer Documentation</h2>
+      <p>A guides, architectural charts, schemas, and standards reference for frontend developers.</p>
+    </header>
+
+    <!-- SECTION 1: SYSTEM OVERVIEW -->
+    <section id="overview">
+      <h3 class="section-title">System Overview</h3>
+      <p class="text-block">
+        Pluto is a client-side **local-first CRM** application built with React, styled with vanilla CSS, and bundled using Vite. It offers dual execution modes: a fully functional local-offline mode utilizing `localStorage` caching and a real-time collaborative cloud mode integrated with Firebase (Authentication, Google Sign-In, and Firestore). In both configurations, the ultimate database source remains the user's private Google Spreadsheet, synced securely through a custom Google Apps Script Web App macro.
+      </p>
+
+      <div class="card-grid cols-3">
+        <div class="glass-card highlight">
+          <h4>Vite + React App</h4>
+          <p>Modular, functional architecture utilizing custom hooks to isolate auth actions, database operations, settings revisions, and local caches.</p>
+        </div>
+        <div class="glass-card">
+          <h4>Local-First Engine</h4>
+          <p>Operates offline first. Edits are committed immediately to the client-side database and buffered to an operation sync queue.</p>
+        </div>
+        <div class="glass-card">
+          <h4>Google Sheets Sync</h4>
+          <p>Synchronizes via Apps Script HTTP calls using base revisions and sequential flushing to prevent overwrites and resolve conflicts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: DUAL OFFLINE/CLOUD RUNTIME LOGIC -->
+    <section id="dual-mode">
+      <h3 class="section-title">Dual Offline &amp; Cloud Runtime Logic</h3>
+      <p class="text-block">
+        To allow seamless local execution without requiring complex Firebase cloud hosting for every fork, the application implements a dynamic configuration detector. If Firebase API keys are missing in the environment, the app hides collaborative settings and runs inside an Offline Sandbox Mode.
+      </p>
+
+      <div class="diagram-container">
+        <!-- SVG Architectural Diagram -->
+        <svg class="diagram-svg" viewBox="0 0 800 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background grids -->
+          <rect width="800" height="360" rx="12" fill="var(--bg-surface)" stroke="var(--border-light)" stroke-width="2"/>
+          
+          <!-- Box 1: Firebase Check -->
+          <rect x="50" y="140" width="160" height="80" rx="8" fill="var(--bg-code)" stroke="var(--primary)" stroke-width="2"/>
+          <text x="130" y="180" fill="var(--text-main)" font-size="14" font-weight="700" text-anchor="middle">firebase.js</text>
+          <text x="130" y="200" fill="var(--primary)" font-size="11" font-weight="600" text-anchor="middle">isConfigured Check</text>
+
+          <!-- Branch 1 (Unconfigured) -->
+          <path d="M210 160 H340 V90 H380" stroke="var(--border-medium)" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+          <text x="290" y="145" fill="var(--text-muted)" font-size="11" font-weight="600" text-anchor="middle">FALSE (Offline)</text>
+          
+          <rect x="380" y="50" width="180" height="80" rx="8" fill="var(--bg-card)" stroke="var(--border-light)"/>
+          <text x="470" y="85" fill="var(--text-main)" font-size="13" font-weight="600" text-anchor="middle">Local Credentials</text>
+          <text x="470" y="105" fill="var(--text-muted)" font-size="11" text-anchor="middle">localStorage Caching</text>
+
+          <!-- Branch 2 (Configured) -->
+          <path d="M210 200 H340 V270 H380" stroke="var(--primary)" stroke-width="2" fill="none"/>
+          <text x="290" y="225" fill="var(--primary)" font-size="11" font-weight="600" text-anchor="middle">TRUE (Cloud)</text>
+          
+          <rect x="380" y="230" width="180" height="80" rx="8" fill="var(--bg-card)" stroke="var(--primary)" stroke-width="1" stroke-opacity="0.5"/>
+          <text x="470" y="265" fill="var(--text-main)" font-size="13" font-weight="600" text-anchor="middle">Google OAuth 2.0</text>
+          <text x="470" y="285" fill="var(--success)" font-size="11" text-anchor="middle">Firestore Sync &amp; Invites</text>
+
+          <!-- Sheets Endpoint (Ultimate Destination) -->
+          <path d="M560 90 H640 V160 H650" stroke="var(--border-medium)" stroke-width="2" fill="none"/>
+          <path d="M560 270 H640 V200 H650" stroke="var(--primary)" stroke-width="2" fill="none"/>
+          
+          <rect x="650" y="140" width="110" height="80" rx="8" fill="var(--bg-code)" stroke="var(--border-medium)" stroke-width="2"/>
+          <text x="705" y="180" fill="var(--text-main)" font-size="12" font-weight="700" text-anchor="middle">Google Sheets</text>
+          <text x="705" y="200" fill="var(--text-dark)" font-size="10" font-weight="600" text-anchor="middle">Apps Script</text>
+        </svg>
+      </div>
+
+      <div class="alert-box info">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="8"></line>
+        </svg>
+        <div>
+          <strong>Guard Enforcement Policy:</strong> Never display cloud-only visual containers when Firebase configuration is inactive. The <code>isConfigured</code> state is checked on load and supplied to <code>SettingsView.jsx</code> and <code>Login.jsx</code> to hide QR generation widgets and real-time team lists.
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: THE GOOGLE SHEETS SYNC ENGINE -->
+    <section id="sync-engine">
+      <h3 class="section-title">The Google Sheets Sync Engine</h3>
+      <p class="text-block">
+        Writes to Google Sheets do not block user interactions. In auto mode, each edit triggers an optimistic write to the internal `leads` state, serializes the payload, schedules a job to append it to the client operation queue, and immediately attempts to flush the queue sequentially.
+      </p>
+
+      <div class="glass-card">
+        <h4>Sync Logic Breakdown &amp; Edge Cases</h4>
+        <br>
+        <p class="text-block">
+          1. **Payload Deduplication**: To avoid redundant roundtrips, the system checks the pending queue. If a lead update for <code>lead-A</code> is queued and the user modifies it again, the older payload is stripped, and the latest snapshot is placed at the end of the queue.
+        </p>
+        <p class="text-block">
+          2. **Collision Guard (Revisions)**: Revisions prevent concurrent users from overwriting sheets data. Each lead record and settings block maintains a numeric `revision`. When posting an update, the current client revision is matched against the server's revision. If the server has a higher revision, a conflict is returned, the local queue is dropped, and a pull is forced to synchronize.
+        </p>
+        <p class="text-block">
+          3. **Try/Finally Queue Locks**: The flush operation runs within a <code>try/finally</code> lock block using a ref marker (<code>isSyncingRef.current</code>). If an network/JSON parsing exception occurs inside the loop, the finally block releases the lock immediately, preventing system sync freezes.
+        </p>
+        <p class="text-block">
+          4. **Opaque no-cors Fallback**: When users experience strict CORS policies (such as browser extensions or script setups), the system falls back to an optimistic <code>no-cors</code> HTTP POST. Because response bodies cannot be read in opaque mode, the queue pauses and schedules a reconciliation fetch 2.5 seconds later to read the revision back.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 4: FIRESTORE SCHEMA -->
+    <section id="firestore-schema">
+      <h3 class="section-title">Firestore Database Schema</h3>
+      <p class="text-block">
+        When Firebase cloud synchronization is active, the local-first store coordinates with Firestore to enable team collaboration, sheet URL syncing, settings synchronization, and invite link validation.
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Collection / Path</th>
+              <th>Field</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td rowspan="4" class="prop-name">workspaces/{workspaceId}</td>
+              <td class="prop-name">sheetUrl</td>
+              <td><span class="prop-type">string</span></td>
+              <td>The App's configured Google Sheet macro endpoint.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">createdBy</td>
+              <td><span class="prop-type">string</span></td>
+              <td>Firebase UID of the workspace owner.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">createdAt</td>
+              <td><span class="prop-type">timestamp</span></td>
+              <td>Server timestamp of creation.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">settings</td>
+              <td><span class="prop-type">map</span></td>
+              <td>Holds shared configs: <code>{ whatsappTemplates: Array }</code>.</td>
+            </tr>
+            
+            <tr>
+              <td rowspan="4" class="prop-name">workspaces/{wsId}/members/{uid}</td>
+              <td class="prop-name">email</td>
+              <td><span class="prop-type">string</span></td>
+              <td>User's Google Account Email.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">displayName</td>
+              <td><span class="prop-type">string</span></td>
+              <td>User's Display Name.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">photoURL</td>
+              <td><span class="prop-type">string</span></td>
+              <td>Avatar image URL.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">role</td>
+              <td><span class="prop-type">string</span></td>
+              <td>Privilege level: <code>"owner"</code> or <code>"member"</code>.</td>
+            </tr>
+
+            <tr>
+              <td rowspan="3" class="prop-name">workspaces/{wsId}/invites/{inviteId}</td>
+              <td class="prop-name">createdBy</td>
+              <td><span class="prop-type">string</span></td>
+              <td>Owner UID who generated the link.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">expiresAt</td>
+              <td><span class="prop-type">number</span></td>
+              <td>Epoch millisecond timestamp of link expiry (5 min limit).</td>
+            </tr>
+            <tr>
+              <td class="prop-name">usedBy</td>
+              <td><span class="prop-type">string | null</span></td>
+              <td>UID of user who claimed it. Null if active.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 5: GOOGLE SHEETS SCHEMA -->
+    <section id="sheets-schema">
+      <h3 class="section-title">Google Sheets Database Schema</h3>
+      <p class="text-block">
+        Google Sheets acts as the main backend. The Google Apps Script automatically bootstraps a workbook by creating the following sheets/tables if they do not exist:
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Sheet Name</th>
+              <th>Key Columns</th>
+              <th>Data Format</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="prop-name">Leads</td>
+              <td>`id`, `name`, `company`, `phone`, `email`, `status`, `value`, `tags`, `pipelineId`, `revision`</td>
+              <td>String &amp; Numeric values</td>
+              <td>Contains individual pipeline opportunities and version records for concurrent revisions.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">Notes</td>
+              <td>`id`, `leadId`, `text`, `timestamp`, `type`</td>
+              <td>Log entry row strings</td>
+              <td>Timeline interactions (calls, system prompts, manually entered logs, templates).</td>
+            </tr>
+            <tr>
+              <td class="prop-name">Settings</td>
+              <td>`key`, `value`</td>
+              <td>JSON configuration blobs</td>
+              <td>Serialized pipelines, outreach slugs, preferences, and workspace variables.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">CallingLists</td>
+              <td>`id`, `name`, `leads`, `createdAt`</td>
+              <td>Raw uploaded lead buffers</td>
+              <td>Contains cold contacts imported via Excel/CSV queues for campaign sprinters.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 6: UI & TYPOGRAPHY SYSTEM -->
+    <section id="typography">
+      <h3 class="section-title">UI &amp; Typography Tokens System</h3>
+      <p class="text-block">
+        Pluto CRM follows a high-density, flat styling language. We align UI scale boundaries according to standard modern SaaS scales (similar to Notion, Linear, and Figma) to provide visual consistency:
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Token Name</th>
+              <th>Rem Value</th>
+              <th>Pixel Value</th>
+              <th>Application Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="prop-name">--text-title-1</td>
+              <td>`1.5rem`</td>
+              <td>24px</td>
+              <td>Page headers and main analytics metric values.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-title-2</td>
+              <td>`1.125rem`</td>
+              <td>18px</td>
+              <td>Modal titles, primary section headers, and glass card headers.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-title-3</td>
+              <td>`0.875rem`</td>
+              <td>14px</td>
+              <td>KPI labels, card headers, secondary headings.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-body</td>
+              <td>`0.85rem`</td>
+              <td>13.6px</td>
+              <td>Standard descriptive text, checklist lines, dialog bodies.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-sm</td>
+              <td>`0.8125rem`</td>
+              <td>13px</td>
+              <td>Input fields, selection dropdowns, form labels.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-xs</td>
+              <td>`0.75rem`</td>
+              <td>12px</td>
+              <td>Button labels, mini status badges, tags.</td>
+            </tr>
+            <tr>
+              <td class="prop-name">--text-2xs</td>
+              <td>`0.6875rem`</td>
+              <td>11px</td>
+              <td>Timestamps, small meta-logs, sub-labels.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert-box warning">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12" y2="17"></line>
+        </svg>
+        <div>
+          <strong>Visual Card Constraints:</strong> Cards (such as <code>.glass-card</code> and login page forms) must remain completely flat. Avoid incorporating <code>box-shadow</code> effects in CSS, as it breaks visual alignment with the design system.
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7: GRID & SPACING STANDARDS -->
+    <section id="spacing-standard">
+      <h3 class="section-title">Grid &amp; Card Spacing Audit Rules</h3>
+      <p class="text-block">
+        To maintain visual balance, never combine inline hardcoded margins (like `marginTop` or `marginBottom`) with flexible layouts. The layout follows a nested gap system:
+      </p>
+
+      <div class="glass-card">
+        <h4>Spacings Matrix</h4>
+        <br>
+        <p class="text-block">
+          - **Card Column Gaps**: Grid elements and stack panels inside `settings-layout-column` rely solely on the flex `gap: 1.25rem` to space out consecutive cards.
+        </p>
+        <p class="text-block">
+          - **Internal Card Padding**: Card elements (pipelines, WhatsApp templates, members lists) must use a standardized `padding: 1rem` on their container wrapper.
+        </p>
+        <p class="text-block">
+          - **Header to Card Body**: The space between card header descriptions/divs and the first list element must be handled purely by the flex `gap: 1.1rem` from `.settings-card-body`. Never apply inline `marginBottom` or `marginTop` to header titles.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 8: SETUP & LOCAL ENVIRONMENT CONFIG -->
+    <section id="local-env">
+      <h3 class="section-title">Setup &amp; Local Environment Config</h3>
+      <p class="text-block">
+        Follow these steps to copy the environment variable template and run the project locally:
+      </p>
+
+      <div class="code-container">
+        <div class="code-header">
+          <div class="code-title">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" fill="none"></rect>
+            </svg>
+            Terminal commands
+          </div>
+          <button class="code-copy-btn" onclick="copyCode(this)">
+            Copy Code
+          </button>
+        </div>
+        <pre><code><span class="hljs-comment"># 1. Copy the environment config file</span>
+cp .env.example .env
+
+<span class="hljs-comment"># 2. Install dependencies</span>
+npm install
+
+<span class="hljs-comment"># 3. Boot Vite Development Server</span>
+npm run dev
+
+<span class="hljs-comment"># 4. Compile Production Bundles</span>
+npm run build</code></pre>
+      </div>
+
+      <p class="text-block">
+        Fill out your configuration keys in your newly generated <code>.env</code> file:
+      </p>
+
+      <div class="code-container">
+        <div class="code-header">
+          <div class="code-title">.env Configuration File</div>
+          <button class="code-copy-btn" onclick="copyCode(this)">Copy Code</button>
+        </div>
+        <pre><code><span class="hljs-comment"># Server fallbacks (Sandbox Mode)</span>
+<span class="hljs-variable">VITE_ADMIN_USERNAME</span>=admin
+<span class="hljs-variable">VITE_ADMIN_PASSWORD</span>=pluto2026
+
+<span class="hljs-comment"># Firebase Settings (Phase 2)</span>
+<span class="hljs-variable">VITE_FIREBASE_API_KEY</span>=AIzaSyA...
+<span class="hljs-variable">VITE_FIREBASE_AUTH_DOMAIN</span>=pluto-app.firebaseapp.com
+<span class="hljs-variable">VITE_FIREBASE_PROJECT_ID</span>=pluto-app
+<span class="hljs-variable">VITE_FIREBASE_STORAGE_BUCKET</span>=pluto-app.appspot.com
+<span class="hljs-variable">VITE_FIREBASE_MESSAGING_SENDER_ID</span>=78239011
+<span class="hljs-variable">VITE_FIREBASE_APP_ID</span>=1:78239011:web:cfb10292</code></pre>
+      </div>
+    </section>
+
+    <!-- SECTION 9: SHEETS BACKEND INSTALL GUIDE -->
+    <section id="sheets-setup">
+      <h3 class="section-title">Sheets Apps Script Setup Guide</h3>
+      <p class="text-block">
+        To authorize your Google Sheet endpoint, paste the Apps Script project configuration from the repository into Google Apps Script. 
+      </p>
+
+      <div class="alert-box danger">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <div>
+          <strong>Deployment Constraint:</strong> During Apps Script deployment configuration, you must select **Execute as: Me (your-account@gmail.com)** and **Who has access: Anyone**. Selecting any other accessibility flag will block the frontend from performing sync writes.
+        </div>
+      </div>
+      
+      <p class="text-block">
+        You can copy the raw Google Apps Script template located at:
+      </p>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: var(--text-sm); color: var(--primary); padding: 0.5rem 1rem; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 8px; width: fit-content; margin-bottom: 1.5rem;">
+        charming-oppenheimer/google-apps-script.js
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Theme toggler logic
+    const themeBtn = document.getElementById('theme-toggle');
+    const htmlEl = document.documentElement;
+
+    themeBtn.addEventListener('click', () => {
+      const currentTheme = htmlEl.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      htmlEl.setAttribute('data-theme', newTheme);
+    });
+
+    // Copy to clipboard helper
+    function copyCode(btn) {
+      const container = btn.closest('.code-container');
+      const codeBlock = container.querySelector('code');
+      navigator.clipboard.writeText(codeBlock.innerText);
+      
+      const originalText = btn.innerText;
+      btn.innerText = 'Copied!';
+      btn.style.color = 'var(--success)';
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.color = '';
+      }, 2000);
+    }
+
+    // Scroll Spy & Menu Highlighting
+    const navItems = document.querySelectorAll('.nav-item');
+    const sections = document.querySelectorAll('section');
+
+    window.addEventListener('scroll', () => {
+      let currentSectionId = '';
+      sections.forEach(sec => {
+        const top = sec.offsetTop;
+        const height = sec.offsetHeight;
+        if (window.scrollY >= top - 200) {
+          currentSectionId = sec.getAttribute('id');
+        }
+      });
+
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('href') === `#${currentSectionId}`) {
+          item.classList.add('active');
+        }
+      });
+    });
+
+    // Client-side search helper
+    const searchInput = document.getElementById('doc-search');
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      
+      sections.forEach(sec => {
+        const text = sec.innerText.toLowerCase();
+        const header = sec.querySelector('.section-title').innerText.toLowerCase();
+        
+        if (text.includes(query) || header.includes(query)) {
+          sec.style.display = 'block';
+        } else {
+          sec.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
