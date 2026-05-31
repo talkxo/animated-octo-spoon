@@ -1,0 +1,2490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pluto CRM — The Cold-Calling Powerhouse for Modern Sales Teams</title>
+  <meta name="description" content="Sprint-based calling boards, WhatsApp templates, and Google Sheets sync — Pluto CRM is built for industries where the phone never stops ringing.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg:           #07070a;
+      --bg-2:         #0d0d12;
+      --bg-3:         #111118;
+      --bg-card:      rgba(14, 14, 20, 0.92);
+      --border:       rgba(255,255,255,0.07);
+      --border-med:   rgba(255,255,255,0.12);
+      --border-hi:    rgba(255,255,255,0.18);
+
+      --primary:      #f97316;
+      --primary-dim:  rgba(249,115,22,0.12);
+      --primary-bd:   rgba(249,115,22,0.28);
+      --primary-glow: rgba(249,115,22,0.2);
+      --violet:       #8b5cf6;
+      --violet-dim:   rgba(139,92,246,0.12);
+      --violet-bd:    rgba(139,92,246,0.25);
+      --blue:         #3b82f6;
+      --blue-dim:     rgba(59,130,246,0.10);
+      --blue-bd:      rgba(59,130,246,0.22);
+      --green:        #10b981;
+      --green-dim:    rgba(16,185,129,0.10);
+      --green-bd:     rgba(16,185,129,0.22);
+      --rose:         #f43f5e;
+      --rose-dim:     rgba(244,63,94,0.10);
+      --cyan:         #06b6d4;
+      --amber:        #f59e0b;
+
+      --text:         #f1f1f5;
+      --text-muted:   #9ca3af;
+      --text-dim:     #52525b;
+      --text-xdim:    #3f3f46;
+
+      --radius:       14px;
+      --radius-sm:    9px;
+      --radius-xs:    6px;
+      --font-mono:    'Fira Code', monospace;
+      --font-ui:      'Inter', sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    /* ═══════════════════════════════════════════
+       AMBIENT BACKGROUND GLOWS
+    ═══════════════════════════════════════════ */
+    .ambient {
+      position: fixed; pointer-events: none; z-index: 0; border-radius: 50%;
+      filter: blur(120px);
+    }
+    .amb-1 { width:700px; height:700px; top:-200px; right:-200px; background:rgba(139,92,246,0.07); }
+    .amb-2 { width:600px; height:600px; bottom:-200px; left:-100px; background:rgba(249,115,22,0.06); }
+    .amb-3 { width:500px; height:500px; top:50%; left:30%; background:rgba(59,130,246,0.04); }
+
+    /* ═══════════════════════════════════════════
+       NAV
+    ═══════════════════════════════════════════ */
+    nav.topnav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(7,7,10,0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 62px;
+    }
+
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .logo-svg {
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-svg {
+      width: 32px;
+      height: 32px;
+      filter: drop-shadow(0 0 8px var(--primary-glow));
+    }
+
+    .nav-logo-text {
+      font-family: var(--font-display);
+      font-size: 1.15rem; font-weight: 700;
+      color: var(--text); letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 0.25rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-xs);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      transition: all 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--bg-3); }
+
+    .nav-cta-group { display: flex; align-items: center; gap: 0.75rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.55rem 1.25rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s; border: none; outline: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-med);
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover { border-color: var(--border-hi); color: var(--text); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 20px var(--primary-glow);
+    }
+    .btn-primary:hover { background: #ea6c0e; box-shadow: 0 6px 28px rgba(249,115,22,0.35); transform: translateY(-1px); }
+
+    .btn-large {
+      padding: 0.8rem 2rem;
+      font-size: 1rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-outline-white {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border-med);
+      color: var(--text);
+    }
+    .btn-outline-white:hover { background: rgba(255,255,255,0.1); }
+
+    /* ═══════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════ */
+    .hero {
+      position: relative; z-index: 1;
+      padding: 140px 2rem 80px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .hero-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-bd);
+      color: var(--primary);
+      padding: 0.35rem 1rem;
+      border-radius: 100px;
+      font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--primary);
+      animation: hpulse 1.8s ease-in-out infinite;
+    }
+    @keyframes hpulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 1.5rem;
+    }
+
+    .grad-orange {
+      background: linear-gradient(135deg, #fbbf24 0%, var(--primary) 50%, #ea580c 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .grad-violet {
+      background: linear-gradient(135deg, var(--text) 0%, var(--violet) 60%, var(--primary) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+    }
+
+    .hero-note {
+      font-size: 0.8rem; color: var(--text-dim);
+    }
+
+    /* Hero browser mockup */
+    .hero-mockup-wrap {
+      position: relative; z-index: 1;
+      max-width: 960px; margin: 4rem auto 0;
+    }
+
+    .hero-mockup-glow {
+      position: absolute;
+      bottom: -60px; left: 50%; transform: translateX(-50%);
+      width: 80%; height: 200px;
+      background: radial-gradient(ellipse, rgba(249,115,22,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .browser-frame {
+      background: #0e0e16;
+      border: 1px solid var(--border-med);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,0.3),
+        0 24px 80px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .browser-bar {
+      background: #1a1a24;
+      padding: 0.65rem 1rem;
+      display: flex; align-items: center; gap: 0.85rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tl-row { display: flex; gap: 6px; }
+    .tl { width: 12px; height: 12px; border-radius: 50%; }
+    .tl-r { background: #ff5f57; }
+    .tl-y { background: #febc2e; }
+    .tl-g { background: #28c840; }
+
+    .browser-url-bar {
+      flex: 1; max-width: 340px; margin: 0 auto;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.28rem 0.75rem;
+      font-family: var(--font-mono); font-size: 0.72rem;
+      color: var(--text-dim);
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+
+    .lock-icon { color: var(--green); font-size: 0.65rem; }
+
+    /* Simulated CRM App inside the browser */
+    .crm-app {
+      display: flex;
+      min-height: 420px;
+      background: var(--bg);
+    }
+
+    .crm-sidebar {
+      width: 200px; flex-shrink: 0;
+      background: #0c0c12;
+      border-right: 1px solid var(--border);
+      padding: 1rem 0.75rem;
+      display: flex; flex-direction: column; gap: 0.25rem;
+    }
+
+    .crm-logo-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.4rem 0.5rem; margin-bottom: 0.75rem;
+    }
+
+    .crm-logo-svg-sm {
+      width: 22px;
+      height: 22px;
+    }
+
+    .crm-logo-label {
+      font-family: var(--font-display); font-size: 0.78rem; font-weight: 700;
+    }
+
+    .crm-nav-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.65rem; border-radius: var(--radius-xs);
+      font-size: 0.72rem; color: var(--text-dim);
+      cursor: default;
+    }
+
+    .crm-nav-item.active-crm {
+      background: var(--primary-dim);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .crm-main { flex: 1; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; overflow: hidden; }
+
+    .crm-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .crm-title { font-family: var(--font-display); font-size: 0.92rem; font-weight: 700; }
+
+    .crm-pill {
+      font-size: 0.62rem; font-weight: 700; padding: 0.22rem 0.6rem;
+      border-radius: 100px; background: var(--green-dim);
+      color: var(--green); border: 1px solid var(--green-bd);
+    }
+
+    .crm-stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem;
+    }
+
+    .crm-stat {
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.55rem 0.7rem;
+    }
+
+    .csl { font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+    .csv { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; }
+    .csd { font-size: 0.55rem; color: var(--green); }
+
+    .crm-pipeline {
+      display: flex; gap: 0.6rem; overflow: hidden;
+    }
+
+    .pipeline-col {
+      flex: 1; min-width: 0;
+    }
+
+    .pipeline-col-header {
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-dim);
+      padding: 0.3rem 0; margin-bottom: 0.4rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .stage-count {
+      background: var(--bg-3); border: 1px solid var(--border);
+      font-size: 0.55rem; padding: 0.1rem 0.35rem;
+      border-radius: 100px; color: var(--text-dim);
+    }
+
+    .lead-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.5rem 0.6rem; margin-bottom: 0.35rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .lead-name { font-size: 0.7rem; font-weight: 700; color: var(--text); margin-bottom: 0.15rem; }
+    .lead-co   { font-size: 0.6rem; color: var(--text-dim); }
+    .lead-val  {
+      margin-top: 0.3rem; font-family: var(--font-mono);
+      font-size: 0.6rem; color: var(--primary);
+    }
+
+    .lead-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 0.25rem; }
+    .ltag {
+      font-size: 0.52rem; padding: 0.1rem 0.3rem;
+      border-radius: 3px; font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════
+       SOCIAL PROOF STRIP
+    ═══════════════════════════════════════════ */
+    .proof-strip {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.015);
+      padding: 1.75rem 2rem;
+    }
+
+    .proof-strip-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      gap: 3rem; flex-wrap: wrap;
+    }
+
+    .proof-stat {
+      text-align: center;
+    }
+
+    .proof-num {
+      font-family: var(--font-display);
+      font-size: 1.75rem; font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .proof-label {
+      font-size: 0.75rem; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+
+    .proof-divider {
+      width: 1px; height: 40px; background: var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       CONTAINER — MAX WIDTH SYSTEM
+    ═══════════════════════════════════════════ */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ═══════════════════════════════════════════
+       SECTIONS COMMON
+    ═══════════════════════════════════════════ */
+    section {
+      position: relative; z-index: 1;
+      padding: 6rem 2rem;
+    }
+
+    section:nth-child(even) { background: rgba(255,255,255,0.012); }
+
+    .section-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.76rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 1.1rem;
+    }
+
+    .eyebrow-orange { color: var(--primary); }
+    .eyebrow-violet { color: var(--violet); }
+    .eyebrow-green  { color: var(--green); }
+    .eyebrow-blue   { color: var(--blue); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.9rem, 3.5vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .section-sub {
+      font-size: 1.05rem; color: var(--text-muted);
+      max-width: 560px; line-height: 1.7; margin-bottom: 3.5rem;
+    }
+
+    .centered { text-align: center; }
+    .centered .section-sub { margin-left: auto; margin-right: auto; }
+
+    /* ═══════════════════════════════════════════
+       FEATURES SECTION
+    ═══════════════════════════════════════════ */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      position: relative; overflow: hidden;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-med);
+      transform: translateY(-2px);
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.015) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .feature-card.wide { grid-column: span 2; }
+
+    .feat-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .feat-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem; font-weight: 700;
+      margin-bottom: 0.5rem; color: var(--text);
+    }
+
+    .feat-body {
+      font-size: 0.9rem; color: var(--text-muted);
+      line-height: 1.65; margin-bottom: 1.25rem;
+    }
+
+    .feat-tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+    .ftag {
+      font-size: 0.7rem; font-weight: 600;
+      padding: 0.18rem 0.55rem; border-radius: 100px;
+    }
+
+    /* Sprint Board Mockup (inside feature card) */
+    .sprint-mockup {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .sprint-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .sprint-title { font-size: 0.75rem; font-weight: 700; }
+    .sprint-badge {
+      font-size: 0.6rem; font-weight: 700;
+      padding: 0.15rem 0.5rem; border-radius: 100px;
+      background: var(--primary-dim); color: var(--primary);
+      border: 1px solid var(--primary-bd);
+    }
+
+    .sprint-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.45rem 0.65rem;
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-xs); margin-bottom: 0.3rem;
+    }
+
+    .sprint-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; font-weight: 700; flex-shrink: 0;
+    }
+
+    .sprint-name { font-size: 0.7rem; font-weight: 600; flex: 1; }
+    .sprint-phone { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim); }
+    .sprint-call-btn {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--green-dim); border: 1px solid var(--green-bd);
+      color: var(--green); font-size: 0.7rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: default;
+    }
+
+    .sprint-calling {
+      border-color: var(--green-bd) !important;
+      background: rgba(16,185,129,0.04) !important;
+    }
+
+    .calling-pulse {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.62rem; color: var(--green); font-weight: 600;
+    }
+
+    .calling-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green); animation: hpulse 1s infinite;
+    }
+
+    /* WhatsApp Templates Mockup */
+    .whatsapp-mockup {
+      background: #0a1f14;
+      border: 1px solid rgba(37,211,102,0.2);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .wa-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.75rem; padding-bottom: 0.6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .wa-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #25d366;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+    }
+
+    .wa-title { font-size: 0.75rem; font-weight: 700; }
+    .wa-subtitle { font-size: 0.6rem; color: var(--text-dim); }
+
+    .wa-template {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.4rem;
+      cursor: default;
+      transition: border-color 0.15s;
+    }
+
+    .wa-template:hover { border-color: rgba(37,211,102,0.3); }
+    .wa-temp-title { font-size: 0.7rem; font-weight: 700; margin-bottom: 0.15rem; }
+    .wa-temp-preview { font-size: 0.62rem; color: var(--text-dim); line-height: 1.4; }
+
+    .wa-send-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      margin-top: 0.5rem; padding: 0.45rem;
+      background: #25d366; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 700; color: #000;
+      cursor: default;
+    }
+
+    /* Google Sheets Mockup */
+    .sheets-mockup {
+      background: #0d1117;
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 1.25rem;
+    }
+
+    .sheets-header {
+      background: #111827;
+      padding: 0.5rem 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .sheets-icon {
+      width: 18px; height: 18px;
+      background: #34a853; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 700; color: white;
+    }
+
+    .sheets-name { font-size: 0.72rem; font-weight: 600; }
+
+    .sheets-sync-btn {
+      margin-left: auto;
+      font-size: 0.6rem; font-weight: 700;
+      padding: 0.18rem 0.5rem; border-radius: 4px;
+      background: var(--blue-dim); color: var(--blue);
+      border: 1px solid var(--blue-bd);
+    }
+
+    .sheets-table { width: 100%; border-collapse: collapse; }
+    .sheets-table th {
+      background: rgba(255,255,255,0.03);
+      font-size: 0.55rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-dim);
+      padding: 0.3rem 0.5rem; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sheets-table td {
+      font-size: 0.62rem; color: var(--text-muted);
+      padding: 0.28rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+
+    .sheets-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    .sync-dot {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      font-size: 0.55rem; color: var(--green);
+    }
+
+    /* ═══════════════════════════════════════════
+       INDUSTRIES SECTION
+    ═══════════════════════════════════════════ */
+    .industries-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 2.5rem; flex-wrap: wrap;
+    }
+
+    .ind-tab {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.65rem 1.25rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      font-family: var(--font-ui);
+    }
+
+    .ind-tab:hover { border-color: var(--border-med); color: var(--text); }
+
+    .ind-tab.active-tab {
+      background: var(--primary-dim);
+      border-color: var(--primary-bd);
+      color: var(--primary);
+    }
+
+    .ind-panel { display: none; }
+    .ind-panel.active-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+
+    .ind-text-col {}
+
+    .ind-name {
+      font-family: var(--font-display);
+      font-size: 1.75rem; font-weight: 700;
+      letter-spacing: -0.025em; margin-bottom: 0.75rem;
+    }
+
+    .ind-desc {
+      font-size: 0.975rem; color: var(--text-muted);
+      line-height: 1.7; margin-bottom: 1.5rem;
+    }
+
+    .ind-pain-points {
+      list-style: none; display: flex; flex-direction: column; gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .ind-pain-points li {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;
+    }
+
+    .pain-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+
+    .ind-quote {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .ind-quote-text {
+      font-size: 0.875rem; color: var(--text-muted);
+      line-height: 1.6; font-style: italic; margin-bottom: 0.5rem;
+    }
+
+    .ind-quote-author {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-dim);
+    }
+
+    /* Industry visual mockup column */
+    .ind-visual { position: relative; }
+
+    .ind-app-frame {
+      background: var(--bg-2);
+      border: 1px solid var(--border-med);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .ind-app-bar {
+      background: var(--bg-3);
+      padding: 0.6rem 1rem;
+      display: flex; align-items: center; gap: 0.65rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ind-app-title { font-size: 0.75rem; font-weight: 700; flex: 1; }
+
+    .ind-app-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Floating toast on industry cards */
+    .ind-toast {
+      position: absolute; bottom: -18px; right: -18px;
+      background: rgba(14,14,20,0.96);
+      border: 1px solid var(--border-med);
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      display: flex; align-items: center; gap: 0.6rem;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      min-width: 200px;
+      z-index: 10;
+    }
+
+    /* ═══════════════════════════════════════════
+       SPRINT HERO SECTION
+    ═══════════════════════════════════════════ */
+    .sprint-hero {
+      position: relative; z-index: 1;
+      padding: 7rem 2rem;
+      overflow: hidden;
+    }
+
+    .sprint-hero-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, #07070a 0%, #0d0814 40%, #07070a 100%);
+      z-index: 0;
+    }
+
+    .sprint-hero-glow {
+      position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none;
+    }
+
+    .sprint-hero-inner {
+      max-width: 1200px; margin: 0 auto;
+      position: relative; z-index: 2;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 4rem; align-items: center;
+    }
+
+    .sprint-hero-text .section-eyebrow { display: block; margin-bottom: 1.1rem; }
+
+    .sprint-big-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 4vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      margin-bottom: 1.25rem;
+    }
+
+    .sprint-hero-sub {
+      font-size: 1.05rem; color: var(--text-muted);
+      line-height: 1.7; margin-bottom: 2rem;
+    }
+
+    .sprint-stat-row {
+      display: flex; gap: 2rem; margin-bottom: 2.25rem; flex-wrap: wrap;
+    }
+
+    .sprint-stat {
+      border-left: 2px solid var(--primary-bd);
+      padding-left: 0.875rem;
+    }
+
+    .sprint-stat-num {
+      font-family: var(--font-display);
+      font-size: 1.6rem; font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .sprint-stat-label {
+      font-size: 0.75rem; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-top: 0.2rem;
+    }
+
+    /* Large Sprint Board Visual */
+    .sprint-board-visual {
+      background: var(--bg-2);
+      border: 1px solid var(--border-med);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,0.3),
+        0 32px 80px rgba(0,0,0,0.55),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .sprint-board-header {
+      background: var(--bg-3);
+      padding: 0.75rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sprint-board-title {
+      display: flex; align-items: center; gap: 0.65rem;
+      font-family: var(--font-display); font-size: 0.88rem; font-weight: 700;
+    }
+
+    .sprint-board-controls {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    .sprint-ctrl-btn {
+      padding: 0.28rem 0.75rem; border-radius: var(--radius-xs);
+      font-size: 0.68rem; font-weight: 700; cursor: default;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text-dim);
+    }
+
+    .sprint-ctrl-btn.primary-ctrl {
+      background: var(--primary-dim); border-color: var(--primary-bd);
+      color: var(--primary);
+    }
+
+    .sprint-board-body { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .sprint-progress-bar {
+      height: 4px; background: var(--bg-3); border-radius: 2px;
+      margin-bottom: 0.5rem; overflow: hidden;
+    }
+
+    .sprint-progress-fill {
+      height: 100%; width: 60%;
+      background: linear-gradient(90deg, var(--green), var(--primary));
+      border-radius: 2px;
+      animation: progress-pulse 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes progress-pulse { from {opacity:0.7} to {opacity:1} }
+
+    .sprint-progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.62rem; color: var(--text-dim); margin-bottom: 0.75rem;
+    }
+
+    .sprint-board-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--bg-3); border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      transition: border-color 0.2s;
+    }
+
+    .sprint-board-row.sbr-active {
+      border-color: var(--green-bd);
+      background: rgba(16,185,129,0.04);
+    }
+
+    .sprint-board-row.sbr-done {
+      opacity: 0.5;
+    }
+
+    .sbr-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      font-size: 0.58rem; font-weight: 700; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-2); border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .sbr-num.done-num {
+      background: var(--green-dim); border-color: var(--green-bd);
+      color: var(--green);
+    }
+
+    .sbr-num.active-num {
+      background: var(--primary-dim); border-color: var(--primary-bd);
+      color: var(--primary);
+    }
+
+    .sbr-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+    }
+
+    .sbr-info { flex: 1; }
+    .sbr-name  { font-size: 0.8rem; font-weight: 700; color: var(--text); }
+    .sbr-meta  { font-size: 0.65rem; color: var(--text-dim); margin-top: 1px; }
+
+    .sbr-status {
+      font-size: 0.65rem; font-weight: 700;
+      padding: 0.18rem 0.5rem; border-radius: 100px;
+    }
+
+    .sbr-action {
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+
+    .call-btn-big {
+      padding: 0.35rem 0.85rem; border-radius: var(--radius-xs);
+      font-size: 0.72rem; font-weight: 700;
+      border: 1px solid var(--green-bd);
+      background: var(--green-dim); color: var(--green);
+      cursor: default; white-space: nowrap;
+    }
+
+    .call-btn-active {
+      padding: 0.35rem 0.85rem; border-radius: var(--radius-xs);
+      font-size: 0.72rem; font-weight: 700;
+      border: 1px solid var(--primary-bd);
+      background: var(--primary-dim); color: var(--primary);
+      cursor: default; white-space: nowrap;
+      animation: hpulse 1.5s infinite;
+    }
+
+    .sprint-outcome-row {
+      display: flex; gap: 0.4rem; margin-top: 0.75rem; flex-wrap: wrap;
+    }
+
+    .outcome-btn {
+      flex: 1; padding: 0.45rem 0.5rem;
+      border-radius: var(--radius-xs);
+      font-size: 0.68rem; font-weight: 600;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-muted); cursor: default;
+      text-align: center;
+    }
+
+    .outcome-btn.oc-green { background:var(--green-dim); border-color:var(--green-bd); color:var(--green); }
+    .outcome-btn.oc-amber { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.25); color:var(--amber); }
+    .outcome-btn.oc-blue  { background:var(--blue-dim); border-color:var(--blue-bd); color:var(--blue); }
+    .outcome-btn.oc-rose  { background:var(--rose-dim); border-color:rgba(244,63,94,0.22); color:var(--rose); }
+
+    .ind-toast-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    .ind-toast-title { font-size: 0.72rem; font-weight: 700; color: var(--text); margin-bottom: 1px; }
+    .ind-toast-msg   { font-size: 0.62rem; color: var(--text-dim); }
+
+    /* ═══════════════════════════════════════════
+       HOW IT WORKS
+    ═══════════════════════════════════════════ */
+    .how-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 2rem; position: relative;
+    }
+
+    .how-grid::before {
+      content: '';
+      position: absolute;
+      top: 28px; left: calc(33% + 1rem); right: calc(33% + 1rem);
+      height: 1px;
+      background: linear-gradient(90deg, var(--primary), var(--violet));
+      z-index: 0;
+    }
+
+    .how-step { position: relative; z-index: 1; }
+
+    .how-num {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--bg-2);
+      border: 2px solid var(--border-med);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 700;
+      margin-bottom: 1.25rem;
+      position: relative;
+    }
+
+    .how-num.active-step {
+      border-color: var(--primary-bd);
+      background: var(--primary-dim);
+      color: var(--primary);
+      box-shadow: 0 0 24px var(--primary-glow);
+    }
+
+    .how-step-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .how-step-body {
+      font-size: 0.9rem; color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ═══════════════════════════════════════════
+       STATS BAR CHART SECTION
+    ═══════════════════════════════════════════ */
+    .metrics-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 2rem; align-items: center;
+    }
+
+    .chart-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    .chart-header-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-label-big {
+      font-family: var(--font-display); font-size: 0.9rem; font-weight: 700;
+    }
+
+    .chart-legend-row { display: flex; gap: 0.75rem; }
+    .cleg { display: flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; color: var(--text-dim); }
+    .cleg-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+    .bars-container {
+      display: flex; align-items: flex-end;
+      height: 140px; gap: 10px;
+    }
+
+    .bar-g { flex: 1; display: flex; align-items: flex-end; gap: 3px; }
+    .bar-b { flex: 1; border-radius: 4px 4px 0 0; transition: opacity 0.2s; }
+    .bar-b:hover { opacity: 0.75; }
+
+    .bar-labels { display: flex; gap: 10px; margin-top: 0.4rem; }
+    .blabel { flex: 1; text-align: center; font-size: 0.6rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+    .metrics-list { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .metric-item {
+      display: flex; align-items: flex-start; gap: 1rem;
+    }
+
+    .metric-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+
+    .metric-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.2rem; }
+    .metric-body  { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ═══════════════════════════════════════════
+       PRICING SECTION
+    ═══════════════════════════════════════════ */
+    .pricing-grid {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      position: relative; overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .pricing-card:hover { transform: translateY(-3px); border-color: var(--border-med); }
+
+    .pricing-card.featured {
+      border-color: var(--primary-bd);
+      background: linear-gradient(160deg, rgba(249,115,22,0.05) 0%, var(--bg-card) 50%);
+    }
+
+    .pricing-card.featured:hover { border-color: var(--primary); }
+
+    .plan-ribbon {
+      position: absolute; top: 0; right: 0;
+      background: var(--primary); color: white;
+      font-size: 0.62rem; font-weight: 700;
+      padding: 0.25rem 0.7rem;
+      border-radius: 0 var(--radius) 0 8px;
+    }
+
+    .plan-name { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 0.6rem; }
+    .plan-price { font-family: var(--font-display); font-size: 2.25rem; font-weight: 700; line-height: 1; margin-bottom: 0.2rem; }
+    .plan-price sup { font-size: 1rem; vertical-align: super; margin-right: 0.1rem; }
+    .plan-period { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1.25rem; }
+    .plan-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      font-size: 0.83rem; color: var(--text-muted); line-height: 1.45;
+    }
+    .pf-check { color: var(--green); font-weight: 700; margin-top: 1px; flex-shrink: 0; }
+    .pf-no    { color: var(--text-xdim); font-weight: 700; margin-top: 1px; flex-shrink: 0; }
+    .pf-no-text { color: var(--text-xdim); }
+
+    .plan-cta {
+      width: 100%; margin-top: 1.5rem; padding: 0.7rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      font-family: var(--font-ui);
+    }
+
+    .plan-cta-ghost {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-med);
+      color: var(--text-muted);
+    }
+    .plan-cta-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    .plan-cta-primary {
+      background: var(--primary); color: white;
+      border: none;
+      box-shadow: 0 4px 20px var(--primary-glow);
+    }
+    .plan-cta-primary:hover { background: #ea6c0e; }
+
+    /* ═══════════════════════════════════════════
+       FINAL CTA
+    ═══════════════════════════════════════════ */
+    .final-cta {
+      position: relative; z-index: 1;
+      padding: 8rem 5%;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .cta-glow-1 {
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%; filter: blur(120px);
+      background: rgba(249,115,22,0.1);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .cta-glow-2 {
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%; filter: blur(80px);
+      background: rgba(139,92,246,0.08);
+      top: 50%; left: 50%;
+      transform: translate(-60%, -50%);
+      pointer-events: none;
+    }
+
+    .cta-card {
+      position: relative; z-index: 2;
+      max-width: 680px; margin: 0 auto;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-med);
+      border-radius: 24px;
+      padding: 4rem 3rem;
+      backdrop-filter: blur(20px);
+    }
+
+    .cta-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700; letter-spacing: -0.03em;
+      line-height: 1.15; margin-bottom: 1rem;
+    }
+
+    .cta-sub {
+      font-size: 1rem; color: var(--text-muted);
+      line-height: 1.65; margin-bottom: 2.5rem;
+    }
+
+    .cta-btns {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1rem; flex-wrap: wrap;
+    }
+
+    /* ═══════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════ */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 3rem 2rem;
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .footer-brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      text-decoration: none;
+    }
+
+    .footer-logo-svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .footer-name {
+      font-family: var(--font-display); font-size: 0.9rem; font-weight: 700;
+    }
+
+    .footer-links {
+      display: flex; gap: 1.5rem; list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 0.8rem; color: var(--text-dim);
+      text-decoration: none; transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--text-muted); }
+
+    .footer-copy {
+      font-size: 0.75rem; color: var(--text-xdim);
+    }
+
+    /* Breathing Pluto logo wrapper (from load screen) */
+    .breathing-pluto-wrap {
+      width: 80px; height: 80px;
+      margin: 0 auto 1.5rem;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+
+    .breathing-pluto-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--primary) 0%, rgba(249, 115, 22, 0.4) 40%, rgba(249, 115, 22, 0) 70%);
+      opacity: 0.25;
+      filter: blur(12px);
+      animation: planet-glow-pulse 4s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    .breathing-pluto-svg {
+      display: block;
+      width: 56px; height: 56px;
+      filter: drop-shadow(0 0 12px var(--primary-glow)) drop-shadow(0 0 24px rgba(249,115,22,0.25));
+      animation: planet-spin 12s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes planet-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes planet-glow-pulse {
+      0% {
+        transform: scale(0.88);
+        opacity: 0.2;
+        filter: blur(14px);
+      }
+      100% {
+        transform: scale(1.12);
+        opacity: 0.45;
+        filter: blur(8px);
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-card.wide { grid-column: span 1; }
+      .ind-panel.active-panel { grid-template-columns: 1fr; }
+      .how-grid { grid-template-columns: 1fr; }
+      .how-grid::before { display: none; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .pricing-grid { flex-direction: column; align-items: center; }
+      .crm-stats { grid-template-columns: repeat(2, 1fr); }
+      .nav-links { display: none; }
+      .proof-divider { display: none; }
+      .sprint-hero-inner { grid-template-columns: 1fr; }
+      .sprint-big-title { font-size: clamp(1.8rem,5vw,2.8rem); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient glows -->
+  <div class="ambient amb-1"></div>
+  <div class="ambient amb-2"></div>
+  <div class="ambient amb-3"></div>
+
+  <!-- ══════════════════ NAV ══════════════════ -->
+  <nav class="topnav">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">
+        <svg class="logo-svg nav-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="navPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#ffeedd" />
+              <stop offset="60%" stop-color="var(--primary)" />
+              <stop offset="100%" stop-color="#7c2d12" />
+            </radialGradient>
+          </defs>
+          <circle cx="16" cy="16" r="12" fill="url(#navPlutoPlanetGrad)" />
+          <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9"/>
+          </g>
+          <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.2)" stroke-width="0.5" />
+        </svg>
+        <span class="nav-logo-text">Pluto CRM</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#industries">Industries</a></li>
+        <li><a href="#how-it-works">How it Works</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+      </ul>
+
+      <div class="nav-cta-group">
+        <a href="#" class="btn btn-ghost">Sign in</a>
+        <a href="#" class="btn btn-primary">Start free →</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════ HERO ══════════════════ -->
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">
+        <div class="hero-pulse"></div>
+        Built for teams that live on the phone
+      </div>
+
+      <h1 class="hero-title">
+        Close deals faster<br>
+        <span class="grad-orange">with every call.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Pluto CRM is the sprint-powered sales platform for cold-calling teams.
+        Pipeline management, WhatsApp templates, and real-time Google Sheets sync —
+        all in one place. No bloat, no vendor lock-in.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#" class="btn btn-primary btn-large">Get started free →</a>
+        <a href="#features" class="btn btn-outline-white btn-large">See how it works</a>
+      </div>
+      <p class="hero-note">Starter plan from ₹1,000/month · No credit card for trial · Setup in 5 minutes</p>
+
+    <!-- Browser mockup -->
+    <div class="hero-mockup-wrap">
+      <div class="browser-frame">
+        <div class="browser-bar">
+          <div class="tl-row">
+            <div class="tl tl-r"></div>
+            <div class="tl tl-y"></div>
+            <div class="tl tl-g"></div>
+          </div>
+          <div class="browser-url-bar">
+            <span class="lock-icon">🔒</span>
+            app.pluto-crm.io/pipeline
+          </div>
+          <div style="width:60px;"></div>
+        </div>
+
+        <!-- Simulated CRM App -->
+        <div class="crm-app">
+          <div class="crm-sidebar">
+            <div class="crm-logo-row">
+              <svg class="logo-svg crm-logo-svg-sm" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="crmPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
+                    <stop offset="0%" stop-color="#ffeedd" />
+                    <stop offset="60%" stop-color="var(--primary)" />
+                    <stop offset="100%" stop-color="#7c2d12" />
+                  </radialGradient>
+                </defs>
+                <circle cx="16" cy="16" r="12" fill="url(#crmPlutoPlanetGrad)" />
+                <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9"/>
+                </g>
+                <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.2)" stroke-width="0.5" />
+              </svg>
+              <span class="crm-logo-label">Pluto CRM</span>
+            </div>
+            <div class="crm-nav-item active-crm">📊 Pipeline</div>
+            <div class="crm-nav-item">📞 Sprint Board</div>
+            <div class="crm-nav-item">⚡ Sprints Log</div>
+            <div class="crm-nav-item">⚙️ Settings</div>
+            <div style="margin-top:auto; padding: 0.4rem 0.65rem; display:flex; align-items:center; gap:0.5rem;">
+              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#f97316);display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;flex-shrink:0;">R</div>
+              <div>
+                <div style="font-size:0.65rem;font-weight:700;">Rishi Raj</div>
+                <div style="font-size:0.55rem;color:var(--text-dim);">Owner</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="crm-main">
+            <div class="crm-topbar">
+              <div class="crm-title">Agency Sales Pipeline</div>
+              <div style="display:flex;align-items:center;gap:0.6rem;">
+                <div class="crm-pill">● Live sync</div>
+                <div style="font-size:0.65rem;padding:0.22rem 0.55rem;border-radius:4px;background:var(--bg-3);border:1px solid var(--border);color:var(--text-dim);font-family:var(--font-mono);">6 leads</div>
+              </div>
+            </div>
+
+            <div class="crm-stats">
+              <div class="crm-stat">
+                <div class="csl">Pipeline</div>
+                <div class="csv" style="color:var(--primary);">$147K</div>
+                <div class="csd">↑ 23%</div>
+              </div>
+              <div class="crm-stat">
+                <div class="csl">Active Leads</div>
+                <div class="csv">24</div>
+                <div class="csd">↑ 4 new</div>
+              </div>
+              <div class="crm-stat">
+                <div class="csl">Won This Mo.</div>
+                <div class="csv" style="color:var(--green);">8</div>
+                <div class="csd">33% rate</div>
+              </div>
+              <div class="crm-stat">
+                <div class="csl">Calls Today</div>
+                <div class="csv" style="color:var(--violet);">47</div>
+                <div class="csd">↑ 12 more</div>
+              </div>
+            </div>
+
+            <div class="crm-pipeline">
+              <div class="pipeline-col">
+                <div class="pipeline-col-header">
+                  Lead <span class="stage-count">4</span>
+                </div>
+                <div class="lead-card">
+                  <div class="lead-name">Elliot Alderson</div>
+                  <div class="lead-co">Allsafe Cybersecurity</div>
+                  <div class="lead-val">$9,200</div>
+                  <div class="lead-tags">
+                    <span class="ltag" style="background:var(--violet-dim);color:var(--violet);">Cold</span>
+                  </div>
+                </div>
+                <div class="lead-card">
+                  <div class="lead-name">Elon Park</div>
+                  <div class="lead-co">Nova Ventures</div>
+                  <div class="lead-val">$5,400</div>
+                </div>
+              </div>
+              <div class="pipeline-col">
+                <div class="pipeline-col-header">
+                  Contacted <span class="stage-count">2</span>
+                </div>
+                <div class="lead-card">
+                  <div class="lead-name">Bruce Wayne</div>
+                  <div class="lead-co">Wayne Enterprises</div>
+                  <div class="lead-val">$45,000</div>
+                  <div class="lead-tags">
+                    <span class="ltag" style="background:var(--blue-dim);color:var(--blue);">Retainer</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pipeline-col">
+                <div class="pipeline-col-header">
+                  Meeting <span class="stage-count">1</span>
+                </div>
+                <div class="lead-card" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.03);">
+                  <div class="lead-name">Tony Stark</div>
+                  <div class="lead-co">Stark Industries</div>
+                  <div class="lead-val">$75,000</div>
+                  <div class="lead-tags">
+                    <span class="ltag" style="background:rgba(245,158,11,0.1);color:var(--amber);">VIP</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pipeline-col">
+                <div class="pipeline-col-header">
+                  Proposal <span class="stage-count">1</span>
+                </div>
+                <div class="lead-card">
+                  <div class="lead-name">Sarah Connor</div>
+                  <div class="lead-co">Cyberdyne Systems</div>
+                  <div class="lead-val">$18,500</div>
+                  <div class="lead-tags">
+                    <span class="ltag" style="background:var(--green-dim);color:var(--green);">Hot</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pipeline-col">
+                <div class="pipeline-col-header">
+                  Won <span class="stage-count">1</span>
+                </div>
+                <div class="lead-card" style="border-color:var(--green-bd);background:var(--green-dim);">
+                  <div class="lead-name">Peter Parker</div>
+                  <div class="lead-co">Daily Bugle</div>
+                  <div class="lead-val" style="color:var(--green);">✓ $3,500</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-mockup-glow"></div>
+    </div>
+    </div><!-- /hero-inner -->
+  </div>
+
+  <!-- ══════════════════ PROOF STRIP ══════════════════ -->
+  <div class="proof-strip">
+    <div class="proof-strip-inner">
+      <div class="proof-stat">
+        <div class="proof-num" style="color:var(--primary);">10,000+</div>
+        <div class="proof-label">Calls Tracked</div>
+      </div>
+      <div class="proof-divider"></div>
+      <div class="proof-stat">
+        <div class="proof-num">₹24Cr+</div>
+        <div class="proof-label">Pipeline Managed</div>
+      </div>
+      <div class="proof-divider"></div>
+      <div class="proof-stat">
+        <div class="proof-num" style="color:var(--green);">34%</div>
+        <div class="proof-label">Avg. Conversion Lift</div>
+      </div>
+      <div class="proof-divider"></div>
+      <div class="proof-stat">
+        <div class="proof-num" style="color:var(--violet);">500+</div>
+        <div class="proof-label">Sales Teams</div>
+      </div>
+      <div class="proof-divider"></div>
+      <div class="proof-stat">
+        <div class="proof-num">Free</div>
+        <div class="proof-label">Google Sheets Backend</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ FEATURES ══════════════════ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-eyebrow eyebrow-orange">⚡ Core Features</div>
+      <h2 class="section-title">Everything your calling team needs.<br><span class="grad-orange">Nothing it doesn't.</span></h2>
+      <p class="section-sub">Pluto was designed from the ground up for high-volume outbound sales — where every second on the phone counts.</p>
+
+      <div class="features-grid">
+
+        <!-- Feature 1: Sprint Board -->
+        <div class="feature-card">
+          <div class="feat-icon-wrap" style="background:var(--primary-dim);border:1px solid var(--primary-bd);">📞</div>
+          <div class="feat-title">Sprint Calling Board</div>
+          <div class="feat-body">
+            Load a list of leads into a focused sprint session. Your team dials through the list in order, logs outcomes instantly, and never loses track of who's been called. Built for high-volume outbound.
+          </div>
+          <div class="feat-tag-row">
+            <span class="ftag" style="background:var(--primary-dim);color:var(--primary);border:1px solid var(--primary-bd);">Focused Sessions</span>
+            <span class="ftag" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd);">Outcome Logging</span>
+            <span class="ftag" style="background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-bd);">Team Sync</span>
+          </div>
+
+          <div class="sprint-mockup">
+            <div class="sprint-header">
+              <span class="sprint-title">🚀 Morning Sprint — 9:00 AM</span>
+              <span class="sprint-badge">● Active</span>
+            </div>
+            <div class="sprint-row sprint-calling">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4);">SC</div>
+              <span class="sprint-name">Sarah Connor</span>
+              <span class="calling-pulse"><span class="calling-dot"></span>Calling…</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);">TS</div>
+              <span class="sprint-name">Tony Stark</span>
+              <span class="sprint-phone">+1 555 0198</span>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#f97316,#f43f5e);">BW</div>
+              <span class="sprint-name">Bruce Wayne</span>
+              <span class="sprint-phone">+1 555 0911</span>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 2: WhatsApp Templates -->
+        <div class="feature-card">
+          <div class="feat-icon-wrap" style="background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.2);">💬</div>
+          <div class="feat-title">WhatsApp Quick Templates</div>
+          <div class="feat-body">
+            Send personalized WhatsApp messages in one click. Templates auto-fill <code>{{name}}</code> and <code>{{company}}</code>. Perfect for follow-ups after a call — while the lead is still warm.
+          </div>
+          <div class="feat-tag-row">
+            <span class="ftag" style="background:rgba(37,211,102,0.1);color:#25d366;border:1px solid rgba(37,211,102,0.2);">1-Click Send</span>
+            <span class="ftag" style="background:var(--violet-dim);color:var(--violet);border:1px solid var(--violet-bd);">Dynamic Variables</span>
+          </div>
+
+          <div class="whatsapp-mockup">
+            <div class="wa-header">
+              <div class="wa-icon">💬</div>
+              <div>
+                <div class="wa-title">Quick Send to Sarah Connor</div>
+                <div class="wa-subtitle">Choose a template</div>
+              </div>
+            </div>
+            <div class="wa-template">
+              <div class="wa-temp-title">👋 Cold Outreach Intro</div>
+              <div class="wa-temp-preview">Hey Sarah! This is Rishi from Pluto. Noticed Cyberdyne might be looking to scale its pipeline…</div>
+            </div>
+            <div class="wa-template" style="border-color:rgba(37,211,102,0.25);">
+              <div class="wa-temp-title">📞 Post-Call Follow-up ← Selected</div>
+              <div class="wa-temp-preview">Hey Sarah, great chatting just now! Here's our deck as promised…</div>
+            </div>
+            <div class="wa-send-btn">💬 Send via WhatsApp</div>
+          </div>
+        </div>
+
+        <!-- Feature 3: Google Sheets Sync — wide -->
+        <div class="feature-card wide">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center;">
+            <div>
+              <div class="feat-icon-wrap" style="background:rgba(52,168,83,0.1);border:1px solid rgba(52,168,83,0.2);">📄</div>
+              <div class="feat-title">Google Sheets as Your Database</div>
+              <div class="feat-body">
+                Your data lives in a Google Sheet you own and control — not locked in a black-box CRM database. All lead records, notes, and pipeline stages sync bi-directionally in real time. Edit in Sheets, see it in Pluto. Edit in Pluto, see it in Sheets.
+              </div>
+              <div class="feat-tag-row">
+                <span class="ftag" style="background:rgba(52,168,83,0.1);color:#34a853;border:1px solid rgba(52,168,83,0.2);">No Vendor Lock-in</span>
+                <span class="ftag" style="background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-bd);">Real-time Bi-directional</span>
+                <span class="ftag" style="background:var(--violet-dim);color:var(--violet);border:1px solid var(--violet-bd);">Free Storage</span>
+              </div>
+            </div>
+            <div class="sheets-mockup">
+              <div class="sheets-header">
+                <div class="sheets-icon">S</div>
+                <span class="sheets-name">Pluto_CRM_Leads.xlsx</span>
+                <span class="sheets-sync-btn">⟳ Synced 2s ago</span>
+              </div>
+              <table class="sheets-table">
+                <thead><tr><th>Name</th><th>Company</th><th>Status</th><th>Value</th><th>Sync</th></tr></thead>
+                <tbody>
+                  <tr><td>Sarah Connor</td><td>Cyberdyne</td><td style="color:var(--blue);">Proposal</td><td style="color:var(--primary);">₹18,500</td><td><span class="sync-dot">● Live</span></td></tr>
+                  <tr><td>Tony Stark</td><td>Stark Ind.</td><td style="color:var(--amber);">Meeting</td><td style="color:var(--primary);">₹75,000</td><td><span class="sync-dot">● Live</span></td></tr>
+                  <tr><td>Bruce Wayne</td><td>Wayne Ent.</td><td style="color:var(--green);">Contacted</td><td style="color:var(--primary);">₹45,000</td><td><span class="sync-dot">● Live</span></td></tr>
+                  <tr><td>Peter Parker</td><td>Daily Bugle</td><td style="color:var(--green);">Won ✓</td><td style="color:var(--green);">₹3,500</td><td><span class="sync-dot">● Live</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 4: Team Workspace -->
+        <div class="feature-card">
+          <div class="feat-icon-wrap" style="background:var(--violet-dim);border:1px solid var(--violet-bd);">👥</div>
+          <div class="feat-title">Team Workspace Sharing</div>
+          <div class="feat-body">
+            Invite your whole team via a QR code or share link. Everyone lands in the same workspace, sees the same leads, and calls from the same sprint list — all synced through Firebase in real time.
+          </div>
+          <div class="feat-tag-row">
+            <span class="ftag" style="background:var(--violet-dim);color:var(--violet);border:1px solid var(--violet-bd);">Firebase Auth</span>
+            <span class="ftag" style="background:var(--primary-dim);color:var(--primary);border:1px solid var(--primary-bd);">QR Invite Links</span>
+          </div>
+        </div>
+
+        <!-- Feature 5: Activity Timeline -->
+        <div class="feature-card">
+          <div class="feat-icon-wrap" style="background:var(--blue-dim);border:1px solid var(--blue-bd);">📋</div>
+          <div class="feat-title">Activity Timeline per Lead</div>
+          <div class="feat-body">
+            Every call, note, WhatsApp message, and status change is logged automatically against the lead. Your whole team knows exactly where every deal stands, at a glance.
+          </div>
+          <div class="feat-tag-row">
+            <span class="ftag" style="background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-bd);">Call Logging</span>
+            <span class="ftag" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd);">Auto Timestamped</span>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════════ SPRINT HERO ══════════════════ -->
+  <div class="sprint-hero">
+    <div class="sprint-hero-bg"></div>
+    <div class="sprint-hero-glow" style="width:500px;height:500px;top:-100px;left:-100px;background:rgba(249,115,22,0.07);"></div>
+    <div class="sprint-hero-glow" style="width:400px;height:400px;bottom:-80px;right:-80px;background:rgba(139,92,246,0.07);"></div>
+
+    <div class="sprint-hero-inner">
+      <!-- Left: Text -->
+      <div class="sprint-hero-text">
+        <div class="section-eyebrow eyebrow-orange">📞 Calling Sprint — Signature Feature</div>
+        <div class="sprint-big-title">
+          Stop guessing<br>who to call next.<br>
+          <span class="grad-orange">Start sprinting.</span>
+        </div>
+        <p class="sprint-hero-sub">
+          The Calling Sprint is Pluto's core innovation. Load any set of leads, hit Start, and Pluto feeds you one contact at a time — no distractions, no context-switching, no skipping. Every outcome is logged in one tap. When the sprint ends, you have a complete call record synced to your Google Sheet.
+        </p>
+
+        <div class="sprint-stat-row">
+          <div class="sprint-stat">
+            <div class="sprint-stat-num">2.3×</div>
+            <div class="sprint-stat-label">More calls per day</div>
+          </div>
+          <div class="sprint-stat">
+            <div class="sprint-stat-num">&lt; 8s</div>
+            <div class="sprint-stat-label">Avg. outcome log time</div>
+          </div>
+          <div class="sprint-stat">
+            <div class="sprint-stat-num">0</div>
+            <div class="sprint-stat-label">Leads slipping through</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <a href="#" class="btn btn-primary">Try Sprint Board free →</a>
+          <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+        </div>
+      </div>
+
+      <!-- Right: Sprint Board Mockup -->
+      <div>
+        <div class="sprint-board-visual">
+          <div class="sprint-board-header">
+            <div class="sprint-board-title">
+              <div style="width:28px;height:28px;border-radius:8px;background:var(--primary-dim);border:1px solid var(--primary-bd);display:flex;align-items:center;justify-content:center;font-size:0.85rem;">🚀</div>
+              Morning Sprint — 9:00 AM
+              <span class="sprint-badge">● Running</span>
+            </div>
+            <div class="sprint-board-controls">
+              <span class="sprint-ctrl-btn">Pause</span>
+              <span class="sprint-ctrl-btn">Skip</span>
+              <span class="sprint-ctrl-btn primary-ctrl">● End Sprint</span>
+            </div>
+          </div>
+
+          <div class="sprint-board-body">
+            <div class="sprint-progress-label">
+              <span>Progress: 9 of 15 calls</span>
+              <span style="color:var(--primary);">60% complete</span>
+            </div>
+            <div class="sprint-progress-bar"><div class="sprint-progress-fill"></div></div>
+
+            <!-- Done rows -->
+            <div class="sprint-board-row sbr-done">
+              <div class="sbr-num done-num">✓</div>
+              <div class="sbr-avatar" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);">TS</div>
+              <div class="sbr-info"><div class="sbr-name">Tony Stark</div><div class="sbr-meta">Stark Industries · +91 98765 43210</div></div>
+              <span class="sbr-status" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd);">Meeting booked</span>
+            </div>
+            <div class="sprint-board-row sbr-done">
+              <div class="sbr-num done-num">✓</div>
+              <div class="sbr-avatar" style="background:linear-gradient(135deg,#f97316,#f43f5e);">BW</div>
+              <div class="sbr-info"><div class="sbr-name">Bruce Wayne</div><div class="sbr-meta">Wayne Enterprises · +91 87654 32109</div></div>
+              <span class="sbr-status" style="background:var(--blue-dim);color:var(--blue);border:1px solid var(--blue-bd);">Call back Fri</span>
+            </div>
+
+            <!-- Active row -->
+            <div class="sprint-board-row sbr-active">
+              <div class="sbr-num active-num">●</div>
+              <div class="sbr-avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4);">SC</div>
+              <div class="sbr-info">
+                <div class="sbr-name">Sarah Connor</div>
+                <div class="sbr-meta">Cyberdyne Systems · +91 76543 21098</div>
+              </div>
+              <div class="sbr-action">
+                <span class="call-btn-active">●️ Calling…</span>
+              </div>
+            </div>
+
+            <!-- Outcome buttons for active call -->
+            <div class="sprint-outcome-row">
+              <div class="outcome-btn oc-green">✓ Interested</div>
+              <div class="outcome-btn oc-amber">↺ Call back</div>
+              <div class="outcome-btn oc-blue">📩 Send info</div>
+              <div class="outcome-btn oc-rose">✕ Not interested</div>
+              <div class="outcome-btn">No answer</div>
+            </div>
+
+            <!-- Next rows -->
+            <div class="sprint-board-row">
+              <div class="sbr-num">10</div>
+              <div class="sbr-avatar" style="background:linear-gradient(135deg,#a78bfa,#818cf8);">EP</div>
+              <div class="sbr-info"><div class="sbr-name">Elliot Park</div><div class="sbr-meta">Nova Ventures · +91 65432 10987</div></div>
+              <div class="sbr-action"><span class="call-btn-big">📞 Call</span></div>
+            </div>
+            <div class="sprint-board-row">
+              <div class="sbr-num">11</div>
+              <div class="sbr-avatar" style="background:linear-gradient(135deg,#fbbf24,#f97316);">PP</div>
+              <div class="sbr-info"><div class="sbr-name">Peter Parker</div><div class="sbr-meta">Daily Bugle · +91 54321 09876</div></div>
+              <div class="sbr-action"><span class="call-btn-big">📞 Call</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating note below board -->
+        <div style="margin-top:1rem;display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);backdrop-filter:blur(12px);">
+          <div style="width:32px;height:32px;border-radius:8px;background:var(--green-dim);border:1px solid var(--green-bd);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;">✓</div>
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;">Sprint complete — auto-synced to Sheet</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">15 calls · 6 interested · 3 meeting booked · 2 proposals to send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ INDUSTRIES ══════════════════ -->
+  <section id="industries">
+    <div class="container">
+      <div class="centered">
+        <div class="section-eyebrow eyebrow-violet">🏢 Built for Your Industry</div>
+        <h2 class="section-title">Cold calling never stopped being<br><span class="grad-violet">the most effective channel.</span></h2>
+        <p class="section-sub">Pluto is purpose-built for industries where the phone is still the primary revenue driver. Select your industry below.</p>
+      </div>
+
+      <div class="industries-tabs">
+        <button class="ind-tab active-tab" onclick="showInd('realestate', this)">🏠 Real Estate</button>
+        <button class="ind-tab" onclick="showInd('hospitality', this)">🏨 Hospitality</button>
+        <button class="ind-tab" onclick="showInd('education', this)">🎓 Education</button>
+        <button class="ind-tab" onclick="showInd('finance', this)">💰 Financial Services</button>
+      </div>
+
+    <!-- REAL ESTATE -->
+    <div class="ind-panel active-panel" id="panel-realestate">
+      <div class="ind-text-col">
+        <div class="ind-name">🏠 Real Estate Agencies</div>
+        <div class="ind-desc">
+          Property agents live on the phone. Between buyer inquiries, seller follow-ups, rental leads, and cold prospecting — a single agent might need to work 60+ contacts a day. Pluto's sprint board turns that chaos into a structured, trackable calling session.
+        </div>
+        <ul class="ind-pain-points">
+          <li>
+            <div class="pain-check" style="background:var(--primary-dim);border:1px solid var(--primary-bd);color:var(--primary);">✓</div>
+            <span><strong style="color:var(--text);">Never lose a hot lead</strong> — log call outcomes immediately with voice-to-note, keep the next call loading instantly.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--primary-dim);border:1px solid var(--primary-bd);color:var(--primary);">✓</div>
+            <span><strong style="color:var(--text);">WhatsApp property flyers</strong> — send listings with your quick templates the moment a call ends.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--primary-dim);border:1px solid var(--primary-bd);color:var(--primary);">✓</div>
+            <span><strong style="color:var(--text);">Multi-pipeline for property types</strong> — separate funnels for buyers, sellers, and rentals in one workspace.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--primary-dim);border:1px solid var(--primary-bd);color:var(--primary);">✓</div>
+            <span><strong style="color:var(--text);">Entire team on one sheet</strong> — all agents share one Google Sheet database, with role-based access and full history.</span>
+          </li>
+        </ul>
+        <div class="ind-quote">
+          <div class="ind-quote-text">"We went from tracking leads in a mess of WhatsApp groups and scattered spreadsheets to a clean Pluto sprint board. Our team's call-to-meeting rate jumped 40% in the first month."</div>
+          <div class="ind-quote-author">— Rahul Mehta, Principal Agent · Prestige Realty</div>
+        </div>
+      </div>
+      <div class="ind-visual">
+        <div class="ind-app-frame">
+          <div class="ind-app-bar">
+            <div class="tl-row"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div>
+            <div class="ind-app-title">🏠 Property Leads Sprint</div>
+            <div class="crm-pill">● 12 to call</div>
+          </div>
+          <div class="ind-app-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.25rem;">
+              <div class="crm-stat"><div class="csl">Buyer Leads</div><div class="csv">18</div><div class="csd">↑ 6 new</div></div>
+              <div class="crm-stat"><div class="csl">Site Visits</div><div class="csv" style="color:var(--amber);">5</div><div class="csd">Booked today</div></div>
+              <div class="crm-stat"><div class="csl">Deals Closed</div><div class="csv" style="color:var(--green);">2</div><div class="csd">₹2.4Cr value</div></div>
+            </div>
+            <div class="sprint-row sprint-calling">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4);">AP</div>
+              <div style="flex:1;">
+                <div class="sprint-name">Anjali Patel</div>
+                <div style="font-size:0.58rem;color:var(--text-dim);">3BHK Buyer · Budget ₹85L</div>
+              </div>
+              <span class="calling-pulse"><span class="calling-dot"></span>Calling…</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);">VS</div>
+              <div style="flex:1;"><div class="sprint-name">Vikram Singh</div><div style="font-size:0.58rem;color:var(--text-dim);">Seller · 2BHK Whitefield</div></div>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#f97316,#f43f5e);">MK</div>
+              <div style="flex:1;"><div class="sprint-name">Meera Krishnan</div><div style="font-size:0.58rem;color:var(--text-dim);">Rental Inquiry · Office Space</div></div>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#06b6d4,#8b5cf6);">RS</div>
+              <div style="flex:1;"><div class="sprint-name">Ramesh Sharma</div><div style="font-size:0.58rem;color:var(--text-dim);">Plot Buyer · Sarjapur Road</div></div>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+          </div>
+        </div>
+        <div class="ind-toast">
+          <div class="ind-toast-icon" style="background:var(--green-dim);color:var(--green);">✓</div>
+          <div>
+            <div class="ind-toast-title">Site visit booked!</div>
+            <div class="ind-toast-msg">Anjali Patel · Saturday 11am</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOSPITALITY -->
+    <div class="ind-panel" id="panel-hospitality">
+      <div class="ind-text-col">
+        <div class="ind-name">🏨 Hospitality & Hotels</div>
+        <div class="ind-desc">
+          Hotel sales teams are constantly reaching out to corporate travel managers, MICE planners, wedding coordinators, and tour operators. These are high-value, relationship-driven deals — and every missed follow-up call costs a booking.
+        </div>
+        <ul class="ind-pain-points">
+          <li>
+            <div class="pain-check" style="background:var(--blue-dim);border:1px solid var(--blue-bd);color:var(--blue);">✓</div>
+            <span><strong style="color:var(--text);">Corporate account pipelines</strong> — track every hotel negotiation across travel managers, procurement teams, and decision-makers.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--blue-dim);border:1px solid var(--blue-bd);color:var(--blue);">✓</div>
+            <span><strong style="color:var(--text);">Event enquiry sprints</strong> — set a sprint session for every MICE or wedding inquiry that came in this week. Never go cold.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--blue-dim);border:1px solid var(--blue-bd);color:var(--blue);">✓</div>
+            <span><strong style="color:var(--text);">WhatsApp banquet brochures</strong> — send your event packages and room-rate decks instantly after a call, while intent is highest.</span>
+          </li>
+        </ul>
+        <div class="ind-quote">
+          <div class="ind-quote-text">"Our banquet team now runs a daily Pluto sprint every morning. In 90 minutes they call 40 enquiries. Our event conversion went from 12% to 28%."</div>
+          <div class="ind-quote-author">— Priya Nair, Director of Sales · Grand Meridian Hotels</div>
+        </div>
+      </div>
+      <div class="ind-visual">
+        <div class="ind-app-frame">
+          <div class="ind-app-bar">
+            <div class="tl-row"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div>
+            <div class="ind-app-title">🏨 Event Enquiries Pipeline</div>
+            <div class="crm-pill">● Live</div>
+          </div>
+          <div class="ind-app-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.25rem;">
+              <div class="crm-stat"><div class="csl">Enquiries</div><div class="csv">31</div><div class="csd">This week</div></div>
+              <div class="crm-stat"><div class="csl">Proposals</div><div class="csv" style="color:var(--blue);">8</div><div class="csd">Sent today</div></div>
+              <div class="crm-stat"><div class="csl">Booked</div><div class="csv" style="color:var(--green);">₹18L</div><div class="csd">↑ 28%</div></div>
+            </div>
+            <div class="lead-card" style="border-color:var(--amber);background:rgba(245,158,11,0.03);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="lead-name">TechCorp Annual Offsite</div>
+                <span style="font-size:0.6rem;color:var(--amber);font-weight:700;">🔥 Hot</span>
+              </div>
+              <div class="lead-co">250 pax · Corporate Event</div>
+              <div class="lead-val">Est. ₹12L</div>
+            </div>
+            <div class="lead-card">
+              <div class="lead-name">Kapoor Wedding Reception</div>
+              <div class="lead-co">400 guests · Dec 14</div>
+              <div class="lead-val">Est. ₹8.5L</div>
+            </div>
+            <div class="lead-card">
+              <div class="lead-name">FICCI Conference 2026</div>
+              <div class="lead-co">3-day MICE · Jan</div>
+              <div class="lead-val">Est. ₹22L</div>
+            </div>
+          </div>
+        </div>
+        <div class="ind-toast" style="border-color:var(--blue-bd);">
+          <div class="ind-toast-icon" style="background:var(--blue-dim);color:var(--blue);">📋</div>
+          <div>
+            <div class="ind-toast-title">Proposal sent via WhatsApp</div>
+            <div class="ind-toast-msg">TechCorp Offsite · Banquet deck</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDUCATION -->
+    <div class="ind-panel" id="panel-education">
+      <div class="ind-text-col">
+        <div class="ind-name">🎓 Education Institutes</div>
+        <div class="ind-desc">
+          Admission counselors at schools, colleges, and coaching institutes call hundreds of enquiries every day. The application cycle has hard deadlines — leads go cold in 48 hours. Pluto's sprint board is built for this urgency.
+        </div>
+        <ul class="ind-pain-points">
+          <li>
+            <div class="pain-check" style="background:var(--green-dim);border:1px solid var(--green-bd);color:var(--green);">✓</div>
+            <span><strong style="color:var(--text);">Admission sprint cycles</strong> — load fresh enquiries from your website or lead form directly into a calling sprint. Zero manual entry.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--green-dim);border:1px solid var(--green-bd);color:var(--green);">✓</div>
+            <span><strong style="color:var(--text);">Parent + student pipelines</strong> — separate funnels for different courses, batches, or campuses. All in one place.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--green-dim);border:1px solid var(--green-bd);color:var(--green);">✓</div>
+            <span><strong style="color:var(--text);">WhatsApp brochure send</strong> — share course details, fee structure, and campus tour booking links instantly after a call.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:var(--green-dim);border:1px solid var(--green-bd);color:var(--green);">✓</div>
+            <span><strong style="color:var(--text);">Counselor team coordination</strong> — assign leads to specific counselors, track who called whom, and avoid duplicate outreach.</span>
+          </li>
+        </ul>
+        <div class="ind-quote">
+          <div class="ind-quote-text">"Our admission team of 6 counselors went from 200 calls/day to over 450. We never had this kind of visibility into our pipeline before Pluto."</div>
+          <div class="ind-quote-author">— Sanjay Kulkarni, Admissions Head · Apex Education Group</div>
+        </div>
+      </div>
+      <div class="ind-visual">
+        <div class="ind-app-frame">
+          <div class="ind-app-bar">
+            <div class="tl-row"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div>
+            <div class="ind-app-title">🎓 MBA Admissions 2026</div>
+            <div class="crm-pill">● 47 enquiries</div>
+          </div>
+          <div class="ind-app-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.25rem;">
+              <div class="crm-stat"><div class="csl">Enquiries</div><div class="csv">142</div><div class="csd">This week</div></div>
+              <div class="crm-stat"><div class="csl">Applied</div><div class="csv" style="color:var(--blue);">38</div><div class="csd">27% rate</div></div>
+              <div class="crm-stat"><div class="csl">Enrolled</div><div class="csv" style="color:var(--green);">12</div><div class="csd">↑ 40%</div></div>
+            </div>
+            <div class="sprint-row sprint-calling">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#10b981,#8b5cf6);">NG</div>
+              <div style="flex:1;"><div class="sprint-name">Neha Gupta</div><div style="font-size:0.58rem;color:var(--text-dim);">MBA Enquiry · Bangalore</div></div>
+              <span class="calling-pulse"><span class="calling-dot"></span>Calling…</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#3b82f6,#06b6d4);">RP</div>
+              <div style="flex:1;"><div class="sprint-name">Rohan Pillai</div><div style="font-size:0.58rem;color:var(--text-dim);">B.Tech · Hyderabad</div></div>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+            <div class="sprint-row">
+              <div class="sprint-avatar" style="background:linear-gradient(135deg,#f97316,#fbbf24);">SD</div>
+              <div style="flex:1;"><div class="sprint-name">Shruti Das</div><div style="font-size:0.58rem;color:var(--text-dim);">MBA Finance · Mumbai</div></div>
+              <span class="sprint-call-btn">📞</span>
+            </div>
+          </div>
+        </div>
+        <div class="ind-toast" style="border-color:var(--green-bd);">
+          <div class="ind-toast-icon" style="background:var(--green-dim);color:var(--green);">🎓</div>
+          <div>
+            <div class="ind-toast-title">Application form sent!</div>
+            <div class="ind-toast-msg">Neha Gupta via WhatsApp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="ind-panel" id="panel-finance">
+      <div class="ind-text-col">
+        <div class="ind-name">💰 Financial Services</div>
+        <div class="ind-desc">
+          Insurance agents, wealth managers, loan officers, and investment advisors all share the same core challenge — a pipeline full of prospects who need 5–7 touchpoints before they convert. Pluto keeps every touchpoint tracked.
+        </div>
+        <ul class="ind-pain-points">
+          <li>
+            <div class="pain-check" style="background:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--amber);">✓</div>
+            <span><strong style="color:var(--text);">Multi-touchpoint tracking</strong> — log every call attempt, email, and WhatsApp message against a prospect. Know exactly when to follow up.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--amber);">✓</div>
+            <span><strong style="color:var(--text);">Deal value visibility</strong> — see total premium/AUM/loan-value in your pipeline instantly. Prioritise the biggest opportunities.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--amber);">✓</div>
+            <span><strong style="color:var(--text);">Compliance-safe notes</strong> — every call outcome is timestamped and stored in your own Google Sheet. Audit-ready by default.</span>
+          </li>
+          <li>
+            <div class="pain-check" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--amber);">✓</div>
+            <span><strong style="color:var(--text);">Product templates</strong> — send policy summaries, SIP illustrations, and loan proposals via WhatsApp in one click post-call.</span>
+          </li>
+        </ul>
+        <div class="ind-quote">
+          <div class="ind-quote-text">"My team of 12 advisors now runs coordinated daily calling sprints. Our SIP closure rate is up 31% and we can actually see where every prospect is in the funnel."</div>
+          <div class="ind-quote-author">— Amit Joshi, Branch Manager · SunLife Wealth Advisors</div>
+        </div>
+      </div>
+      <div class="ind-visual">
+        <div class="ind-app-frame">
+          <div class="ind-app-bar">
+            <div class="tl-row"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div>
+            <div class="ind-app-title">💰 Wealth Prospects Pipeline</div>
+            <div class="crm-pill">● Live</div>
+          </div>
+          <div class="ind-app-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.25rem;">
+              <div class="crm-stat"><div class="csl">AUM Pipeline</div><div class="csv" style="color:var(--amber);">₹4.2Cr</div><div class="csd">↑ 18%</div></div>
+              <div class="crm-stat"><div class="csl">Policies</div><div class="csv">14</div><div class="csd">This quarter</div></div>
+              <div class="crm-stat"><div class="csl">Renewals</div><div class="csv" style="color:var(--green);">92%</div><div class="csd">Retention</div></div>
+            </div>
+            <div class="lead-card" style="border-color:var(--amber);background:rgba(245,158,11,0.03);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="lead-name">Sunita Agrawal</div>
+                <span style="font-size:0.6rem;background:rgba(245,158,11,0.1);color:var(--amber);padding:0.1rem 0.35rem;border-radius:4px;font-weight:700;">SIP Lead</span>
+              </div>
+              <div class="lead-co">₹50K/month SIP · 3rd touchpoint</div>
+              <div class="lead-val">AUM: ₹60L/yr</div>
+            </div>
+            <div class="lead-card">
+              <div class="lead-name">Kartik Desai</div>
+              <div class="lead-co">Term Insurance · ₹1Cr cover</div>
+              <div class="lead-val">Premium: ₹18,000/yr</div>
+            </div>
+            <div class="lead-card" style="border-color:var(--green-bd);background:var(--green-dim);">
+              <div class="lead-name">Deepa Nambiar</div>
+              <div class="lead-co">Policy Issued ✓ · LIC Endowment</div>
+              <div class="lead-val" style="color:var(--green);">₹25K premium · Won!</div>
+            </div>
+          </div>
+        </div>
+        <div class="ind-toast" style="border-color:rgba(245,158,11,0.25);">
+          <div class="ind-toast-icon" style="background:rgba(245,158,11,0.1);color:var(--amber);">📊</div>
+          <div>
+            <div class="ind-toast-title">SIP illustration sent</div>
+            <div class="ind-toast-msg">Sunita Agrawal · WhatsApp</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════════ HOW IT WORKS ══════════════════ -->
+  <section id="how-it-works">
+    <div class="container">
+      <div class="centered">
+        <div class="section-eyebrow eyebrow-green">✦ Simple Setup</div>
+        <h2 class="section-title">Up and running<br><span style="color:var(--green);">in under 10 minutes.</span></h2>
+        <p class="section-sub">No IT team. No onboarding calls. No 30-day trials that expire before you see value. Pluto gets out of your way so you can focus on the phones.</p>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-step">
+          <div class="how-num active-step">1</div>
+          <div class="how-step-title">Connect your Google Sheet</div>
+          <div class="how-step-body">
+            Paste your Google Apps Script Web App URL into Settings. Pluto links to your Sheet and sets up the required columns automatically. Your data, your control — forever.
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">2</div>
+          <div class="how-step-title">Add your leads and build pipelines</div>
+          <div class="how-step-body">
+            Create pipeline stages that match your sales process. Add leads manually, import from your Sheet, or paste from a CSV. Customise tags, values, and contact info.
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">3</div>
+          <div class="how-step-title">Launch a sprint and start calling</div>
+          <div class="how-step-body">
+            Select the leads you want to call today, start a sprint session, and work through your list. Every call outcome syncs to your Sheet automatically.
+          </div>
+        </div>
+      </div>
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════════ METRICS ══════════════════ -->
+  <section>
+    <div class="container">
+      <div class="metrics-grid">
+        <div>
+          <div class="section-eyebrow eyebrow-violet">📈 Proven Results</div>
+          <h2 class="section-title">Numbers that<br><span class="grad-violet">speak for themselves.</span></h2>
+          <div class="metrics-list">
+            <div class="metric-item">
+              <div class="metric-icon" style="background:var(--primary-dim);border:1px solid var(--primary-bd);">⚡</div>
+              <div>
+                <div class="metric-title">2.3× more calls per day</div>
+                <div class="metric-body">Sprint sessions eliminate the cognitive overhead of deciding who to call next. Teams dial faster, log faster, move faster.</div>
+              </div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-icon" style="background:var(--green-dim);border:1px solid var(--green-bd);">📊</div>
+              <div>
+                <div class="metric-title">34% higher conversion rates</div>
+                <div class="metric-body">Structured follow-up cadences and instant WhatsApp follow-through after calls dramatically increase meeting bookings.</div>
+              </div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-icon" style="background:var(--violet-dim);border:1px solid var(--violet-bd);">💸</div>
+              <div>
+                <div class="metric-title">₹0 database cost, always</div>
+                <div class="metric-body">Your Google Sheet is your database. Unlimited rows, zero storage costs, and no surprise CRM pricing at 500+ contacts.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="chart-wrap">
+            <div class="chart-header-row">
+              <div class="chart-label-big">Daily Calls — Before vs. After Pluto</div>
+              <div class="chart-legend-row">
+                <div class="cleg"><div class="cleg-dot" style="background:var(--text-dim);"></div>Before</div>
+                <div class="cleg"><div class="cleg-dot" style="background:var(--primary);"></div>After</div>
+              </div>
+            </div>
+            <div class="bars-container">
+              <div class="bar-g"><div class="bar-b" style="height:40%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:78%;background:var(--primary);"></div></div>
+              <div class="bar-g"><div class="bar-b" style="height:35%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:80%;background:var(--primary);"></div></div>
+              <div class="bar-g"><div class="bar-b" style="height:42%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:90%;background:var(--primary);"></div></div>
+              <div class="bar-g"><div class="bar-b" style="height:38%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:85%;background:var(--primary);"></div></div>
+              <div class="bar-g"><div class="bar-b" style="height:44%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:100%;background:var(--primary);"></div></div>
+              <div class="bar-g"><div class="bar-b" style="height:40%;background:rgba(82,82,91,0.5);"></div><div class="bar-b" style="height:95%;background:var(--primary);"></div></div>
+            </div>
+            <div class="bar-labels">
+              <div class="blabel">Mon</div><div class="blabel">Tue</div><div class="blabel">Wed</div>
+              <div class="blabel">Thu</div><div class="blabel">Fri</div><div class="blabel">Sat</div>
+            </div>
+            <div style="margin-top:1.25rem;display:flex;gap:1.5rem;">
+              <div style="flex:1;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:0.75rem;text-align:center;">
+                <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--text-dim);">~22</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Avg calls/day before</div>
+              </div>
+              <div style="flex:1;background:var(--primary-dim);border:1px solid var(--primary-bd);border-radius:8px;padding:0.75rem;text-align:center;">
+                <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--primary);">~51</div>
+                <div style="font-size:0.7rem;color:var(--primary);opacity:0.7;">Avg calls/day with Pluto</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════════ PRICING ══════════════════ -->
+  <section id="pricing">
+    <div class="container">
+      <div class="centered">
+        <div class="section-eyebrow eyebrow-orange">💳 Pricing</div>
+        <h2 class="section-title">One simple plan.<br><span class="grad-orange">Everything included.</span></h2>
+        <p class="section-sub">No artificial limits. Since you host the database yourself in Google Sheets, you remain in 100% control of your sales data.</p>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- Farthest Plan -->
+        <div class="pricing-card featured" style="max-width: 500px; width: 100%;">
+          <div class="plan-ribbon">✦ Farthest Plan</div>
+          <div class="plan-name">Pluto CRM</div>
+          <div class="plan-price"><sup>₹</sup>999</div>
+          <div class="plan-period">per user / month</div>
+          <hr class="plan-divider">
+          <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.25rem;line-height:1.6;">
+            We think even the smallest of companies deserve the full enterprise treatment. No artificial caps, no tiers, no database limits.
+          </p>
+          <ul class="plan-features">
+            <li><span class="pf-check">✓</span> <strong>Unlimited</strong> active leads (no contact limits)</li>
+            <li><span class="pf-check">✓</span> <strong>Unlimited</strong> pipelines & workspaces</li>
+            <li><span class="pf-check">✓</span> Full Sprint Calling Board & outcome logs</li>
+            <li><span class="pf-check">✓</span> Real-time bi-directional Google Sheets sync</li>
+            <li><span class="pf-check">✓</span> <strong>Unlimited</strong> WhatsApp quick-send templates</li>
+            <li><span class="pf-check">✓</span> Google Sign-In & Firebase workspace integration</li>
+            <li><span class="pf-check">✓</span> 100% data ownership & database control (no lock-in)</li>
+          </ul>
+          <button class="plan-cta plan-cta-primary">Get started free →</button>
+        </div>
+      </div>
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════════ FINAL CTA ══════════════════ -->
+  <div class="final-cta">
+    <div class="cta-glow-1"></div>
+    <div class="cta-glow-2"></div>
+    <div class="cta-card">
+      <!-- Breathing Pluto planet with Tombaugh Regio Heart (from load screen) -->
+      <div class="breathing-pluto-wrap">
+        <svg class="logo-svg breathing-pluto-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="ctaPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#ffeedd" />
+              <stop offset="60%" stop-color="var(--primary)" />
+              <stop offset="100%" stop-color="#7c2d12" />
+            </radialGradient>
+          </defs>
+          <circle cx="16" cy="16" r="12" fill="url(#ctaPlutoPlanetGrad)" />
+          <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9"/>
+          </g>
+          <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.2)" stroke-width="0.5" />
+        </svg>
+      </div>
+      <div class="cta-title">
+        Ready to close<br>
+        <span class="grad-orange">more deals?</span>
+      </div>
+      <p class="cta-sub">
+        Join 500+ sales teams across real estate, hospitality, education, and financial services who have replaced their chaotic spreadsheets with Pluto's focused calling system.
+      </p>
+      <div class="cta-btns">
+        <a href="#" class="btn btn-primary btn-large">Start free — no card needed →</a>
+        <a href="#features" class="btn btn-outline-white btn-large">See all features</a>
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-xdim);margin-top:1.5rem;">
+        Setup in 5 minutes · Your data stays in your Google Sheet · Cancel anytime
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════ FOOTER ══════════════════ -->
+  <footer>
+    <div class="footer-inner">
+      <a href="#" class="footer-brand">
+        <svg class="logo-svg footer-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="footerPlutoPlanetGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#ffeedd" />
+              <stop offset="60%" stop-color="var(--primary)" />
+              <stop offset="100%" stop-color="#7c2d12" />
+            </radialGradient>
+          </defs>
+          <circle cx="16" cy="16" r="12" fill="url(#footerPlutoPlanetGrad)" />
+          <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9"/>
+          </g>
+          <circle cx="16" cy="16" r="12" stroke="rgba(255, 255, 255, 0.2)" stroke-width="0.5" />
+        </svg>
+        <span class="footer-name">Pluto CRM</span>
+      </a>
+
+      <ul class="footer-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#industries">Industries</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="FIREBASE_SETUP_GUIDE.html">Firebase Setup</a></li>
+        <li><a href="FIREBASE_MIGRATION_GUIDE.html">Developer Docs</a></li>
+      </ul>
+
+      <div class="footer-copy">
+        Built with ❤️ by <a href="https://hello.talkxo.com" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-weight:600;">TalkXO</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Industry tabs ─────────────────────────────
+    function showInd(id, btn) {
+      document.querySelectorAll('.ind-panel').forEach(p => p.classList.remove('active-panel'));
+      document.querySelectorAll('.ind-tab').forEach(t => t.classList.remove('active-tab'));
+      document.getElementById('panel-' + id).classList.add('active-panel');
+      btn.classList.add('active-tab');
+    }
+
+    // ── Smooth active nav on scroll ───────────────
+    const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+    const sections = document.querySelectorAll('section[id]');
+
+    window.addEventListener('scroll', () => {
+      let cur = '';
+      sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 100) cur = s.id;
+      });
+      navLinks.forEach(l => {
+        l.style.color = l.getAttribute('href') === '#' + cur ? 'var(--primary)' : '';
+      });
+    });
+
+    // ── Animate stats on scroll into view ────────
+    const statNums = document.querySelectorAll('.proof-num');
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.style.opacity = '1';
+          e.target.style.transform = 'none';
+        }
+      });
+    }, { threshold: 0.5 });
+
+    statNums.forEach(n => {
+      n.style.opacity = '0';
+      n.style.transform = 'translateY(10px)';
+      n.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      io.observe(n);
+    });
+  </script>
+
+</body>
+</html>

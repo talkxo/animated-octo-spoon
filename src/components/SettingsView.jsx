@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Database, 
   MessageSquare, 
@@ -23,7 +23,9 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { Users, UserMinus, UserCheck, Mail } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
+import { isConfigured } from '../firebase';
 
 export default function SettingsView({ 
   sheetUrl, 
@@ -44,7 +46,10 @@ export default function SettingsView({
   clearSyncQueue,
   flushSyncQueue,
   theme,
-  toggleTheme
+  toggleTheme,
+  // Firebase workspace props
+  workspace,
+  user,
 }) {
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
@@ -56,20 +61,40 @@ export default function SettingsView({
   const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
 
+  // Invite-token QR state
+  const [inviteToken, setInviteToken] = useState(null);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState(null);
+
+  // Generate first invite token when settings open and sheet is connected
+  const generateInvite = useCallback(async () => {
+    if (!workspace?.createInviteToken) return;
+    const result = await workspace.createInviteToken();
+    if (result) {
+      setInviteToken(result.token);
+      setInviteExpiresAt(result.expiresAt);
+      setTimeLeft(300);
+      setQrKey(k => k + 1);
+    }
+  }, [workspace]);
+
   useEffect(() => {
-    if (!sheetUrl) return;
+    if (sheetUrl && workspace?.isOwner) generateInvite();
+  }, [sheetUrl, workspace?.isOwner]);
+
+  // Countdown timer — auto-regenerate on expiry
+  useEffect(() => {
+    if (!sheetUrl || !workspace?.isOwner) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
+      setTimeLeft(prev => {
         if (prev <= 1) {
-          setQrKey(k => k + 1);
-          setExpiresAt(Date.now() + 300000);
+          generateInvite();
           return 300;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [sheetUrl]);
+  }, [sheetUrl, workspace?.isOwner, generateInvite]);
 
   // Pipeline editing states
   const [editingPipelineId, setEditingPipelineId] = useState(null);
@@ -166,23 +191,11 @@ export default function SettingsView({
     }
   };
 
-  // Add / Edit WhatsApp Templates
-  const handleAddTemplate = () => {
-    const newTemp = {
-      id: `temp-${Date.now()}`,
-      title: '👋 New Outreach Template',
-      text: 'Hey {{name}}! Hope you are doing great. Looking forward to our call!'
-    };
-    const updated = [...whatsappTemplates, newTemp];
-    setWhatsappTemplates(updated);
-    startEditingTemplate(newTemp);
-    setIsNewTemplate(true);
-  };
-
-  const startEditingTemplate = (t) => {
-    setEditingTempId(t.id);
-    setTempTitle(t.title);
-    setTempText(t.text);
+  const handleDeleteTemplate = (id) => {
+    if (confirm('Delete this WhatsApp message template?')) {
+      const updated = whatsappTemplates.filter(t => t.id !== id);
+      saveTemplates(updated);
+    }
   };
 
   const handleSaveTemplate = (id) => {
@@ -190,19 +203,10 @@ export default function SettingsView({
       alert('Template title and text are required!');
       return;
     }
-
-    const updated = whatsappTemplates.map(t => {
-      if (t.id === id) {
-        return {
-          ...t,
-          title: tempTitle,
-          text: tempText
-        };
-      }
-      return t;
-    });
-
-    setWhatsappTemplates(updated);
+    const updated = whatsappTemplates.map(t =>
+      t.id === id ? { ...t, title: tempTitle, text: tempText } : t
+    );
+    saveTemplates(updated);
     setEditingTempId(null);
     setIsNewTemplate(false);
   };
@@ -210,29 +214,44 @@ export default function SettingsView({
   const handleCancelTemplate = (id) => {
     if (isNewTemplate) {
       const updated = whatsappTemplates.filter(t => t.id !== id);
-      setWhatsappTemplates(updated);
+      saveTemplates(updated);
       setIsNewTemplate(false);
     }
     setEditingTempId(null);
   };
 
-  const handleDeleteTemplate = (id) => {
-    if (confirm('Delete this WhatsApp message template?')) {
-      const updated = whatsappTemplates.filter(t => t.id !== id);
-      setWhatsappTemplates(updated);
-    }
+  const handleAddTemplate = () => {
+    const newTemp = {
+      id: `temp-${Date.now()}`,
+      title: '👋 New Outreach Template',
+      text: 'Hey {{name}}! Hope you are doing great. Looking forward to our call!'
+    };
+    const updated = [...whatsappTemplates, newTemp];
+    saveTemplates(updated);
+    startEditingTemplate(newTemp);
+    setIsNewTemplate(true);
   };
 
-  // Clear / Reset local storage to mockup presets
-  const handleResetData = () => {
+  // Clear / Reset — post-Firebase version disconnects from workspace
+  const handleResetData = async () => {
     if (resetConfirmText !== 'RESET') return;
     localStorage.removeItem('crm_leads');
     localStorage.removeItem('crm_notes');
     localStorage.removeItem('crm_pipelines');
     localStorage.removeItem('crm_wa_templates');
-    localStorage.removeItem('crm_sheet_url');
+    localStorage.removeItem('crm_has_seen_wizard');
     window.location.reload();
   };
+
+  // Save WhatsApp templates to Firestore workspace or localStorage
+  const saveTemplates = useCallback((updated) => {
+    setWhatsappTemplates(updated);
+    if (isConfigured && workspace?.saveWsSettings) {
+      workspace.saveWsSettings({ whatsappTemplates: updated });
+    } else {
+      localStorage.setItem('crm_wa_templates', JSON.stringify(updated));
+    }
+  }, [workspace, setWhatsappTemplates, isConfigured]);
 
   return (
     <div className="settings-container">
@@ -243,7 +262,7 @@ export default function SettingsView({
         <div className="settings-layout-column">
           
           {/* Preferences & Sync to Mobile */}
-          <div className={`settings-pref-row ${sheetUrl ? 'connected' : ''}`}>
+          <div className={`settings-pref-row ${isConfigured && sheetUrl ? 'connected' : ''}`}>
             {/* Currency & Preferences */}
             <div className="glass-card settings-card-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
@@ -337,72 +356,77 @@ export default function SettingsView({
               )}
             </div>
 
-            {/* Sync to Mobile Card */}
-            {sheetUrl && (
+            {/* Sync to Mobile Card — invite token QR */}
+            {isConfigured && sheetUrl && (
               <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
                 <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
                   <Smartphone size={16} style={{ color: '#f59e0b' }} />
                   Sync to Mobile
                 </h3>
-                <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                  Connect your mobile device without copy-pasting:
-                </p>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block' }}>
-                    <img 
-                      key={qrKey}
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                         window.location.origin + window.location.pathname + 
-                         '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
-                         '&currency=' + encodeURIComponent(currency) + 
-                         '&theme=' + encodeURIComponent(theme || 'dark') +
-                         '&expiresAt=' + expiresAt
-                      )}`} 
-                      alt="Scan to sync" 
-                      style={{ width: '90px', height: '90px', display: 'block' }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', minWidth: '160px' }}>
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                      Scan this QR code to open Pluto on mobile with sync and preferences configured.
-                    </div>
-                    
-                    {/* Heartbeat timer */}
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '0.35rem', 
-                      fontSize: 'var(--text-2xs)', 
-                      color: '#fbbf24', 
-                      background: 'rgba(251, 191, 36, 0.04)', 
-                      padding: '0.25rem 0.45rem', 
-                      borderRadius: '6px', 
-                      border: '1px solid rgba(251, 191, 36, 0.15)',
-                      width: 'fit-content'
-                    }}>
-                      <RefreshCw size={10} style={{ animation: 'spin 10s linear infinite' }} />
-                      <span>Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
-                    </div>
 
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary" 
-                      style={{ padding: '0.4rem 0.6rem', fontSize: 'var(--text-xs)', height: '28px', alignSelf: 'flex-start', display: 'flex', gap: '0.3rem', alignItems: 'center' }}
-                      onClick={() => {
-                        const shareUrl = window.location.origin + window.location.pathname + 
-                          '?sheetUrl=' + encodeURIComponent(sheetUrl) + 
-                          '&currency=' + encodeURIComponent(currency) + 
-                          '&theme=' + encodeURIComponent(theme || 'dark') +
-                          '&expiresAt=' + expiresAt;
-                        navigator.clipboard.writeText(shareUrl);
-                        alert('Mobile access link copied! Send this link to your mobile phone (e.g. via text/email) and log in. Note: Link expires in 5 minutes.');
-                      }}
-                    >
-                      <Copy size={11} />
-                      <span>Copy Link</span>
-                    </button>
-                  </div>
-                </div>
+                {workspace?.isOwner ? (
+                  // Owner: show invite QR
+                  <>
+                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                      Scan to open Pluto and join this workspace on another device:
+                    </p>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block' }}>
+                        {inviteToken ? (
+                          <img
+                            key={qrKey}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                              window.location.origin + window.location.pathname +
+                              '?invite=' + encodeURIComponent(inviteToken) +
+                              '&expiresAt=' + inviteExpiresAt
+                            )}`}
+                            alt="Scan to join workspace"
+                            style={{ width: '90px', height: '90px', display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{ width: '90px', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '11px', textAlign: 'center' }}>
+                            Generating…
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', minWidth: '160px' }}>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                          Teammates scan this QR to sign in with Google and join your workspace. No sheet URL needed.
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '0.35rem',
+                          fontSize: 'var(--text-2xs)', color: '#fbbf24',
+                          background: 'rgba(251,191,36,0.04)', padding: '0.25rem 0.45rem',
+                          borderRadius: '6px', border: '1px solid rgba(251,191,36,0.15)', width: 'fit-content'
+                        }}>
+                          <RefreshCw size={10} style={{ animation: 'spin 10s linear infinite' }} />
+                          <span>Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: 'var(--text-xs)', height: '28px', alignSelf: 'flex-start', display: 'flex', gap: '0.3rem', alignItems: 'center' }}
+                          onClick={() => {
+                            if (!inviteToken) return;
+                            const link = window.location.origin + window.location.pathname +
+                              '?invite=' + encodeURIComponent(inviteToken) +
+                              '&expiresAt=' + inviteExpiresAt;
+                            navigator.clipboard.writeText(link);
+                            alert('Invite link copied! Send it to your teammate. Expires in 5 minutes.');
+                          }}
+                        >
+                          <Copy size={11} />
+                          <span>Copy Invite Link</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Member: just show status
+                  <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                    You joined this workspace via invite. Only the workspace owner can generate new invite QR codes.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -557,7 +581,7 @@ export default function SettingsView({
             </button>
 
             {showSheetsConfig && (
-              <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
                 <form onSubmit={handleConnectSheet} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div className="form-group">
                     <label className="form-label">Google Apps Script Web App Endpoint URL</label>
@@ -718,7 +742,7 @@ export default function SettingsView({
           
           {/* SALES PIPELINES / FUNNELS EDITOR */}
           <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
               <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
                 <Sliders size={16} style={{ color: 'var(--primary)' }} />
                 Pipeline Campaigns & Stages
@@ -804,7 +828,7 @@ export default function SettingsView({
 
           {/* WHATSAPP TEMPLATES PANEL */}
           <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
               <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
                 <MessageSquare size={16} style={{ color: '#10b981' }} />
                 WhatsApp Outreach Slugs Templates
@@ -881,103 +905,200 @@ export default function SettingsView({
             </div>
           </div>
 
-        </div>
-
-      </div>
-
-      {/* 5. DANGER RESET SYSTEM ACTIONS */}
-      <div 
-        className="glass-card" 
-        style={{ 
-          borderColor: 'rgba(239, 68, 68, 0.2)', 
-          background: 'rgba(239, 68, 68, 0.02)', 
-          padding: '1rem', 
-          marginTop: '0.5rem',
-          transition: 'all 0.3s ease'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', color: '#ef4444' }}>
-              <AlertTriangle size={16} />
-              Danger Zone
-            </h3>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>Reset all records, cached sync URLs, pipelines and templates.</p>
-          </div>
-          
-          <button 
-            className="btn btn-secondary" 
-            style={{ 
-              borderColor: 'rgba(239, 68, 68, 0.3)', 
-              color: '#ef4444',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.35rem', 
-              padding: '0.4rem 0.8rem',
-              fontSize: 'var(--text-xs)'
-            }} 
-            onClick={() => {
-              setIsDangerZoneExpanded(!isDangerZoneExpanded);
-              setResetConfirmText('');
-            }}
-          >
-            {isDangerZoneExpanded ? 'Hide actions' : 'Reveal actions'}
-          </button>
-        </div>
-
-        {isDangerZoneExpanded && (
-          <div 
-            style={{ 
-              marginTop: '1rem', 
-              paddingTop: '1rem', 
-              borderTop: '1px solid rgba(239, 68, 68, 0.1)'
-            }}
-          >
-            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
-              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#f87171', lineHeight: '1.4' }}>
-                <strong>WARNING:</strong> This action is irreversible. All local leads, activity logs, pipelines, custom message templates, and connection links will be permanently deleted and restored to the default demo state.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
-              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '220px' }}>
-                <label className="form-label" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                  To confirm, type <strong style={{ color: '#ef4444' }}>RESET</strong> below:
-                </label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="Type RESET to confirm"
-                  style={{ 
-                    borderColor: resetConfirmText === 'RESET' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.2)',
-                    fontSize: 'var(--text-sm)'
-                  }}
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                />
+          {/* TEAM MEMBERS PANEL */}
+          {isConfigured && sheetUrl && (
+            <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                  <Users size={16} style={{ color: 'var(--primary)' }} />
+                  Team Members ({workspace?.members?.length || 0})
+                </h3>
               </div>
 
-              <button 
-                className="btn btn-danger" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.35rem', 
-                  padding: '0.5rem 1.25rem',
-                  opacity: resetConfirmText === 'RESET' ? 1 : 0.5,
-                  cursor: resetConfirmText === 'RESET' ? 'pointer' : 'not-allowed'
-                }} 
-                disabled={resetConfirmText !== 'RESET'}
-                onClick={handleResetData}
-              >
-                <Trash size={14} />
-                <span>Reset CRM Database</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {(workspace?.members || []).map((member) => {
+                  const isMe = member.uid === user?.uid;
+                  return (
+                    <div 
+                      key={member.uid} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: '0.5rem 0.75rem',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '8px',
+                        gap: '1rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                        {member.photoURL ? (
+                          <img 
+                            src={member.photoURL} 
+                            alt={member.displayName || member.email} 
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: '28px', 
+                            height: '28px', 
+                            borderRadius: '50%', 
+                            background: 'var(--primary-glow)', 
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: 'var(--text-xs)'
+                          }}>
+                            {(member.displayName || member.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {member.displayName || member.email.split('@')[0]}
+                            {isMe && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: '0.35rem' }}>(you)</span>}
+                          </span>
+                          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {member.email}
+                          </span>
+                        </div>
+                      </div>
 
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* Role badge */}
+                        <span 
+                          style={{ 
+                            fontSize: 'var(--text-2xs)', 
+                            padding: '0.15rem 0.45rem', 
+                            borderRadius: '6px',
+                            fontWeight: 700,
+                            background: member.role === 'owner' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                            color: member.role === 'owner' ? '#f59e0b' : '#3b82f6',
+                            border: member.role === 'owner' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                          }}
+                        >
+                          {member.role === 'owner' ? 'Owner' : 'Member'}
+                        </span>
+
+                        {/* Owner actions: can remove other members */}
+                        {workspace?.isOwner && !isMe && (
+                          <button 
+                            type="button"
+                            className="outcome-btn" 
+                            style={{ padding: '0.3rem', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
+                            title="Remove from workspace"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to remove ${member.displayName || member.email} from the workspace? They will be disconnected.`)) {
+                                workspace.removeMember(member.uid);
+                              }
+                            }}
+                          >
+                            <UserMinus size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        {/* 5. DANGER RESET SYSTEM ACTIONS */}
+        <div 
+          className="glass-card" 
+          style={{ 
+            borderColor: 'rgba(239, 68, 68, 0.2)', 
+            background: 'rgba(239, 68, 68, 0.02)', 
+            padding: '1rem', 
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', color: '#ef4444' }}>
+                <AlertTriangle size={16} />
+                Danger Zone
+              </h3>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>Reset local CRM cache. Your Google Sheet data is never deleted.</p>
+            </div>
+            
+            <button 
+              className="btn btn-secondary" 
+              style={{ 
+                borderColor: 'rgba(239, 68, 68, 0.3)', 
+                color: '#ef4444',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.35rem', 
+                padding: '0.4rem 0.8rem',
+                fontSize: 'var(--text-xs)'
+              }} 
+              onClick={() => {
+                setIsDangerZoneExpanded(!isDangerZoneExpanded);
+                setResetConfirmText('');
+              }}
+            >
+              {isDangerZoneExpanded ? 'Hide actions' : 'Reveal actions'}
+            </button>
+          </div>
+
+          {isDangerZoneExpanded && (
+            <div 
+              style={{ 
+                marginTop: '1rem', 
+                paddingTop: '1rem', 
+                borderTop: '1px solid rgba(239, 68, 68, 0.1)'
+              }}
+            >
+              <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
+                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#f87171', lineHeight: '1.4' }}>
+                  <strong>WARNING:</strong> This clears your local browser cache (leads, notes, pipelines, templates). <strong>Your Google Sheet data is preserved</strong> and will re-sync on next load. You will remain signed in.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+                <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '220px' }}>
+                  <label className="form-label" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                    To confirm, type <strong style={{ color: '#ef4444' }}>RESET</strong> below:
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Type RESET to confirm"
+                    style={{ 
+                      borderColor: resetConfirmText === 'RESET' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.2)',
+                      fontSize: 'var(--text-sm)'
+                    }}
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                  />
+                </div>
+
+                <button 
+                  className="btn btn-danger" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem', 
+                    padding: '0.5rem 1.25rem',
+                    opacity: resetConfirmText === 'RESET' ? 1 : 0.5,
+                    cursor: resetConfirmText === 'RESET' ? 'pointer' : 'not-allowed'
+                  }} 
+                  disabled={resetConfirmText !== 'RESET'}
+                  onClick={handleResetData}
+                >
+                  <Trash size={14} />
+                  <span>Reset Local Cache</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      </div>
     </div>
   );
 }

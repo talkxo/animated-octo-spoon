@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from './hooks/useAuth';
+import { useWorkspace } from './hooks/useWorkspace';
+import { isConfigured } from './firebase';
 import { 
   BarChart3, 
   PhoneCall, 
@@ -253,15 +256,18 @@ const COSMIC_QUOTES = [
 ];
 
 export default function App() {
-  // Auth State — check localStorage (remember me) or sessionStorage (session only)
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('crm_logged_in') === 'true' ||
-           sessionStorage.getItem('crm_logged_in') === 'true';
+  // ─── Firebase Auth & Firestore workspace ──────────────────────────────────
+  const { user, loading: authLoading, signOutUser } = useAuth();
+  const workspace = useWorkspace(user);
+
+  // Fallback local auth state
+  const [localUser, setLocalUser] = useState(() => {
+    return localStorage.getItem('crm_logged_in_user') || sessionStorage.getItem('crm_logged_in_user') || '';
   });
-  const [loggedInUser, setLoggedInUser] = useState(() => {
-    return localStorage.getItem('crm_logged_in_user') ||
-           sessionStorage.getItem('crm_logged_in_user') || '';
-  });
+
+  // Derived auth state (mirrors old isLoggedIn / loggedInUser shape)
+  const isLoggedIn = isConfigured ? (!!user && !workspace.wsLoading) : !!localUser;
+  const loggedInUser = isConfigured ? (user?.displayName || user?.email || '') : localUser;
 
   // Cosmic Disco Easter Egg States
   const [isCosmicActive, setIsCosmicActive] = useState(false);
@@ -313,63 +319,46 @@ export default function App() {
     });
   };
 
-  const handleLogin = (username, rememberMe) => {
-    setIsLoggedIn(true);
-    setLoggedInUser(username);
-    if (rememberMe) {
-      localStorage.setItem('crm_logged_in', 'true');
-      localStorage.setItem('crm_logged_in_user', username);
-    } else {
-      sessionStorage.setItem('crm_logged_in', 'true');
-      sessionStorage.setItem('crm_logged_in_user', username);
+  // handleLogin is called by Login.jsx after a successful Google sign-in.
+  // Firebase Auth's onAuthStateChanged already updates `user`; this just
+  // triggers a sheet pull if one is already connected in Firestore.
+  const handleLogin = (username, rememberMe, firebaseUser) => {
+    if (!isConfigured) {
+      setLocalUser(username);
+      if (rememberMe) {
+        localStorage.setItem('crm_logged_in_user', username);
+      } else {
+        sessionStorage.setItem('crm_logged_in_user', username);
+      }
+      // Hydrate local user preferences
+      const storedSheet = localStorage.getItem(`crm_sheet_url_${username}`) || localStorage.getItem('crm_sheet_url') || '';
+      const storedTheme = localStorage.getItem(`crm_theme_${username}`) || localStorage.getItem('crm_theme') || 'dark';
+      const storedCurrency = localStorage.getItem(`crm_currency_${username}`) || localStorage.getItem('crm_currency') || 'USD';
+      const storedSyncMode = localStorage.getItem(`crm_sync_mode_${username}`) || localStorage.getItem('crm_sync_mode') || 'auto';
+      
+      setSheetUrl(storedSheet);
+      setTheme(storedTheme);
+      document.documentElement.setAttribute('data-theme', storedTheme);
+      setCurrency(storedCurrency);
+      setSyncMode(storedSyncMode);
+      if (storedSheet) syncDataFromSheet(storedSheet);
     }
-
-    // Hydrate user-scoped preferences
-    const userCurrency = localStorage.getItem(`crm_currency_${username}`) || localStorage.getItem('crm_currency') || 'USD';
-    const userTheme = localStorage.getItem(`crm_theme_${username}`) || localStorage.getItem('crm_theme') || 'dark';
-    const userSyncMode = localStorage.getItem(`crm_sync_mode_${username}`) || localStorage.getItem('crm_sync_mode') || 'auto';
-    const userRevision = parseInt(localStorage.getItem(`crm_settings_revision_${username}`) || localStorage.getItem('crm_settings_revision') || '0', 10) || 0;
-
-    setCurrency(userCurrency);
-    setTheme(userTheme);
-    document.documentElement.setAttribute('data-theme', userTheme);
-    setSyncMode(userSyncMode);
-    setSettingsRevision(userRevision);
-
-    // Check if there was a pending sheet URL shared via QR/Link
-    const pendingUrl = localStorage.getItem('crm_pending_sheet_url');
-    let savedUrl = '';
-    if (pendingUrl) {
-      savedUrl = pendingUrl;
-      localStorage.removeItem('crm_pending_sheet_url');
-      // Save it permanently for this user
-      localStorage.setItem(`crm_sheet_url_${username}`, pendingUrl);
-      localStorage.setItem('crm_sheet_url', pendingUrl);
-    } else {
-      // Restore this user's sheet URL
-      savedUrl = localStorage.getItem(`crm_sheet_url_${username}`) || '';
-    }
-    setSheetUrl(savedUrl);
-    if (savedUrl) syncDataFromSheet(savedUrl);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('crm_logged_in');
-    localStorage.removeItem('crm_logged_in_user');
-    sessionStorage.removeItem('crm_logged_in');
-    sessionStorage.removeItem('crm_logged_in_user');
-    setIsLoggedIn(false);
-    setLoggedInUser('');
-
-    // Reset settings states to defaults
+  const handleLogout = async () => {
+    if (isConfigured) {
+      await signOutUser();
+    } else {
+      setLocalUser('');
+      localStorage.removeItem('crm_logged_in_user');
+      sessionStorage.removeItem('crm_logged_in_user');
+    }
+    // Reset CRM tables to mock state to avoid data leaking between sessions
     setCurrency('USD');
     setTheme('dark');
     document.documentElement.setAttribute('data-theme', 'dark');
     setSyncMode('auto');
     setSettingsRevision(0);
-    setSheetUrl('');
-
-    // Reset leads and CRM tables to default mocks or empty arrays to avoid data leak
     setLeads(MOCK_LEADS);
     setNotes(MOCK_NOTES);
     setPipelines(DEFAULT_PIPELINES);
@@ -395,34 +384,58 @@ export default function App() {
     }
   };
   
-  // Settings & Sync State — sheet URL bootstrapped from user-scoped key
-  const [sheetUrl, setSheetUrl] = useState(() => {
-    const user = localStorage.getItem('crm_logged_in_user') ||
-                 sessionStorage.getItem('crm_logged_in_user') || '';
-    return user
-      ? (localStorage.getItem(`crm_sheet_url_${user}`) || '')
-      : (localStorage.getItem('crm_sheet_url') || '');
-  });
-  const [syncStatus, setSyncStatus] = useState(sheetUrl ? 'syncing' : 'offline'); // 'syncing', 'synced', 'offline', 'error', 'pending'
-  const [lastSyncTime, setLastSyncTime] = useState(() => localStorage.getItem('crm_last_sync') || '');
-  const [syncMode, setSyncMode] = useState(() => {
-    const user = localStorage.getItem('crm_logged_in_user') ||
-                 sessionStorage.getItem('crm_logged_in_user') || '';
-    return user
-      ? (localStorage.getItem(`crm_sync_mode_${user}`) || localStorage.getItem('crm_sync_mode') || 'auto')
-      : (localStorage.getItem('crm_sync_mode') || 'auto');
-  });
-  const [syncQueue, setSyncQueue] = useState(() => {
-    const saved = localStorage.getItem('crm_sync_queue');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // ─── Settings & Sync State ────────────────────────────────────────────────
+  // sheetUrl comes from Firestore (workspace.sheetUrl) via real-time listener.
+  // We keep a local state copy so the rest of the app can read it synchronously.
+  const [sheetUrl, setSheetUrl] = useState('');
+  useEffect(() => {
+    if (isConfigured) {
+      if (workspace.sheetUrl !== undefined) setSheetUrl(workspace.sheetUrl);
+    } else {
+      const stored = (loggedInUser && localStorage.getItem(`crm_sheet_url_${loggedInUser}`)) || localStorage.getItem('crm_sheet_url') || '';
+      setSheetUrl(stored);
+    }
+  }, [workspace.sheetUrl, isConfigured, loggedInUser]);
+
+  const [syncStatus, setSyncStatus] = useState('offline');
+  const [lastSyncTime, setLastSyncTime] = useState('');
+  const [syncMode, setSyncMode] = useState('auto');
+  const [syncQueue, setSyncQueue] = useState([]);
   const syncQueueRef = useRef([]);
   const isSyncingRef = useRef(false);
   const leadRevisionsRef = useRef({});
   const settingsRevisionRef = useRef(0);
   const lastWriteTimeRef = useRef(0);
+  const [settingsRevision, setSettingsRevision] = useState(0);
 
-  // Keep refs and queue in sync on mount
+  // Hydrate local state from Firestore userSettings once loaded
+  useEffect(() => {
+    if (isConfigured) {
+      if (!workspace.userSettings) return;
+      const { theme: t, currency: c, syncMode: sm } = workspace.userSettings;
+      if (t) { setTheme(t); document.documentElement.setAttribute('data-theme', t); }
+      if (c) setCurrency(c);
+      if (sm) setSyncMode(sm);
+    } else {
+      if (loggedInUser) {
+        const storedTheme = localStorage.getItem(`crm_theme_${loggedInUser}`) || localStorage.getItem('crm_theme') || 'dark';
+        const storedCurrency = localStorage.getItem(`crm_currency_${loggedInUser}`) || localStorage.getItem('crm_currency') || 'USD';
+        const storedSyncMode = localStorage.getItem(`crm_sync_mode_${loggedInUser}`) || localStorage.getItem('crm_sync_mode') || 'auto';
+        setTheme(storedTheme);
+        document.documentElement.setAttribute('data-theme', storedTheme);
+        setCurrency(storedCurrency);
+        setSyncMode(storedSyncMode);
+      }
+    }
+  }, [workspace.userSettings, isConfigured, loggedInUser]);
+
+  // Hydrate whatsapp templates from workspace settings
+  useEffect(() => {
+    if (!workspace.wsSettings?.whatsappTemplates) return;
+    setWhatsappTemplates(workspace.wsSettings.whatsappTemplates);
+  }, [workspace.wsSettings]);
+
+  // Keep refs in sync on mount
   useEffect(() => {
     syncQueueRef.current = syncQueue;
     settingsRevisionRef.current = settingsRevision;
@@ -434,14 +447,9 @@ export default function App() {
   const updateSyncQueue = (newQueue) => {
     syncQueueRef.current = newQueue;
     setSyncQueue(newQueue);
+    // Keep localStorage as fallback cache (leads/notes already there)
     localStorage.setItem('crm_sync_queue', JSON.stringify(newQueue));
   };
-  const [settingsRevision, setSettingsRevision] = useState(() => {
-    const user = localStorage.getItem('crm_logged_in_user') ||
-                 sessionStorage.getItem('crm_logged_in_user') || '';
-    const key = user ? `crm_settings_revision_${user}` : 'crm_settings_revision';
-    return parseInt(localStorage.getItem(key) || '0', 10) || 0;
-  });
 
   const [isSyncExpanded, setIsSyncExpanded] = useState(false);
 
@@ -538,20 +546,9 @@ export default function App() {
   });
 
   // Theme, Currency & Onboarding Wizard State
-  const [theme, setTheme] = useState(() => {
-    const user = localStorage.getItem('crm_logged_in_user') ||
-                 sessionStorage.getItem('crm_logged_in_user') || '';
-    return user
-      ? (localStorage.getItem(`crm_theme_${user}`) || localStorage.getItem('crm_theme') || 'dark')
-      : (localStorage.getItem('crm_theme') || 'dark');
-  });
-  const [currency, setCurrency] = useState(() => {
-    const user = localStorage.getItem('crm_logged_in_user') ||
-                 sessionStorage.getItem('crm_logged_in_user') || '';
-    return user
-      ? (localStorage.getItem(`crm_currency_${user}`) || localStorage.getItem('crm_currency') || 'USD')
-      : (localStorage.getItem('crm_currency') || 'USD');
-  });
+  // Initial values are 'dark'/'USD'; Firestore hydration fires in useEffect above.
+  const [theme, setTheme] = useState('dark');
+  const [currency, setCurrency] = useState('USD');
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   const [logoAnimating, setLogoAnimating] = useState(false);
 
@@ -620,41 +617,52 @@ export default function App() {
     localStorage.setItem('crm_active_pipeline_id', activePipelineId);
   }, [activePipelineId]);
 
-  // Sync theme to root element
+  // Sync theme to DOM + Firestore/localStorage
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    if (loggedInUser) {
-      localStorage.setItem(`crm_theme_${loggedInUser}`, theme);
+    if (isConfigured) {
+      if (user && workspace.userSettings?.theme !== theme) {
+        workspace.saveUserSettings({ theme });
+      }
+    } else {
+      if (loggedInUser) {
+        localStorage.setItem(`crm_theme_${loggedInUser}`, theme);
+        localStorage.setItem('crm_theme', theme);
+      }
     }
-    localStorage.setItem('crm_theme', theme);
-  }, [theme, loggedInUser]);
+  }, [theme, user, loggedInUser, isConfigured]);
 
-  // Sync currency preference
+  // Sync currency to Firestore/localStorage
   useEffect(() => {
-    if (loggedInUser) {
-      localStorage.setItem(`crm_currency_${loggedInUser}`, currency);
+    if (isConfigured) {
+      if (user && workspace.userSettings?.currency !== currency) {
+        workspace.saveUserSettings({ currency });
+      }
+    } else {
+      if (loggedInUser) {
+        localStorage.setItem(`crm_currency_${loggedInUser}`, currency);
+        localStorage.setItem('crm_currency', currency);
+      }
     }
-    localStorage.setItem('crm_currency', currency);
-  }, [currency, loggedInUser]);
+  }, [currency, user, loggedInUser, isConfigured]);
 
-  // Sync mode and queue persistence
+  // Sync mode to Firestore/localStorage
   useEffect(() => {
-    if (loggedInUser) {
-      localStorage.setItem(`crm_sync_mode_${loggedInUser}`, syncMode);
+    if (isConfigured) {
+      if (user && workspace.userSettings?.syncMode !== syncMode) {
+        workspace.saveUserSettings({ syncMode });
+      }
+    } else {
+      if (loggedInUser) {
+        localStorage.setItem(`crm_sync_mode_${loggedInUser}`, syncMode);
+        localStorage.setItem('crm_sync_mode', syncMode);
+      }
     }
-    localStorage.setItem('crm_sync_mode', syncMode);
-  }, [syncMode, loggedInUser]);
+  }, [syncMode, user, loggedInUser, isConfigured]);
 
   useEffect(() => {
     localStorage.setItem('crm_sync_queue', JSON.stringify(syncQueue));
   }, [syncQueue]);
-
-  useEffect(() => {
-    if (loggedInUser) {
-      localStorage.setItem(`crm_settings_revision_${loggedInUser}`, String(settingsRevision));
-    }
-    localStorage.setItem('crm_settings_revision', String(settingsRevision));
-  }, [settingsRevision, loggedInUser]);
 
   // Listen for browser online event to auto-flush in Auto Mode
   useEffect(() => {
@@ -678,75 +686,87 @@ export default function App() {
     return () => clearInterval(timer);
   }, [syncMode, syncQueue, sheetUrl, syncStatus]);
 
-  // Parse shared sheet URL from deep link / QR code on mount
-  // Parse shared sheet URL from deep link / QR code on mount
+  // Parse deep-link / QR code params on mount
+  // New format: ?invite=<workspaceId>__<tokenId>&expiresAt=<ms>
+  // Legacy format: ?sheetUrl=...&currency=...&theme=...&expiresAt=... (still accepted)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('invite');
     const queryUrl = params.get('sheetUrl') || params.get('sheet');
     const queryCurrency = params.get('currency');
     const queryTheme = params.get('theme');
     const expiresAt = params.get('expiresAt');
 
+    const cleanUrlBar = () => {
+      try {
+        const clean = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: clean }, '', clean);
+      } catch (e) { console.error(e); }
+    };
+
     if (expiresAt && Date.now() > parseInt(expiresAt, 10)) {
-      alert("⚠️ This sync QR code or link has expired for security. Please scan a fresh QR code from your desktop Settings.");
-      // Clean query params from URL bar so it doesn't stay cluttered
-      if (queryUrl || queryCurrency || queryTheme || expiresAt) {
-        try {
-          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-          window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      alert('⚠️ This sync QR code or link has expired. Please scan a fresh QR code from Settings.');
+      cleanUrlBar();
       return;
     }
 
-    if (queryCurrency) {
-      setCurrency(queryCurrency);
-      localStorage.setItem('crm_currency', queryCurrency);
+    // New invite token: consumed by useWorkspace after sign-in
+    if (inviteToken) {
+      localStorage.setItem('crm_pending_invite', inviteToken);
+      cleanUrlBar();
+      return; // Nothing else to do until user signs in
     }
+
+    // Legacy QR: theme/currency preferences
+    if (queryCurrency) setCurrency(queryCurrency);
     if (queryTheme) {
       setTheme(queryTheme);
-      localStorage.setItem('crm_theme', queryTheme);
       document.documentElement.setAttribute('data-theme', queryTheme);
     }
-
-    if (queryUrl) {
+    if (queryUrl && user) {
+      workspace.saveSheetUrl(queryUrl);
+    } else if (queryUrl) {
       localStorage.setItem('crm_pending_sheet_url', queryUrl);
-      if (isLoggedIn && loggedInUser) {
-        setSheetUrl(queryUrl);
-        localStorage.setItem(`crm_sheet_url_${loggedInUser}`, queryUrl);
-        localStorage.setItem('crm_sheet_url', queryUrl);
-        localStorage.removeItem('crm_pending_sheet_url');
-        syncDataFromSheet(queryUrl);
-      }
     }
+    if (queryUrl || queryCurrency || queryTheme || expiresAt) cleanUrlBar();
+  }, [user]);
 
-    // Clean query params from URL bar so it doesn't stay cluttered
-    if (queryUrl || queryCurrency || queryTheme || expiresAt) {
-      try {
-        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-      } catch (e) {
-        console.error(e);
-      }
+  // After sign-in: consume any pending invite or pending sheet URL
+  useEffect(() => {
+    if (!user || workspace.wsLoading) return;
+    const pendingInvite = localStorage.getItem('crm_pending_invite');
+    if (pendingInvite) {
+      localStorage.removeItem('crm_pending_invite');
+      workspace.acceptInviteToken(pendingInvite).then((ok) => {
+        if (!ok) alert('This invite link has expired or already been used.');
+      });
     }
-  }, [isLoggedIn, loggedInUser]);
+    const pendingUrl = localStorage.getItem('crm_pending_sheet_url');
+    if (pendingUrl) {
+      localStorage.removeItem('crm_pending_sheet_url');
+      workspace.saveSheetUrl(pendingUrl);
+    }
+  }, [user?.uid, workspace.wsLoading]);
 
   // Auto-launch Setup Wizard if Sheet is not connected and it is first run
   useEffect(() => {
+    if (!isLoggedIn) return; // Don't prompt until auth resolves
     const hasSeenWizard = localStorage.getItem('crm_has_seen_wizard');
     if (!sheetUrl && !hasSeenWizard) {
       setIsSetupWizardOpen(true);
       localStorage.setItem('crm_has_seen_wizard', 'true');
     }
-  }, [sheetUrl]);
+  }, [sheetUrl, isLoggedIn]);
 
   // Initial Sync on load if Sheet URL exists
+  // FIX 2: Always pull fresh revisions first before flushing a stale queue.
+  // Flushing with old baseRevisions (from a previous session) causes immediate
+  // conflict errors because the sheet has already moved forward.
   useEffect(() => {
     if (sheetUrl) {
       if (syncQueue.length > 0 && syncMode === 'auto') {
-        flushSyncQueue();
+        // Pull first to refresh all leadRevisionsRef values, then flush
+        syncDataFromSheet(sheetUrl).then(() => flushSyncQueue());
       } else if (syncQueue.length === 0) {
         syncDataFromSheet(sheetUrl);
       }
@@ -967,7 +987,10 @@ export default function App() {
     } catch (err) {
       console.warn('CORS / fetch POST error, attempting fallback:', err);
       try {
-        // Fallback to optimistic no-cors POST (ignores CORS checks, trusts Google server to receive write)
+        // FIX 3: no-cors fallback — we cannot read the response body at all.
+        // The write MAY have succeeded or failed silently on the server.
+        // Mark as unverified so the caller does NOT remove the item from queue
+        // or increment revisions. Schedule a re-pull in 2s to reconcile.
         await fetch(sheetUrl, {
           method: 'POST',
           mode: 'no-cors',
@@ -976,10 +999,16 @@ export default function App() {
           },
           body: JSON.stringify(payload)
         });
-        setLastSyncTime(new Date().toLocaleTimeString());
+        // Schedule a reconciliation pull after a short delay
+        setTimeout(() => {
+          if (!isSyncingRef.current) {
+            syncDataFromSheet();
+          }
+        }, 2500);
         return {
           success: true,
-          opaque: true
+          opaque: true,
+          unverified: true
         };
       } catch (fallbackErr) {
         console.error('Fallback POST failed completely:', fallbackErr);
@@ -996,38 +1025,66 @@ export default function App() {
   // so we never need to rebase — just slice and shift on success.
   async function flushSyncQueue() {
     if (!sheetUrl) return;
-
     if (isSyncingRef.current) return;
+
     isSyncingRef.current = true;
     setSyncStatus('syncing');
 
     let failed = false;
 
-    while (syncQueueRef.current.length > 0) {
-      const item = syncQueueRef.current[0];
-      const result = await postToSheet(item);
+    // FIX 1: try/finally guarantees isSyncingRef is always reset — even if
+    // an unhandled exception occurs inside the loop. Without this, any crash
+    // permanently locks the sync system until the page is refreshed.
+    try {
+      while (syncQueueRef.current.length > 0) {
+        const item = syncQueueRef.current[0];
+        const result = await postToSheet(item);
 
-      if (result.success) {
-        lastWriteTimeRef.current = Date.now();
-        // Revisions were already incremented in the ref when the action was queued.
-        // Just remove the item we just successfully sent.
-        updateSyncQueue(syncQueueRef.current.slice(1));
-      } else {
-        failed = true;
-        if (result.conflict) {
-          // On conflict, clear the whole queue and re-pull the authoritative server state.
-          // The user's local ref revisions will be refreshed from the server data.
-          updateSyncQueue([]);
-          isSyncingRef.current = false;
-          alert(result.error || 'A conflict was detected. Pulling the latest data from Google Sheets.');
-          await syncDataFromSheet();
-          return;
+        if (result.success) {
+          // FIX 3 (continued): If the write was opaque (no-cors fallback), we
+          // cannot confirm it landed. Pause the queue — the scheduled re-pull
+          // will reconcile the server state and update revisions.
+          if (result.unverified) {
+            console.warn('Opaque write: pausing queue until re-pull confirms server state.');
+            break;
+          }
+
+          lastWriteTimeRef.current = Date.now();
+
+          // FIX 5: For settings writes, confirm the revision from the server
+          // response instead of relying on the optimistically incremented ref.
+          // This prevents the client and server revisions from drifting apart
+          // when a no-cors write silently fails.
+          if (item.action === 'saveSettings' && result.data?.settings?.revision !== undefined) {
+            const confirmedRev = Number(result.data.settings.revision);
+            settingsRevisionRef.current = confirmedRev;
+            setSettingsRevision(confirmedRev);
+            if (loggedInUser) {
+              localStorage.setItem(`crm_settings_revision_${loggedInUser}`, String(confirmedRev));
+            }
+            localStorage.setItem('crm_settings_revision', String(confirmedRev));
+          }
+
+          // Revisions were already incremented in the ref when the action was queued.
+          // Just remove the item we just successfully sent.
+          updateSyncQueue(syncQueueRef.current.slice(1));
+        } else {
+          failed = true;
+          if (result.conflict) {
+            // On conflict, clear the whole queue and re-pull the authoritative server state.
+            // The user's local ref revisions will be refreshed from the server data.
+            updateSyncQueue([]);
+            alert(result.error || 'A conflict was detected. Pulling the latest data from Google Sheets.');
+            await syncDataFromSheet();
+            return;
+          }
+          break;
         }
-        break;
       }
+    } finally {
+      // FIX 1: Always runs — lock is released even if loop threw an exception.
+      isSyncingRef.current = false;
     }
-
-    isSyncingRef.current = false;
 
     if (failed) {
       setSyncStatus('error');
@@ -1043,15 +1100,28 @@ export default function App() {
       return { success: false, offline: true };
     }
 
+    // FIX 4: Deduplicate the queue — replace any existing pending write for the
+    // same entity (same lead id, or settings). Without this, editing a lead 5×
+    // queues 5 entries each with a different baseRevision, guaranteeing 4
+    // consecutive conflicts when flushed. Only the latest payload matters.
+    const deduped = syncQueueRef.current.filter(p => {
+      if (payload.action === 'saveLead' && p.action === 'saveLead') {
+        return p.lead?.id !== payload.lead?.id;
+      }
+      if (payload.action === 'saveSettings' && p.action === 'saveSettings') {
+        return false; // Always replace settings — only the latest snapshot matters
+      }
+      return true;
+    });
+    const nextQueue = [...deduped, payload];
+
     if (syncMode === 'manual') {
-      const nextQueue = [...syncQueueRef.current, payload];
       updateSyncQueue(nextQueue);
       setSyncStatus('pending');
       return { success: true, queued: true };
     }
 
     // Auto Sync Mode: Queue and flush
-    const nextQueue = [...syncQueueRef.current, payload];
     updateSyncQueue(nextQueue);
     
     // Trigger sequential flush (will skip if already flushing)
@@ -1504,17 +1574,22 @@ export default function App() {
             sheetUrl={sheetUrl}
             setSheetUrl={(url) => {
               setSheetUrl(url);
-              // Save under per-user key so it persists across devices/sessions
               if (loggedInUser) {
-                localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+                if (isConfigured) {
+                  workspace.saveSheetUrl(url);
+                } else {
+                  localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+                  localStorage.setItem('crm_sheet_url', url);
+                }
               }
-              localStorage.setItem('crm_sheet_url', url);
               if (url) {
                 syncDataFromSheet(url);
               } else {
                 setSyncStatus('offline');
               }
             }}
+            workspace={workspace}
+            user={user}
             syncStatus={syncStatus}
             onSyncClick={() => {
               if (syncQueue.length > 0) {
@@ -1594,9 +1669,13 @@ export default function App() {
           setSheetUrl={(url) => {
             setSheetUrl(url);
             if (loggedInUser) {
-              localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+              if (isConfigured) {
+                workspace.saveSheetUrl(url);
+              } else {
+                localStorage.setItem(`crm_sheet_url_${loggedInUser}`, url);
+                localStorage.setItem('crm_sheet_url', url);
+              }
             }
-            localStorage.setItem('crm_sheet_url', url);
             if (url) {
               syncDataFromSheet(url);
             } else {
