@@ -10,10 +10,11 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
+    "redirects": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "https://pluto.talkxo.com",
+        "type": 301
       }
     ]
   }
