@@ -741,7 +741,7 @@
       <div class="header-pill">🔥 Firebase Setup Guide for Beginners</div>
       <h1 class="page-title">Connect Pluto CRM<br>to Firebase</h1>
       <p class="page-desc">
-        This guide walks you through setting up Firebase — Google's free cloud backend — so that Pluto CRM can use <strong>Google Sign-In</strong>, <strong>real-time workspace sync</strong>, and <strong>team sharing with invite links</strong>. No prior Firebase experience needed.
+        This guide walks you through setting up Firebase — Google's free cloud backend — so that Pluto CRM can use <strong>Google Sign-In</strong>, <strong>real-time workspace sync</strong>, <strong>team sharing with invite links</strong>, and a <strong>cloud-backed sync queue</strong> for the hybrid Firebase + Google Sheets setup. No prior Firebase experience needed.
       </p>
       <div class="time-pills">
         <span class="time-pill time">⏱ ~10 minutes</span>
@@ -755,9 +755,10 @@
       <div class="card-title">✨ What you unlock after this guide</div>
       <ul class="checklist">
         <li><span class="check-circle">✓</span> <span><strong>Google Sign-In</strong> — one-click login for you and your team</span></li>
-        <li><span class="check-circle">✓</span> <span><strong>Real-time settings sync</strong> — your Google Sheet URL, currency, and sync mode saved to the cloud</span></li>
+        <li><span class="check-circle">✓</span> <span><strong>Real-time workspace sync</strong> — your Google Sheet URL, currency, sync mode, and shared workspace metadata saved to the cloud</span></li>
         <li><span class="check-circle">✓</span> <span><strong>Team workspace sharing</strong> — invite teammates via QR code; they join your workspace instantly</span></li>
         <li><span class="check-circle">✓</span> <span><strong>Secure invite tokens</strong> — 5-minute single-use links instead of raw sheet URLs in QR codes</span></li>
+        <li><span class="check-circle">✓</span> <span><strong>Persistent sync queue</strong> — pending sheet writes survive refreshes and user sessions in Firebase mode</span></li>
       </ul>
     </div>
 
@@ -1013,7 +1014,7 @@
         <div class="step-badge blue">4</div>
         <div class="step-title-area">
           <h2>Create Firestore Database</h2>
-          <p>Firestore is Google's real-time database. Pluto CRM uses it to save workspace settings, members, and invite tokens.</p>
+          <p>Firestore is Google's real-time database. Pluto CRM uses it to save workspace settings, members, invite tokens, and the per-user sync queue used by the Google Sheets bridge.</p>
         </div>
       </div>
 
@@ -1074,7 +1075,7 @@
         <div class="step-badge green">5</div>
         <div class="step-title-area">
           <h2>Set Firestore Security Rules</h2>
-          <p>These rules ensure only logged-in users can read workspace data, and users can only edit their own data.</p>
+          <p>These rules match Pluto CRM's current hybrid architecture: shared workspace documents live under <code>/workspaces</code>, while each signed-in user owns their own <code>/users/{uid}</code> doc and <code>/syncQueue</code> subcollection.</p>
         </div>
       </div>
 
@@ -1085,11 +1086,15 @@
         </li>
         <li>
           <span class="step-num">2</span>
-          <span>Delete everything in the editor and paste in the rules below.</span>
+          <span>Delete everything in the editor and paste in the rules below. These same rules are also checked into the repo as <code>firestore.rules</code>.</span>
         </li>
         <li>
           <span class="step-num">3</span>
           <span>Click <strong>"Publish"</strong>.</span>
+        </li>
+        <li>
+          <span class="step-num">4</span>
+          <span>If you prefer, you can copy from the local repo files instead of this page. The Firebase config files now tracked in the project are <code>firebase.json</code>, <code>firestore.rules</code>, and <code>firestore.indexes.json</code>.</span>
         </li>
       </ul>
 
@@ -1099,16 +1104,40 @@
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Workspaces — any signed-in user can read/write workspace docs
-    // (the app further restricts actions in JS logic)
+    // Helper: check if the requesting user is a member of a given workspace
+    function isMember(workspaceId) {
+      return exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+    }
+
+    // Helper: check if the requesting user is the owner of a given workspace
+    function isOwner(workspaceId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role == 'owner';
+    }
+
     match /workspaces/{workspaceId} {
-      allow read, write: if request.auth != null;
+      // Only members of this workspace can read/write the workspace doc
+      allow read: if request.auth != null && isMember(workspaceId);
+      allow write: if request.auth != null && isMember(workspaceId);
 
       match /members/{memberId} {
-        allow read, write: if request.auth != null;
+        // Any member can read the member list
+        allow read: if request.auth != null && isMember(workspaceId);
+        // Only owners can write member docs (except: a user joining via invite writes their own doc)
+        allow write: if request.auth != null && (
+          isOwner(workspaceId) ||
+          request.auth.uid == memberId
+        );
       }
+
       match /invites/{inviteId} {
-        allow read, write: if request.auth != null;
+        // Any member can create an invite
+        allow create: if request.auth != null && isMember(workspaceId);
+        // Anyone authenticated can read an invite (needed to validate it during join)
+        allow read: if request.auth != null;
+        // Anyone authenticated can update an invite (to mark usedBy during join)
+        allow update: if request.auth != null;
+        // Only owners can delete invites
+        allow delete: if request.auth != null && isOwner(workspaceId);
       }
     }
 
@@ -1129,7 +1158,7 @@ service cloud.firestore {
 
       <div class="callout tip">
         <span class="callout-icon">💡</span>
-        <div class="callout-body"><strong>What these rules mean:</strong> Any logged-in user can see workspace documents (needed for invite acceptance), but each user's personal <code>/users/{uid}</code> document is private — only they can see it.</div>
+        <div class="callout-body"><strong>What these rules mean:</strong> Workspace data (settings, members, invites) is only readable and writable by users who are actual <strong>members</strong> of that workspace — not just any logged-in user. Invite documents have a looser read/update rule so that incoming teammates can validate and claim a token during the join flow. Each user's personal <code>/users/{uid}</code> document and <code>/syncQueue</code> remain private — only they can access them.</div>
       </div>
     </div>
 
@@ -1141,7 +1170,7 @@ service cloud.firestore {
         <div class="step-badge green">6</div>
         <div class="step-title-area">
           <h2>Fill in the <code>.env</code> File</h2>
-          <p>Paste the Firebase config values from Step 2 into your local environment file.</p>
+          <p>Paste the Firebase config values from Step 2 into your local environment file. The rest of the Firebase wiring is already checked into the repo.</p>
         </div>
       </div>
 
@@ -1158,7 +1187,16 @@ service cloud.firestore {
           <span class="step-num">3</span>
           <span>Save the file. The Vite dev server will hot-reload automatically.</span>
         </li>
+        <li>
+          <span class="step-num">4</span>
+          <span>You do <strong>not</strong> need to add extra Firebase code by hand. Pluto CRM already reads these values from <code>src/firebase.js</code> and uses the tracked config files <code>firebase.json</code>, <code>firestore.rules</code>, and <code>firestore.indexes.json</code>.</span>
+        </li>
       </ul>
+
+      <div class="callout info">
+        <span class="callout-icon">🧩</span>
+        <div class="callout-body"><strong>What Firebase handles vs what Google Sheets handles:</strong> Firebase is the control plane for auth, workspace membership, shared settings, invite links, and queued sync metadata. Your actual CRM business data still lives in Google Sheets via the Apps Script backend.</div>
+      </div>
 
       <p style="color:var(--text-muted); font-size:0.9rem; margin: 1rem 0 0.5rem;">Here's what your completed <code>.env</code> file should look like:</p>
       <div class="copy-block">
@@ -1197,8 +1235,8 @@ service cloud.firestore {
       <div class="step-header">
         <div class="step-badge green">7</div>
         <div class="step-title-area">
-          <h2>Test the Login</h2>
-          <p>Start the dev server and verify Google Sign-In works end-to-end.</p>
+          <h2>Test the Full Firebase Flow</h2>
+          <p>Start the dev server and verify Google Sign-In, workspace bootstrap, and Firestore-backed queue behavior all work end-to-end.</p>
         </div>
       </div>
 
@@ -1221,7 +1259,19 @@ service cloud.firestore {
         </li>
         <li>
           <span class="step-num">5</span>
-          <span>After signing in, you'll be taken to the main Pluto CRM dashboard. Your workspace is now saved to Firestore.</span>
+          <span>After signing in, you'll be taken to the main Pluto CRM dashboard. Your workspace is now saved to Firestore under <code>/workspaces</code> and your personal settings under <code>/users/{uid}</code>.</span>
+        </li>
+        <li>
+          <span class="step-num">6</span>
+          <span>Go to <strong>Settings</strong>. If you connect a Google Sheet URL, it should persist across refreshes because the workspace document now owns that setting.</span>
+        </li>
+        <li>
+          <span class="step-num">7</span>
+          <span>Optional but recommended: switch sync mode, theme, or currency and refresh the app. Those values should rehydrate from Firestore automatically after login.</span>
+        </li>
+        <li>
+          <span class="step-num">8</span>
+          <span><strong>Teammate invite test (recommended):</strong> In Settings, find the <strong>"Workspace Invite Link"</strong> card (separate from the Sync to Mobile QR). Click <strong>Copy Link</strong>. Open it in a private/incognito browser window or a different browser. Sign in with a different Google account. Confirm: (1) you land in the <em>owner's</em> workspace — not a new empty one, (2) your email appears in the owner's Settings → Team Members panel, (3) the sheet URL is already populated without manual entry.</span>
         </li>
       </ul>
 
@@ -1230,7 +1280,8 @@ service cloud.firestore {
         <ul class="checklist">
           <li><span class="check-circle">✓</span> <span>Google Sign-In button visible on login page</span></li>
           <li><span class="check-circle">✓</span> <span>Popup appears and logs you in without errors</span></li>
-          <li><span class="check-circle">✓</span> <span>Your name/avatar appears in the top-right of the sidebar</span></li>
+          <li><span class="check-circle">✓</span> <span>Your workspace is created automatically on first sign-in</span></li>
+          <li><span class="check-circle">✓</span> <span>Sheet URL and settings survive refreshes because they rehydrate from Firestore</span></li>
           <li><span class="check-circle">✓</span> <span>Settings → Workspace shows a QR code for inviting teammates</span></li>
         </ul>
       </div>
@@ -1265,12 +1316,27 @@ service cloud.firestore {
 
       <div class="card warning">
         <div class="card-title">⚠️ "FirebaseError: Missing or insufficient permissions"</div>
-        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">Your Firestore security rules haven't been updated, or you're not signed in. Make sure you pasted and published the rules from Step 5. Also confirm you're signed in via Google before performing actions.</p>
+        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">Your Firestore security rules haven't been updated, or you're not signed in. Make sure you pasted and published the rules from Step 5 so both <code>/workspaces</code> and <code>/users/{uid}/syncQueue</code> are allowed as expected. Also confirm you're signed in via Google before performing actions.</p>
       </div>
 
       <div class="card warning">
         <div class="card-title">⚠️ Popup shows but signs in immediately without prompting</div>
         <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">You might already be signed into only one Google account in your browser. The popup auto-selects it. This is normal behavior — you're already authenticated.</p>
+      </div>
+
+      <div class="card warning">
+        <div class="card-title">⚠️ Teammate joined but landed in their own empty workspace instead of mine</div>
+        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">
+          This was a known race condition that has been fixed. The old code would auto-create a workspace for any new user before checking for a pending invite. The fix: <code>useWorkspace.bootstrap()</code> now checks <code>localStorage</code> for a <code>crm_pending_invite</code> token <em>before</em> creating a new workspace, and skips creation if one is found. If you see this on an older deployment, redeploy with the latest code.
+        </p>
+        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin-top:0.75rem;">
+          Also make sure you're using the <strong>"Workspace Invite Link"</strong> card in Settings (not the Sync to Mobile QR). The QR code is for personal device sync only — it does not add a teammate to your workspace.
+        </p>
+      </div>
+
+      <div class="card warning">
+        <div class="card-title">⚠️ "FirebaseError: Missing or insufficient permissions" after updating rules</div>
+        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">The new member-scoped rules require a user to already exist in <code>/workspaces/{id}/members</code> before they can read/write workspace data. If you pasted the rules manually in the Firebase Console, make sure you <strong>published</strong> them (not just saved as draft). Also confirm you deployed with <code>./node_modules/.bin/firebase deploy --only firestore:rules</code>.</p>
       </div>
     </div>
 

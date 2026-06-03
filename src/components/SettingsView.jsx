@@ -356,77 +356,145 @@ export default function SettingsView({
               )}
             </div>
 
-            {/* Sync to Mobile Card — invite token QR */}
+            {/* Sync & Invite Column */}
             {isConfigured && sheetUrl && (
-              <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-                <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                  <Smartphone size={16} style={{ color: '#f59e0b' }} />
-                  Sync to Mobile
-                </h3>
-
-                {workspace?.isOwner ? (
-                  // Owner: show invite QR
-                  <>
-                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                      Scan to open Pluto and join this workspace on another device:
-                    </p>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block' }}>
-                        {inviteToken ? (
-                          <img
-                            key={qrKey}
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                              window.location.origin + window.location.pathname +
-                              '?invite=' + encodeURIComponent(inviteToken) +
-                              '&expiresAt=' + inviteExpiresAt
-                            )}`}
-                            alt="Scan to join workspace"
-                            style={{ width: '90px', height: '90px', display: 'block' }}
-                          />
-                        ) : (
-                          <div style={{ width: '90px', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '11px', textAlign: 'center' }}>
-                            Generating…
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', minWidth: '160px' }}>
-                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                          Teammates scan this QR to sign in with Google and join your workspace. No sheet URL needed.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                {/* 1. Sync to Mobile Card */}
+                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                    <Smartphone size={16} style={{ color: '#f59e0b' }} />
+                    Sync to Mobile
+                  </h3>
+                  <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
+                    Scan to open Pluto and sync this CRM workspace directly to your mobile phone or tablet browser:
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block', flexShrink: 0 }}>
+                      {inviteToken ? (
+                        <img
+                          key={qrKey}
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                            window.location.origin + window.location.pathname +
+                            '?invite=' + encodeURIComponent(inviteToken) +
+                            '&expiresAt=' + inviteExpiresAt
+                          )}`}
+                          alt="Scan to open on mobile"
+                          style={{ width: '80px', height: '80px', display: 'block' }}
+                        />
+                      ) : (
+                        <div style={{ width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '11px', textAlign: 'center' }}>
+                          Generating…
                         </div>
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: '0.35rem',
-                          fontSize: 'var(--text-2xs)', color: '#fbbf24',
-                          background: 'rgba(251,191,36,0.04)', padding: '0.25rem 0.45rem',
-                          borderRadius: '6px', border: '1px solid rgba(251,191,36,0.15)', width: 'fit-content'
-                        }}>
-                          <RefreshCw size={10} style={{ animation: 'spin 10s linear infinite' }} />
-                          <span>Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{ padding: '0.4rem 0.6rem', fontSize: 'var(--text-xs)', height: '28px', alignSelf: 'flex-start', display: 'flex', gap: '0.3rem', alignItems: 'center' }}
-                          onClick={() => {
-                            if (!inviteToken) return;
-                            const link = window.location.origin + window.location.pathname +
-                              '?invite=' + encodeURIComponent(inviteToken) +
-                              '&expiresAt=' + inviteExpiresAt;
-                            navigator.clipboard.writeText(link);
-                            alert('Invite link copied! Send it to your teammate. Expires in 5 minutes.');
-                          }}
-                        >
-                          <Copy size={11} />
-                          <span>Copy Invite Link</span>
-                        </button>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                        Requires you to sign in with your Google account. Scan this code using your mobile device's camera.
                       </div>
                     </div>
-                  </>
-                ) : (
-                  // Member: just show status
-                  <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                    You joined this workspace via invite. Only the workspace owner can generate new invite QR codes.
-                  </p>
-                )}
+                  </div>
+                </div>
+
+                {/* 2. Workspace Invite Link Card */}
+                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                    <Users size={16} style={{ color: 'var(--primary)' }} />
+                    Workspace Invite Link
+                  </h3>
+                  
+                  {workspace?.isOwner ? (
+                    <>
+                      <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
+                        Copy and share this invite link to add teammates to your collaborative workspace:
+                      </p>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.25rem' }}>
+                        {/* URL Box and Copy Button */}
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            readOnly
+                            className="form-input"
+                            style={{
+                              flex: 1,
+                              fontSize: 'var(--text-2xs)',
+                              fontFamily: 'monospace',
+                              background: 'rgba(255,255,255,0.03)',
+                              padding: '0.45rem 0.6rem',
+                              color: 'var(--text-muted)',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-light)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                            value={inviteToken ? (
+                              window.location.origin + window.location.pathname +
+                              '?invite=' + inviteToken +
+                              '&expiresAt=' + inviteExpiresAt
+                            ) : 'Generating invite link...'}
+                            onClick={(e) => e.target.select()}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{
+                              padding: '0 0.8rem',
+                              fontSize: 'var(--text-xs)',
+                              height: '32px',
+                              display: 'flex',
+                              gap: '0.3rem',
+                              alignItems: 'center',
+                              flexShrink: 0
+                            }}
+                            onClick={() => {
+                              if (!inviteToken) return;
+                              const link = window.location.origin + window.location.pathname +
+                                '?invite=' + encodeURIComponent(inviteToken) +
+                                '&expiresAt=' + inviteExpiresAt;
+                              navigator.clipboard.writeText(link);
+                              alert('Invite link copied! Send it to your teammate. Expires in 5 minutes.');
+                            }}
+                          >
+                            <Copy size={12} />
+                            <span>Copy Link</span>
+                          </button>
+                        </div>
+
+                        {/* Expiry metadata and countdown */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.15rem' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: 'var(--text-2xs)',
+                            color: '#f87171',
+                            fontWeight: 700
+                          }}>
+                            <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
+                            <span>Single-use link · Expires in 5m</span>
+                          </div>
+
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                            fontSize: 'var(--text-2xs)', color: '#fbbf24',
+                            background: 'rgba(251,191,36,0.04)', padding: '0.25rem 0.45rem',
+                            borderRadius: '6px', border: '1px solid rgba(251,191,36,0.15)'
+                          }}>
+                            <RefreshCw size={10} style={{ animation: 'spin 10s linear infinite' }} />
+                            <span>Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
+                      You joined this workspace via invite. Only the workspace owner can generate new invite links.
+                    </p>
+                  )}
+                </div>
+
               </div>
             )}
           </div>

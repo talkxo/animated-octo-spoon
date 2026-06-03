@@ -36,39 +36,85 @@ import { db, isConfigured } from '../firebase';
 export function useWorkspace(user) {
   const [workspaceId, setWorkspaceId] = useState(null);
   const [sheetUrl, setSheetUrlState] = useState('');
-  const [userSettings, setUserSettings] = useState(null);     // theme, currency, syncMode
-  const [wsSettings, setWsSettings] = useState(null);         // whatsappTemplates
+  const [userSettings, setUserSettings] = useState(null);
+  const [wsSettings, setWsSettings] = useState(null);
   const [members, setMembers] = useState([]);
+  const [syncQueue, setSyncQueue] = useState([]);
   const [isOwner, setIsOwner] = useState(false);
   const [wsLoading, setWsLoading] = useState(isConfigured);
-  const unsubscribesRef = useRef([]);
+  const workspaceUnsubsRef = useRef([]);
 
-  // ─── Bootstrap: resolve or create workspace for this user ───────────────────
   useEffect(() => {
     if (!isConfigured || !user) {
+      setWorkspaceId(null);
+      setSheetUrlState('');
+      setUserSettings(null);
+      setWsSettings(null);
+      setMembers([]);
+      setSyncQueue([]);
+      setIsOwner(false);
       setWsLoading(false);
       return;
     }
 
     let cancelled = false;
+    setWsLoading(true);
 
-    (async () => {
+    const userRef = doc(db, 'users', user.uid);
+    const queueRef = collection(db, 'users', user.uid, 'syncQueue');
+    const unsubscribers = [];
+
+    const bootstrap = async () => {
       try {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
+        let userSnap = await getDoc(userRef);
 
-        let wsId;
+        if (!userSnap.exists() || !userSnap.data().workspaceId) {
+          // IMPORTANT: If there is a pending invite token the user arrived via an
+          // invite link and has not yet been added to the inviter's workspace.
+          // DO NOT auto-create a new workspace — doing so causes a race condition
+          // where the user ends up as owner of an orphaned empty workspace.
+          // Instead, stay in wsLoading=true and wait for acceptInviteToken().
+          const pendingInvite = localStorage.getItem('crm_pending_invite');
+          if (pendingInvite) {
+            // Set up listeners but don't create a workspace yet.
+            // acceptInviteToken() will write workspaceId to users/{uid} which
+            // the onSnapshot below will pick up automatically.
+            if (cancelled) return;
+            unsubscribers.push(
+              onSnapshot(userRef, (snap) => {
+                if (!snap.exists()) return;
+                const data = snap.data();
+                setUserSettings(data.settings || {});
+                setWorkspaceId((currentId) => {
+                  const nextId = data.workspaceId || null;
+                  return currentId === nextId ? currentId : nextId;
+                });
+                // Once the invite is consumed and workspaceId is written,
+                // we can stop showing the loading state.
+                if (data.workspaceId) setWsLoading(false);
+              })
+            );
+            unsubscribers.push(
+              onSnapshot(queueRef, (snap) => {
+                const nextQueue = snap.docs
+                  .map((queueDoc) => ({
+                    _fsId: queueDoc.id,
+                    createdAtSeconds: queueDoc.data().createdAt?.seconds || 0,
+                    ...(queueDoc.data().payload || {}),
+                  }))
+                  .sort((a, b) => a.createdAtSeconds - b.createdAtSeconds)
+                  .map(({ createdAtSeconds, ...payload }) => payload);
+                setSyncQueue(nextQueue);
+              })
+            );
+            // Keep wsLoading=true until workspace is assigned.
+            return;
+          }
 
-        if (userSnap.exists() && userSnap.data().workspaceId) {
-          // Returning user — pick up existing workspace
-          wsId = userSnap.data().workspaceId;
-        } else {
-          // First-time sign-in: run localStorage migration then create workspace
-          const migrated = migrateFromLocalStorage();
-
-          // Create workspace doc
+          const migrated = readLegacyLocalState();
           const wsRef = doc(collection(db, 'workspaces'));
-          wsId = wsRef.id;
+          const nextWorkspaceId = wsRef.id;
+
           await setDoc(wsRef, {
             sheetUrl: migrated.sheetUrl || '',
             createdBy: user.uid,
@@ -79,8 +125,7 @@ export function useWorkspace(user) {
             },
           });
 
-          // Add owner as member
-          await setDoc(doc(db, 'workspaces', wsId, 'members', user.uid), {
+          await setDoc(doc(db, 'workspaces', nextWorkspaceId, 'members', user.uid), {
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
@@ -88,66 +133,101 @@ export function useWorkspace(user) {
             joinedAt: serverTimestamp(),
           });
 
-          // Create user doc
           await setDoc(userRef, {
-            workspaceId: wsId,
+            workspaceId: nextWorkspaceId,
             settings: {
               theme: migrated.theme || 'dark',
               currency: migrated.currency || 'USD',
               syncMode: migrated.syncMode || 'auto',
             },
           });
+
+          clearLegacyLocalState(migrated.cleanupKeys);
+          userSnap = await getDoc(userRef);
         }
 
         if (cancelled) return;
-        setWorkspaceId(wsId);
 
-        // ── Real-time listeners ───────────────────────────────────────────────
-        const unsubs = [];
-
-        // Workspace doc (sheetUrl, wsSettings)
-        unsubs.push(
-          onSnapshot(doc(db, 'workspaces', wsId), (snap) => {
+        unsubscribers.push(
+          onSnapshot(userRef, (snap) => {
             if (!snap.exists()) return;
-            const d = snap.data();
-            setSheetUrlState(d.sheetUrl || '');
-            setWsSettings(d.settings || {});
+            const data = snap.data();
+            setUserSettings(data.settings || {});
+            setWorkspaceId((currentId) => {
+              const nextId = data.workspaceId || null;
+              return currentId === nextId ? currentId : nextId;
+            });
           })
         );
 
-        // User settings (theme, currency, syncMode)
-        unsubs.push(
-          onSnapshot(doc(db, 'users', user.uid), (snap) => {
-            if (!snap.exists()) return;
-            setUserSettings(snap.data().settings || {});
+        unsubscribers.push(
+          onSnapshot(queueRef, (snap) => {
+            const nextQueue = snap.docs
+              .map((queueDoc) => ({
+                _fsId: queueDoc.id,
+                createdAtSeconds: queueDoc.data().createdAt?.seconds || 0,
+                ...(queueDoc.data().payload || {}),
+              }))
+              .sort((a, b) => a.createdAtSeconds - b.createdAtSeconds)
+              .map(({ createdAtSeconds, ...payload }) => payload);
+            setSyncQueue(nextQueue);
           })
         );
 
-        // Members
-        unsubs.push(
-          onSnapshot(collection(db, 'workspaces', wsId, 'members'), (snap) => {
-            const list = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-            setMembers(list);
-            const me = list.find((m) => m.uid === user.uid);
-            setIsOwner(me?.role === 'owner');
-          })
-        );
-
-        unsubscribesRef.current = unsubs;
         setWsLoading(false);
       } catch (err) {
         console.error('useWorkspace bootstrap error:', err);
         setWsLoading(false);
       }
-    })();
+    };
+
+    bootstrap();
 
     return () => {
       cancelled = true;
-      unsubscribesRef.current.forEach((u) => u());
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [user?.uid]);
 
-  // ─── Write helpers ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    workspaceUnsubsRef.current.forEach((unsubscribe) => unsubscribe());
+    workspaceUnsubsRef.current = [];
+
+    if (!isConfigured || !user || !workspaceId) {
+      setSheetUrlState('');
+      setWsSettings(null);
+      setMembers([]);
+      setIsOwner(false);
+      return;
+    }
+
+    const unsubs = [];
+
+    unsubs.push(
+      onSnapshot(doc(db, 'workspaces', workspaceId), (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        setSheetUrlState(data.sheetUrl || '');
+        setWsSettings(data.settings || {});
+      })
+    );
+
+    unsubs.push(
+      onSnapshot(collection(db, 'workspaces', workspaceId, 'members'), (snap) => {
+        const list = snap.docs.map((memberDoc) => ({ uid: memberDoc.id, ...memberDoc.data() }));
+        setMembers(list);
+        const me = list.find((member) => member.uid === user.uid);
+        setIsOwner(me?.role === 'owner');
+      })
+    );
+
+    workspaceUnsubsRef.current = unsubs;
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe());
+      workspaceUnsubsRef.current = [];
+    };
+  }, [user?.uid, workspaceId]);
 
   const saveSheetUrl = async (url) => {
     if (!isConfigured || !workspaceId) return;
@@ -156,43 +236,40 @@ export function useWorkspace(user) {
 
   const saveUserSettings = async (patch) => {
     if (!isConfigured || !user) return;
-    const ref = doc(db, 'users', user.uid);
-    const snap = await getDoc(ref);
-    const current = snap.exists() ? (snap.data().settings || {}) : {};
-    await setDoc(ref, { settings: { ...current, ...patch } }, { merge: true });
+    await setDoc(doc(db, 'users', user.uid), { settings: patch }, { merge: true });
   };
 
   const saveWsSettings = async (patch) => {
     if (!isConfigured || !workspaceId) return;
-    const ref = doc(db, 'workspaces', workspaceId);
-    const snap = await getDoc(ref);
-    const current = snap.exists() ? (snap.data().settings || {}) : {};
-    await updateDoc(ref, { settings: { ...current, ...patch } });
+    await setDoc(doc(db, 'workspaces', workspaceId), { settings: patch }, { merge: true });
   };
 
-  // Sync queue — stored in Firestore so it survives page reloads / cache clears
   const getSyncQueue = async () => {
     if (!isConfigured || !user) return [];
     const snap = await getDocs(collection(db, 'users', user.uid, 'syncQueue'));
     return snap.docs
-      .sort((a, b) => (a.data().createdAt?.seconds || 0) - (b.data().createdAt?.seconds || 0))
-      .map((d) => ({ _fsId: d.id, ...d.data().payload }));
+      .map((queueDoc) => ({
+        _fsId: queueDoc.id,
+        createdAtSeconds: queueDoc.data().createdAt?.seconds || 0,
+        ...(queueDoc.data().payload || {}),
+      }))
+      .sort((a, b) => a.createdAtSeconds - b.createdAtSeconds)
+      .map(({ createdAtSeconds, ...payload }) => payload);
   };
 
   const addToSyncQueue = async (payload) => {
     if (!isConfigured || !user) return;
-    // Deduplicate: remove existing entry for same lead or settings
-    const existing = await getDocs(collection(db, 'users', user.uid, 'syncQueue'));
-    for (const d of existing.docs) {
-      const p = d.data().payload;
-      if (payload.action === 'saveLead' && p.action === 'saveLead' && p.lead?.id === payload.lead?.id) {
-        await deleteDoc(d.ref);
-      }
-      if (payload.action === 'saveSettings' && p.action === 'saveSettings') {
-        await deleteDoc(d.ref);
+    const queueCollectionRef = collection(db, 'users', user.uid, 'syncQueue');
+    const existing = await getDocs(queueCollectionRef);
+
+    for (const queueDoc of existing.docs) {
+      const queuedPayload = queueDoc.data().payload || {};
+      if (shouldReplaceQueuedPayload(queuedPayload, payload)) {
+        await deleteDoc(queueDoc.ref);
       }
     }
-    await addDoc(collection(db, 'users', user.uid, 'syncQueue'), {
+
+    await addDoc(queueCollectionRef, {
       payload,
       createdAt: serverTimestamp(),
     });
@@ -206,13 +283,12 @@ export function useWorkspace(user) {
   const clearSyncQueue = async () => {
     if (!isConfigured || !user) return;
     const snap = await getDocs(collection(db, 'users', user.uid, 'syncQueue'));
-    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    await Promise.all(snap.docs.map((queueDoc) => deleteDoc(queueDoc.ref)));
   };
 
-  // Workspace invite token (short-lived Firestore doc)
   const createInviteToken = async () => {
     if (!isConfigured || !workspaceId) return null;
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 min
+    const expiresAt = Date.now() + 5 * 60 * 1000;
     const ref = await addDoc(collection(db, 'workspaces', workspaceId, 'invites'), {
       createdBy: user.uid,
       expiresAt,
@@ -221,22 +297,21 @@ export function useWorkspace(user) {
     return { token: `${workspaceId}__${ref.id}`, expiresAt };
   };
 
-  // Accept an invite token (called when a new user lands with ?invite=...)
   const acceptInviteToken = async (tokenStr) => {
     if (!isConfigured || !user || !tokenStr) return false;
     try {
-      const [wsId, inviteId] = tokenStr.split('__');
-      const inviteRef = doc(db, 'workspaces', wsId, 'invites', inviteId);
+      const [nextWorkspaceId, inviteId] = tokenStr.split('__');
+      if (!nextWorkspaceId || !inviteId) return false;
+
+      const inviteRef = doc(db, 'workspaces', nextWorkspaceId, 'invites', inviteId);
       const inviteSnap = await getDoc(inviteRef);
       if (!inviteSnap.exists()) return false;
       const invite = inviteSnap.data();
       if (invite.usedBy || Date.now() > invite.expiresAt) return false;
 
-      // Mark invite used
       await updateDoc(inviteRef, { usedBy: user.uid });
 
-      // Add member
-      await setDoc(doc(db, 'workspaces', wsId, 'members', user.uid), {
+      await setDoc(doc(db, 'workspaces', nextWorkspaceId, 'members', user.uid), {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
@@ -244,9 +319,19 @@ export function useWorkspace(user) {
         joinedAt: serverTimestamp(),
       });
 
-      // Point user to this workspace
-      await setDoc(doc(db, 'users', user.uid), { workspaceId: wsId }, { merge: true });
+      // Write the new workspaceId — this triggers the onSnapshot listener in
+      // bootstrap to pick up the workspace and clear wsLoading.
+      await setDoc(doc(db, 'users', user.uid), {
+        workspaceId: nextWorkspaceId,
+        settings: {
+          theme: 'dark',
+          currency: 'USD',
+          syncMode: 'auto',
+        },
+      }, { merge: true });
 
+      setWorkspaceId(nextWorkspaceId);
+      setWsLoading(false);
       return true;
     } catch (err) {
       console.error('acceptInviteToken error:', err);
@@ -270,6 +355,7 @@ export function useWorkspace(user) {
     members,
     isOwner,
     wsLoading,
+    syncQueue,
     getSyncQueue,
     addToSyncQueue,
     removeFromSyncQueue,
@@ -280,36 +366,81 @@ export function useWorkspace(user) {
   };
 }
 
-// ─── localStorage → Firestore one-time migration helper ──────────────────────
-function migrateFromLocalStorage() {
-  const user = localStorage.getItem('crm_logged_in_user') || '';
+function shouldReplaceQueuedPayload(existingPayload, nextPayload) {
+  if (existingPayload.queueKey && nextPayload.queueKey) {
+    return existingPayload.queueKey === nextPayload.queueKey;
+  }
+
+  if (nextPayload.action === 'saveLead' && existingPayload.action === 'saveLead') {
+    return existingPayload.lead?.id === nextPayload.lead?.id;
+  }
+
+  if (nextPayload.action === 'deleteLead' && existingPayload.action === 'saveLead') {
+    return existingPayload.lead?.id === nextPayload.id;
+  }
+
+  if (nextPayload.action === 'saveLead' && existingPayload.action === 'deleteLead') {
+    return existingPayload.id === nextPayload.lead?.id;
+  }
+
+  if (nextPayload.action === 'saveSettings' && existingPayload.action === 'saveSettings') {
+    return true;
+  }
+
+  return false;
+}
+
+function readLegacyLocalState() {
+  const legacyUser = localStorage.getItem('crm_logged_in_user') || '';
   const sheetUrl =
-    (user && localStorage.getItem(`crm_sheet_url_${user}`)) ||
+    (legacyUser && localStorage.getItem(`crm_sheet_url_${legacyUser}`)) ||
     localStorage.getItem('crm_sheet_url') || '';
   const currency =
-    (user && localStorage.getItem(`crm_currency_${user}`)) ||
+    (legacyUser && localStorage.getItem(`crm_currency_${legacyUser}`)) ||
     localStorage.getItem('crm_currency') || 'USD';
   const theme =
-    (user && localStorage.getItem(`crm_theme_${user}`)) ||
+    (legacyUser && localStorage.getItem(`crm_theme_${legacyUser}`)) ||
     localStorage.getItem('crm_theme') || 'dark';
   const syncMode =
-    (user && localStorage.getItem(`crm_sync_mode_${user}`)) ||
+    (legacyUser && localStorage.getItem(`crm_sync_mode_${legacyUser}`)) ||
     localStorage.getItem('crm_sync_mode') || 'auto';
+
   let whatsappTemplates = [];
   try {
     whatsappTemplates = JSON.parse(localStorage.getItem('crm_wa_templates') || '[]');
-  } catch (_) {}
+  } catch (_) {
+    whatsappTemplates = [];
+  }
 
-  // Clean up the old keys after migration
-  [
-    'crm_logged_in', 'crm_logged_in_user',
-    `crm_sheet_url_${user}`, 'crm_sheet_url',
-    `crm_currency_${user}`, 'crm_currency',
-    `crm_theme_${user}`, 'crm_theme',
-    `crm_sync_mode_${user}`, 'crm_sync_mode',
-    `crm_settings_revision_${user}`, 'crm_settings_revision',
-    'crm_wa_templates', 'crm_sync_queue',
-  ].forEach((k) => localStorage.removeItem(k));
+  return {
+    sheetUrl,
+    currency,
+    theme,
+    syncMode,
+    whatsappTemplates,
+    cleanupKeys: [
+      'crm_logged_in',
+      'crm_logged_in_user',
+      `crm_sheet_url_${legacyUser}`,
+      'crm_sheet_url',
+      `crm_currency_${legacyUser}`,
+      'crm_currency',
+      `crm_theme_${legacyUser}`,
+      'crm_theme',
+      `crm_sync_mode_${legacyUser}`,
+      'crm_sync_mode',
+      `crm_settings_revision_${legacyUser}`,
+      'crm_settings_revision',
+      'crm_wa_templates',
+      'crm_sync_queue',
+    ],
+  };
+}
 
-  return { sheetUrl, currency, theme, syncMode, whatsappTemplates };
+function clearLegacyLocalState(keys) {
+  keys.forEach((key) => {
+    if (key) {
+      localStorage.removeItem(key);
+    }
+  });
 }

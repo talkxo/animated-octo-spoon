@@ -466,8 +466,9 @@ function saveLead(lead) {
       revision: rows[leadRowIndex - 1][10],
       updatedAt: rows[leadRowIndex - 1][11]
     });
+    var isLegacyRow = (rows[leadRowIndex - 1][10] === '' || rows[leadRowIndex - 1][10] === undefined);
     var currentRevision = toInt(currentLead.revision, 0);
-    if (incomingBaseRevision !== currentRevision) {
+    if (!isLegacyRow && incomingBaseRevision !== currentRevision) {
       return conflictResponse('This lead was updated on another device. Pull the latest changes and try again.', {
         currentLead: currentLead
       });
@@ -483,7 +484,7 @@ function saveLead(lead) {
       tags: lead.tags,
       pipelineId: lead.pipelineId,
       lastContacted: lead.lastContacted,
-      revision: currentRevision + 1,
+      revision: isLegacyRow ? (incomingBaseRevision + 1) : (currentRevision + 1),
       updatedAt: now
     });
     sheet.getRange(leadRowIndex, 1, 1, LEADS_HEADERS.length).setValues([buildLeadValues(storedLead)]);
@@ -528,8 +529,9 @@ function deleteLead(payload) {
   var deleted = false;
   for (var i = 1; i < leadsRows.length; i++) {
     if (leadsRows[i][0] === id) {
+      var isLegacyRow = (leadsRows[i][10] === '' || leadsRows[i][10] === undefined);
       var currentRevision = toInt(leadsRows[i][10], 0);
-      if (incomingBaseRevision && incomingBaseRevision !== currentRevision) {
+      if (!isLegacyRow && incomingBaseRevision && incomingBaseRevision !== currentRevision) {
         return conflictResponse('This lead changed before it could be deleted. Pull the latest changes and try again.');
       }
       leadsSheet.deleteRow(i + 1);
@@ -643,9 +645,10 @@ function saveSettings(settings) {
     currentSettings = safeJsonParse(sheet.getRange(2, 1).getValue(), {}) || {};
   }
 
+  var isLegacySettings = (currentSettings.revision === undefined);
   var currentRevision = toInt(currentSettings.revision, 0);
   var incomingBaseRevision = toInt(settings.baseRevision, 0);
-  if (incomingBaseRevision !== currentRevision) {
+  if (!isLegacySettings && incomingBaseRevision !== currentRevision) {
     return conflictResponse('Settings changed on another device. Pull the latest settings and try again.', {
       currentSettings: currentSettings
     });
@@ -656,7 +659,7 @@ function saveSettings(settings) {
     syncMode: settings.syncMode || 'auto',
     whatsappTemplates: Array.isArray(settings.whatsappTemplates) ? settings.whatsappTemplates : [],
     theme: settings.theme || 'dark',
-    revision: currentRevision + 1,
+    revision: isLegacySettings ? (incomingBaseRevision + 1) : (currentRevision + 1),
     updatedAt: new Date().toISOString()
   };
 

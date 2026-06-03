@@ -365,8 +365,10 @@ export default function App() {
     setWhatsappTemplates(DEFAULT_WHATSAPP_TEMPLATES);
     setSprints([]);
     setCallingLists([]);
+    setLocalSyncQueue([]);
     setActiveSprintId(null);
     localStorage.removeItem('crm_active_sprint_id');
+    localStorage.removeItem('crm_sync_queue');
   };
 
   // Navigation & Views State
@@ -400,22 +402,40 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('offline');
   const [lastSyncTime, setLastSyncTime] = useState('');
   const [syncMode, setSyncMode] = useState('auto');
-  const [syncQueue, setSyncQueue] = useState([]);
-  const syncQueueRef = useRef([]);
+  const [localSyncQueue, setLocalSyncQueue] = useState(() => {
+    // Firebase mode: syncQueue comes from Firestore — no localStorage needed
+    if (isConfigured) return [];
+    const saved = localStorage.getItem('crm_sync_queue');
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved);
+    } catch (_) {
+      return [];
+    }
+  });
+  const syncQueue = isConfigured ? (workspace.syncQueue || []) : localSyncQueue;
+  const syncQueueRef = useRef(syncQueue);
   const isSyncingRef = useRef(false);
   const leadRevisionsRef = useRef({});
   const settingsRevisionRef = useRef(0);
   const lastWriteTimeRef = useRef(0);
+  const reconcileAfterPullRef = useRef(false);
+  const hydratedSheetUrlRef = useRef('');
+  // Debounce ref for activePipelineId Firestore writes (avoids write-per-click on tab switches)
+  const activePipelineDebounceRef = useRef(null);
   const [settingsRevision, setSettingsRevision] = useState(0);
 
   // Hydrate local state from Firestore userSettings once loaded
   useEffect(() => {
     if (isConfigured) {
       if (!workspace.userSettings) return;
-      const { theme: t, currency: c, syncMode: sm } = workspace.userSettings;
+      const { theme: t, currency: c, syncMode: sm, activePipelineId: ap, hasSeenWizard: hsw } = workspace.userSettings;
       if (t) { setTheme(t); document.documentElement.setAttribute('data-theme', t); }
       if (c) setCurrency(c);
       if (sm) setSyncMode(sm);
+      // Restore last-active pipeline tab from Firestore
+      if (ap) setActivePipelineId(ap);
+      // hasSeenWizard is read in the wizard effect below — no action needed here
     } else {
       if (loggedInUser) {
         const storedTheme = localStorage.getItem(`crm_theme_${loggedInUser}`) || localStorage.getItem('crm_theme') || 'dark';
@@ -437,18 +457,23 @@ export default function App() {
 
   // Keep refs in sync on mount
   useEffect(() => {
-    syncQueueRef.current = syncQueue;
     settingsRevisionRef.current = settingsRevision;
     leads.forEach(l => {
       leadRevisionsRef.current[l.id] = Number(l.revision) || 0;
     });
   }, []);
 
-  const updateSyncQueue = (newQueue) => {
+  useEffect(() => {
+    syncQueueRef.current = syncQueue;
+  }, [syncQueue]);
+
+  const updateLocalSyncQueue = (newQueue) => {
     syncQueueRef.current = newQueue;
-    setSyncQueue(newQueue);
-    // Keep localStorage as fallback cache (leads/notes already there)
-    localStorage.setItem('crm_sync_queue', JSON.stringify(newQueue));
+    setLocalSyncQueue(newQueue);
+    // Firebase mode: queue is in Firestore — no localStorage write needed
+    if (!isConfigured) {
+      localStorage.setItem('crm_sync_queue', JSON.stringify(newQueue));
+    }
   };
 
   const [isSyncExpanded, setIsSyncExpanded] = useState(false);
@@ -517,6 +542,8 @@ export default function App() {
   });
   
   const [activePipelineId, setActivePipelineId] = useState(() => {
+    // Firebase mode: will be hydrated from Firestore userSettings
+    if (isConfigured) return 'agency_pipeline';
     return localStorage.getItem('crm_active_pipeline_id') || 'agency_pipeline';
   });
 
@@ -531,6 +558,8 @@ export default function App() {
   });
 
   const [whatsappTemplates, setWhatsappTemplates] = useState(() => {
+    // Firebase mode: will be hydrated from Firestore wsSettings.whatsappTemplates
+    if (isConfigured) return DEFAULT_WHATSAPP_TEMPLATES;
     const saved = localStorage.getItem('crm_wa_templates');
     return saved ? JSON.parse(saved) : DEFAULT_WHATSAPP_TEMPLATES;
   });
@@ -602,7 +631,10 @@ export default function App() {
   }, [pipelines]);
 
   useEffect(() => {
-    localStorage.setItem('crm_wa_templates', JSON.stringify(whatsappTemplates));
+    // Firebase mode: whatsappTemplates are persisted via workspace.saveWsSettings in SettingsView
+    if (!isConfigured) {
+      localStorage.setItem('crm_wa_templates', JSON.stringify(whatsappTemplates));
+    }
   }, [whatsappTemplates]);
 
   useEffect(() => {
@@ -614,8 +646,16 @@ export default function App() {
   }, [callingLists]);
 
   useEffect(() => {
-    localStorage.setItem('crm_active_pipeline_id', activePipelineId);
-  }, [activePipelineId]);
+    if (isConfigured) {
+      // Debounce at 1.5s — avoids a Firestore write on every rapid pipeline tab click
+      clearTimeout(activePipelineDebounceRef.current);
+      activePipelineDebounceRef.current = setTimeout(() => {
+        if (user) workspace.saveUserSettings({ activePipelineId });
+      }, 1500);
+    } else {
+      localStorage.setItem('crm_active_pipeline_id', activePipelineId);
+    }
+  }, [activePipelineId, user, isConfigured]);
 
   // Sync theme to DOM + Firestore/localStorage
   useEffect(() => {
@@ -661,8 +701,10 @@ export default function App() {
   }, [syncMode, user, loggedInUser, isConfigured]);
 
   useEffect(() => {
-    localStorage.setItem('crm_sync_queue', JSON.stringify(syncQueue));
-  }, [syncQueue]);
+    if (!isConfigured) {
+      localStorage.setItem('crm_sync_queue', JSON.stringify(localSyncQueue));
+    }
+  }, [localSyncQueue, isConfigured]);
 
   // Listen for browser online event to auto-flush in Auto Mode
   useEffect(() => {
@@ -731,16 +773,24 @@ export default function App() {
     if (queryUrl || queryCurrency || queryTheme || expiresAt) cleanUrlBar();
   }, [user]);
 
-  // After sign-in: consume any pending invite or pending sheet URL
+  // After sign-in: consume any pending invite immediately (before wsLoading clears)
+  // IMPORTANT: Do NOT gate this on workspace.wsLoading — the bootstrap hook
+  // intentionally keeps wsLoading=true while waiting for invite consumption.
+  // Gating here would cause a deadlock.
   useEffect(() => {
-    if (!user || workspace.wsLoading) return;
+    if (!user) return;
     const pendingInvite = localStorage.getItem('crm_pending_invite');
     if (pendingInvite) {
       localStorage.removeItem('crm_pending_invite');
       workspace.acceptInviteToken(pendingInvite).then((ok) => {
-        if (!ok) alert('This invite link has expired or already been used.');
+        if (!ok) alert('This invite link has expired or already been used. Ask the workspace owner for a new one.');
       });
     }
+  }, [user?.uid]);
+
+  // After workspace loads: consume any pending sheet URL
+  useEffect(() => {
+    if (!user || workspace.wsLoading) return;
     const pendingUrl = localStorage.getItem('crm_pending_sheet_url');
     if (pendingUrl) {
       localStorage.removeItem('crm_pending_sheet_url');
@@ -748,33 +798,65 @@ export default function App() {
     }
   }, [user?.uid, workspace.wsLoading]);
 
+
   // Auto-launch Setup Wizard if Sheet is not connected and it is first run
   useEffect(() => {
     if (!isLoggedIn) return; // Don't prompt until auth resolves
-    const hasSeenWizard = localStorage.getItem('crm_has_seen_wizard');
-    if (!sheetUrl && !hasSeenWizard) {
-      setIsSetupWizardOpen(true);
-      localStorage.setItem('crm_has_seen_wizard', 'true');
+    if (isConfigured) {
+      // Firebase mode: wait for userSettings to load, then read hasSeenWizard from Firestore
+      if (!workspace.userSettings) return;
+      if (!sheetUrl && !workspace.userSettings.hasSeenWizard) {
+        setIsSetupWizardOpen(true);
+        workspace.saveUserSettings({ hasSeenWizard: true });
+      }
+    } else {
+      // Sandbox mode: use localStorage flag
+      const hasSeenWizard = localStorage.getItem('crm_has_seen_wizard');
+      if (!sheetUrl && !hasSeenWizard) {
+        setIsSetupWizardOpen(true);
+        localStorage.setItem('crm_has_seen_wizard', 'true');
+      }
     }
-  }, [sheetUrl, isLoggedIn]);
+  }, [sheetUrl, isLoggedIn, workspace.userSettings, isConfigured]);
 
   // Initial Sync on load if Sheet URL exists
   // FIX 2: Always pull fresh revisions first before flushing a stale queue.
   // Flushing with old baseRevisions (from a previous session) causes immediate
   // conflict errors because the sheet has already moved forward.
   useEffect(() => {
-    if (sheetUrl) {
-      if (syncQueue.length > 0 && syncMode === 'auto') {
-        // Pull first to refresh all leadRevisionsRef values, then flush
-        syncDataFromSheet(sheetUrl).then(() => flushSyncQueue());
-      } else if (syncQueue.length === 0) {
-        syncDataFromSheet(sheetUrl);
-      }
+    if (isConfigured && !workspace.userSettings) {
+      return;
     }
-  }, []);
+
+    if (!sheetUrl) {
+      hydratedSheetUrlRef.current = '';
+      setSyncStatus('offline');
+      return;
+    }
+
+    if (hydratedSheetUrlRef.current === sheetUrl) {
+      return;
+    }
+
+    hydratedSheetUrlRef.current = sheetUrl;
+    let cancelled = false;
+
+    (async () => {
+      await syncDataFromSheet(sheetUrl, { allowQueuedPull: true });
+      if (cancelled) return;
+      if (syncMode === 'auto' && syncQueueRef.current.length > 0) {
+        flushSyncQueue();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sheetUrl, isConfigured, workspace.userSettings, syncMode]);
 
   // Fetch all data from Google Sheet
-  async function syncDataFromSheet(targetUrl = sheetUrl) {
+  async function syncDataFromSheet(targetUrl = sheetUrl, options = {}) {
+    const { allowQueuedPull = false } = options;
     if (!targetUrl) {
       setSyncStatus('offline');
       return;
@@ -789,30 +871,33 @@ export default function App() {
       
       if (data.success) {
         // If a write is in progress, or queue has pending edits, or a write occurred while fetching, ignore this stale data to avoid overwriting local edits
-        if (isSyncingRef.current || syncQueueRef.current.length > 0 || lastWriteTimeRef.current > fetchStartedAt) {
+        const hasBlockingQueue = syncQueueRef.current.length > 0 && !allowQueuedPull && !reconcileAfterPullRef.current;
+        if (isSyncingRef.current || hasBlockingQueue || lastWriteTimeRef.current > fetchStartedAt) {
           console.warn('Ignoring stale sheet pull to protect local edits');
           setSyncStatus('synced');
           return;
         }
 
-        if (data.leads && data.leads.length > 0) {
-          setLeads(data.leads);
-          data.leads.forEach(l => {
+        if ('leads' in data) {
+          const nextLeads = Array.isArray(data.leads) ? data.leads : [];
+          setLeads(nextLeads);
+          leadRevisionsRef.current = {};
+          nextLeads.forEach(l => {
             leadRevisionsRef.current[l.id] = Number(l.revision) || 0;
           });
         }
-        if (data.notes && data.notes.length > 0) {
-          setNotes(data.notes);
+        if ('notes' in data) {
+          setNotes(Array.isArray(data.notes) ? data.notes : []);
         }
-        if (data.pipelines && data.pipelines.length > 0) {
-          setPipelines(data.pipelines);
+        if ('pipelines' in data) {
+          setPipelines(Array.isArray(data.pipelines) ? data.pipelines : []);
         }
         // Restore sprint data from sheet
-        if (data.sprints) {
-          setSprints(data.sprints);
+        if ('sprints' in data) {
+          setSprints(Array.isArray(data.sprints) ? data.sprints : []);
         }
-        if (data.callingLists) {
-          setCallingLists(data.callingLists);
+        if ('callingLists' in data) {
+          setCallingLists(Array.isArray(data.callingLists) ? data.callingLists : []);
         }
         if (data.settings) {
           applySettingsPayload(data.settings);
@@ -824,6 +909,15 @@ export default function App() {
             whatsappTemplates,
             theme
           });
+        }
+        if (reconcileAfterPullRef.current) {
+          reconcileAfterPullRef.current = false;
+          if (isConfigured) {
+            syncQueueRef.current = [];
+            await workspace.clearSyncQueue();
+          } else {
+            updateLocalSyncQueue([]);
+          }
         }
         setSyncStatus('synced');
         const timeStr = new Date().toLocaleTimeString();
@@ -901,6 +995,27 @@ export default function App() {
     );
     await handleSyncPush(payload);
   }
+
+  const buildQueueKey = (payload) => {
+    switch (payload.action) {
+      case 'saveLead':
+      case 'deleteLead':
+        return `lead:${payload.lead?.id || payload.id}`;
+      case 'saveSettings':
+        return 'settings';
+      case 'saveSprint':
+      case 'deleteSprint':
+        return `sprint:${payload.sprint?.id || payload.id}`;
+      case 'saveCallingLists':
+        return 'callingLists';
+      case 'savePipelines':
+        return 'pipelines';
+      case 'saveNote':
+        return `note:${payload.note?.id}`;
+      default:
+        return `${payload.action}:${payload.id || payload.lead?.id || payload.note?.id || Date.now()}`;
+    }
+  };
 
   async function updateCurrency(newCurrency) {
     setCurrency(newCurrency);
@@ -1000,9 +1115,10 @@ export default function App() {
           body: JSON.stringify(payload)
         });
         // Schedule a reconciliation pull after a short delay
+        reconcileAfterPullRef.current = true;
         setTimeout(() => {
           if (!isSyncingRef.current) {
-            syncDataFromSheet();
+            syncDataFromSheet(undefined, { allowQueuedPull: true });
           }
         }, 2500);
         return {
@@ -1067,15 +1183,25 @@ export default function App() {
 
           // Revisions were already incremented in the ref when the action was queued.
           // Just remove the item we just successfully sent.
-          updateSyncQueue(syncQueueRef.current.slice(1));
+            if (isConfigured) {
+              syncQueueRef.current = syncQueueRef.current.slice(1);
+              await workspace.removeFromSyncQueue(item._fsId);
+            } else {
+              updateLocalSyncQueue(syncQueueRef.current.slice(1));
+            }
         } else {
           failed = true;
           if (result.conflict) {
             // On conflict, clear the whole queue and re-pull the authoritative server state.
             // The user's local ref revisions will be refreshed from the server data.
-            updateSyncQueue([]);
+            if (isConfigured) {
+              syncQueueRef.current = [];
+              await workspace.clearSyncQueue();
+            } else {
+              updateLocalSyncQueue([]);
+            }
             alert(result.error || 'A conflict was detected. Pulling the latest data from Google Sheets.');
-            await syncDataFromSheet();
+            await syncDataFromSheet(undefined, { allowQueuedPull: true });
             return;
           }
           break;
@@ -1104,25 +1230,48 @@ export default function App() {
     // same entity (same lead id, or settings). Without this, editing a lead 5×
     // queues 5 entries each with a different baseRevision, guaranteeing 4
     // consecutive conflicts when flushed. Only the latest payload matters.
+    const nextPayload = {
+      ...payload,
+      queueKey: payload.queueKey || buildQueueKey(payload)
+    };
     const deduped = syncQueueRef.current.filter(p => {
-      if (payload.action === 'saveLead' && p.action === 'saveLead') {
-        return p.lead?.id !== payload.lead?.id;
+      if (nextPayload.action === 'saveLead' && p.action === 'saveLead') {
+        return p.lead?.id !== nextPayload.lead?.id;
       }
-      if (payload.action === 'saveSettings' && p.action === 'saveSettings') {
+      if (nextPayload.action === 'deleteLead' && p.action === 'saveLead') {
+        return p.lead?.id !== nextPayload.id;
+      }
+      if (nextPayload.action === 'saveLead' && p.action === 'deleteLead') {
+        return p.id !== nextPayload.lead?.id;
+      }
+      if (nextPayload.action === 'saveSettings' && p.action === 'saveSettings') {
         return false; // Always replace settings — only the latest snapshot matters
+      }
+      if (p.queueKey && nextPayload.queueKey) {
+        return p.queueKey !== nextPayload.queueKey;
       }
       return true;
     });
-    const nextQueue = [...deduped, payload];
+    const nextQueue = [...deduped, nextPayload];
 
     if (syncMode === 'manual') {
-      updateSyncQueue(nextQueue);
+      if (isConfigured) {
+        syncQueueRef.current = nextQueue;
+        await workspace.addToSyncQueue(nextPayload);
+      } else {
+        updateLocalSyncQueue(nextQueue);
+      }
       setSyncStatus('pending');
       return { success: true, queued: true };
     }
 
     // Auto Sync Mode: Queue and flush
-    updateSyncQueue(nextQueue);
+    if (isConfigured) {
+      syncQueueRef.current = nextQueue;
+      await workspace.addToSyncQueue(nextPayload);
+    } else {
+      updateLocalSyncQueue(nextQueue);
+    }
     
     // Trigger sequential flush (will skip if already flushing)
     flushSyncQueue();
@@ -1613,7 +1762,12 @@ export default function App() {
             syncQueue={syncQueue}
             clearSyncQueue={() => {
               if (confirm('Are you sure you want to discard all pending offline edits? This cannot be undone.')) {
-                updateSyncQueue([]);
+                if (isConfigured) {
+                  syncQueueRef.current = [];
+                  workspace.clearSyncQueue();
+                } else {
+                  updateLocalSyncQueue([]);
+                }
                 setSyncStatus('synced');
               }
             }}

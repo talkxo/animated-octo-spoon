@@ -893,6 +893,78 @@
       </div>
     </section>
 
+    <!-- SECTION 4b: WORKSPACE INVITE FLOW -->
+    <section id="invite-flow">
+      <h3 class="section-title">Workspace Invite Flow &amp; Security Model</h3>
+      <p class="text-block">
+        Team collaboration is handled entirely through Firestore-backed invite tokens. There is no email invitation system — the owner generates a short-lived URL that the teammate opens. This section documents the full join sequence and the <strong>race condition fix</strong> that prevents teammates from landing in their own isolated workspace.
+      </p>
+
+      <h4 style="font-size:1rem; font-weight:700; margin: 1.25rem 0 0.5rem; color: var(--text-main, #f1f1f3);">End-to-End Join Sequence</h4>
+      <ol style="color: var(--text-muted, #9ca3af); font-size:0.9rem; line-height:1.75; padding-left:1.5rem; margin-bottom:1.25rem;">
+        <li><strong>Owner</strong> opens Settings → <em>Workspace Invite Link</em> card → clicks <strong>Copy Link</strong>. The link has the format: <code>https://app/?invite=&lt;workspaceId&gt;__&lt;inviteDocId&gt;&amp;expiresAt=&lt;ms&gt;</code></li>
+        <li><strong>Teammate</strong> opens the URL in any browser. The app immediately reads the <code>?invite=</code> param, stores it in <code>localStorage</code> as <code>crm_pending_invite</code>, and strips the params from the URL bar.</li>
+        <li>If the teammate is not signed in, they see the Google Sign-In screen. After signing in, two things happen in parallel:</li>
+        <li><code>useWorkspace.bootstrap()</code> runs. It reads <code>localStorage</code> <strong>before</strong> creating any workspace. If <code>crm_pending_invite</code> exists, it skips workspace creation and sets up <code>onSnapshot</code> listeners, keeping <code>wsLoading = true</code> until a <code>workspaceId</code> is assigned.</li>
+        <li><code>App.jsx</code> fires <code>workspace.acceptInviteToken()</code> <strong>immediately</strong> on <code>user?.uid</code> change — not gated on <code>wsLoading</code> (which would cause a deadlock). This validates expiry, marks the invite <code>usedBy</code>, writes the teammate into <code>workspaces/{id}/members</code>, and updates <code>users/{uid}.workspaceId</code>.</li>
+        <li>The <code>onSnapshot</code> on <code>users/{uid}</code> fires, detecting the new <code>workspaceId</code>. It sets <code>wsLoading = false</code> and the workspace data loads — the teammate now sees the owner's sheet URL and settings.</li>
+      </ol>
+
+      <h4 style="font-size:1rem; font-weight:700; margin: 1.25rem 0 0.5rem; color: var(--text-main, #f1f1f3);">The Bootstrap Race Condition (Fixed)</h4>
+      <p class="text-block">
+        Prior to the fix, <code>bootstrap()</code> unconditionally created a new workspace for any user with no <code>workspaceId</code>. A new teammate always had no <code>workspaceId</code> on first sign-in — so they always got their own orphaned workspace before the invite could be consumed.
+      </p>
+      <p class="text-block">
+        Additionally, the invite consumption in <code>App.jsx</code> was gated on <code>!workspace.wsLoading</code>. With the new invite-aware bootstrap keeping <code>wsLoading = true</code> while waiting, this created a <strong>deadlock</strong>: wsLoading stayed true forever because the invite was never consumed.
+      </p>
+      <p class="text-block">
+        Both issues were fixed together: bootstrap checks for <code>crm_pending_invite</code> and skips auto-creation; the invite consumption effect uses its own <code>[user?.uid]</code> dependency (not <code>wsLoading</code>).
+      </p>
+
+      <h4 style="font-size:1rem; font-weight:700; margin: 1.25rem 0 0.5rem; color: var(--text-main, #f1f1f3);">Firestore Security Rules Model</h4>
+      <p class="text-block">
+        Rules are <strong>member-scoped</strong> — a user must be listed in <code>workspaces/{id}/members</code> to read or write any workspace document. The only exceptions are invite documents, which have looser <code>read</code> and <code>update</code> rules so incoming teammates can validate and claim a token before being added to the members sub-collection.
+      </p>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Read</th>
+              <th>Write</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="prop-name">workspaces/{id}</td>
+              <td>Members only (<code>isMember()</code>)</td>
+              <td>Members only</td>
+            </tr>
+            <tr>
+              <td class="prop-name">workspaces/{id}/members/{uid}</td>
+              <td>Members only</td>
+              <td>Owners, or <code>uid == request.auth.uid</code> (self-join)</td>
+            </tr>
+            <tr>
+              <td class="prop-name">workspaces/{id}/invites/{id}</td>
+              <td>Any authenticated user</td>
+              <td>create: members; update: any authenticated; delete: owners</td>
+            </tr>
+            <tr>
+              <td class="prop-name">users/{uid}</td>
+              <td><code>uid == request.auth.uid</code></td>
+              <td>Same</td>
+            </tr>
+            <tr>
+              <td class="prop-name">users/{uid}/syncQueue/{id}</td>
+              <td><code>uid == request.auth.uid</code></td>
+              <td>Same</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- SECTION 5: GOOGLE SHEETS SCHEMA -->
     <section id="sheets-schema">
       <h3 class="section-title">Google Sheets Database Schema</h3>

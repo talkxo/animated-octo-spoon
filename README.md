@@ -87,3 +87,80 @@ If you're calling from a Custom List (not a CRM pipeline), you'll see a **➕ Co
 ---
 
 *Pluto saves everything to your browser's localStorage. Connect a Google Sheet in Settings to back up and share data across devices.*
+
+## Firebase Repo Setup
+
+Pluto now includes the Firebase repo wiring for the hybrid Firebase + Google Sheets mode:
+
+- `firebase.json`
+- `firestore.rules`
+- `firestore.indexes.json`
+- `.firebaserc.example`
+- `scripts/firebase-doctor.mjs`
+
+Use these commands:
+
+```bash
+npm run firebase:doctor
+npm run firebase:login
+npm run firebase:deploy
+```
+
+What still needs your real Firebase account/project:
+
+- the actual values in `.env`
+- the real project id in `.firebaserc`
+- enabling Google Auth and Firestore in the Firebase console
+
+---
+
+## Team Members & Invite Flow (Firebase Mode)
+
+Team collaboration requires Firebase to be configured. Here is how it works end to end:
+
+| Who | What happens |
+|-----|-------------|
+| **New user — no invite** | Signs in → a fresh workspace is auto-created for them as **Owner** |
+| **New user — via invite link** | Clicks link → signs in → is added to the **Owner's** workspace as **Member** (no new workspace is created) |
+| **Owner (Settings)** | Sees all members, can remove non-owner members, generates new invite links |
+| **Member (Settings)** | Sees the member list, cannot generate invite links |
+
+### Settings UI — Two Separate Cards
+
+In Settings → Sync & Invite column there are **two distinct cards** when Firebase is active:
+
+1. **Sync to Mobile** — QR code to open Pluto on your phone (personal device sync, not team sharing)
+2. **Workspace Invite Link** — copyable URL + auto-refresh countdown, for adding teammates to your shared workspace
+
+> ⚠️ **Invite links are single-use and expire in 5 minutes.** The owner must generate a fresh link for each new teammate. The link is automatically refreshed every 5 minutes in the UI.
+
+### How the Invite Token Join Flow Works (Technical)
+
+```
+Owner: Settings → "Workspace Invite Link" card → Copy Link
+  → Link: https://app.url?invite=<workspaceId>__<tokenId>&expiresAt=<ms>
+
+Teammate: opens link in browser
+  → App stores token in localStorage as crm_pending_invite
+  → URL bar is cleaned (?invite= params removed)
+  → If not signed in: redirected to Google Sign-In
+  → On sign-in: useWorkspace.bootstrap() checks for crm_pending_invite
+      → If found: skips creating a new workspace (race condition prevention)
+      → Sets up listeners and waits
+  → App.jsx fires workspace.acceptInviteToken() immediately (not gated on wsLoading)
+  → Firestore: invite marked usedBy, teammate added to workspace/members
+  → Teammate's users/{uid} workspaceId updated → listeners pick it up → wsLoading clears
+  → Teammate sees Owner's workspace (shared sheet URL, same data)
+```
+
+### Firestore Security Rules (Current)
+
+The rules are **member-scoped** — workspace data is only accessible to users who have been added as members of that workspace:
+
+- `/workspaces/{id}` — read/write: members only
+- `/workspaces/{id}/members/{uid}` — read: members; write: owners or self (for joining)
+- `/workspaces/{id}/invites/{id}` — create: members; read/update: any authenticated (needed for join flow); delete: owners
+- `/users/{uid}` and `/users/{uid}/syncQueue` — private to each user
+
+Deploy rules with: `npm run firebase:deploy` (or `./node_modules/.bin/firebase deploy --only firestore:rules`)
+
