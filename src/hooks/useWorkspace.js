@@ -309,13 +309,17 @@ export function useWorkspace(user) {
       const invite = inviteSnap.data();
       if (invite.usedBy || Date.now() > invite.expiresAt) return false;
 
+      const memberRef = doc(db, 'workspaces', nextWorkspaceId, 'members', user.uid);
+      const memberSnap = await getDoc(memberRef);
+      const existingRole = memberSnap.exists() ? memberSnap.data().role : null;
+
       await updateDoc(inviteRef, { usedBy: user.uid });
 
-      await setDoc(doc(db, 'workspaces', nextWorkspaceId, 'members', user.uid), {
+      await setDoc(memberRef, {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: 'member',
+        role: existingRole || 'member',
         joinedAt: serverTimestamp(),
       });
 

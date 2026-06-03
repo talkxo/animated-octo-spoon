@@ -1106,12 +1106,12 @@ service cloud.firestore {
 
     // Helper: check if the requesting user is a member of a given workspace
     function isMember(workspaceId) {
-      return exists(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid));
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.workspaceId == workspaceId;
     }
 
     // Helper: check if the requesting user is the owner of a given workspace
     function isOwner(workspaceId) {
-      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid)).data.role == 'owner';
+      return request.auth != null && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.createdBy == request.auth.uid;
     }
 
     match /workspaces/{workspaceId} {
