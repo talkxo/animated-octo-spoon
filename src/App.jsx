@@ -802,13 +802,13 @@ export default function App() {
   }, [user?.uid, workspace.wsLoading]);
 
 
-  // Auto-launch Setup Wizard if Sheet is not connected and it is first run
+  // Auto-launch Setup Wizard if Sheet is not connected and it is first run (owner only)
   useEffect(() => {
     if (!isLoggedIn) return; // Don't prompt until auth resolves
     if (isConfigured) {
-      // Firebase mode: wait for userSettings to load, then read hasSeenWizard from Firestore
+      // Firebase mode: wait for userSettings to load, then read hasSeenWizard from Firestore (owner only)
       if (!workspace.userSettings) return;
-      if (!sheetUrl && !workspace.userSettings.hasSeenWizard) {
+      if (!sheetUrl && workspace.isOwner && !workspace.userSettings.hasSeenWizard) {
         setIsSetupWizardOpen(true);
         workspace.saveUserSettings({ hasSeenWizard: true });
       }
@@ -820,7 +820,7 @@ export default function App() {
         localStorage.setItem('crm_has_seen_wizard', 'true');
       }
     }
-  }, [sheetUrl, isLoggedIn, workspace.userSettings, isConfigured]);
+  }, [sheetUrl, isLoggedIn, workspace.userSettings, workspace.isOwner, isConfigured]);
 
   // Initial Sync on load if Sheet URL exists
   // FIX 2: Always pull fresh revisions first before flushing a stale queue.

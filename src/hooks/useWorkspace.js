@@ -174,7 +174,8 @@ export function useWorkspace(user) {
           })
         );
 
-        setWsLoading(false);
+        // We do not set wsLoading to false here. The loading state is managed
+        // by the workspace details snapshots in the useEffect below once workspaceId is set.
       } catch (err) {
         console.error('useWorkspace bootstrap error:', err);
         setWsLoading(false);
@@ -201,24 +202,56 @@ export function useWorkspace(user) {
       return;
     }
 
+    // Set loading to true while we fetch workspace details
+    setWsLoading(true);
+
+    let docLoaded = false;
+    let memsLoaded = false;
+    const checkAllLoaded = () => {
+      if (docLoaded && memsLoaded) {
+        setWsLoading(false);
+      }
+    };
+
     const unsubs = [];
 
     unsubs.push(
-      onSnapshot(doc(db, 'workspaces', workspaceId), (snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-        setSheetUrlState(data.sheetUrl || '');
-        setWsSettings(data.settings || {});
-      })
+      onSnapshot(
+        doc(db, 'workspaces', workspaceId),
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setSheetUrlState(data.sheetUrl || '');
+            setWsSettings(data.settings || {});
+          }
+          docLoaded = true;
+          checkAllLoaded();
+        },
+        (err) => {
+          console.error('Workspace doc snapshot error:', err);
+          docLoaded = true;
+          checkAllLoaded();
+        }
+      )
     );
 
     unsubs.push(
-      onSnapshot(collection(db, 'workspaces', workspaceId, 'members'), (snap) => {
-        const list = snap.docs.map((memberDoc) => ({ uid: memberDoc.id, ...memberDoc.data() }));
-        setMembers(list);
-        const me = list.find((member) => member.uid === user.uid);
-        setIsOwner(me?.role === 'owner');
-      })
+      onSnapshot(
+        collection(db, 'workspaces', workspaceId, 'members'),
+        (snap) => {
+          const list = snap.docs.map((memberDoc) => ({ uid: memberDoc.id, ...memberDoc.data() }));
+          setMembers(list);
+          const me = list.find((member) => member.uid === user.uid);
+          setIsOwner(me?.role === 'owner');
+          memsLoaded = true;
+          checkAllLoaded();
+        },
+        (err) => {
+          console.error('Workspace members snapshot error:', err);
+          memsLoaded = true;
+          checkAllLoaded();
+        }
+      )
     );
 
     workspaceUnsubsRef.current = unsubs;
