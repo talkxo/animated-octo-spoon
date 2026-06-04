@@ -27,14 +27,14 @@ import { Users, UserMinus, UserCheck, Mail } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 import { isConfigured } from '../firebase';
 
-export default function SettingsView({ 
-  sheetUrl, 
-  setSheetUrl, 
-  syncStatus, 
-  onSyncClick, 
-  pipelines, 
+export default function SettingsView({
+  sheetUrl,
+  setSheetUrl,
+  syncStatus,
+  onSyncClick,
+  pipelines,
   updatePipelines,
-  whatsappTemplates, 
+  whatsappTemplates,
   setWhatsappTemplates,
   lastSyncTime,
   currency,
@@ -50,6 +50,11 @@ export default function SettingsView({
   // Firebase workspace props
   workspace,
   user,
+  // Firebase mode flags
+  isFirebaseMode = false,
+  exportToSheet,
+  importFromSheet,
+  sheetExportStatus = 'idle',
 }) {
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
@@ -59,41 +64,43 @@ export default function SettingsView({
   const [qrKey, setQrKey] = useState(0);
   const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
+  // Inline two-step confirm state for member removal
+  const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [leavingWorkspace, setLeavingWorkspace] = useState(false);
 
   // Invite-token QR state
   const [inviteToken, setInviteToken] = useState(null);
   const [inviteExpiresAt, setInviteExpiresAt] = useState(null);
 
-  // Generate first invite token when settings open and sheet is connected
+  // Generate invite token — gated on isConfigured only (not sheetUrl)
   const generateInvite = useCallback(async () => {
     if (!workspace?.createInviteToken) return;
     const result = await workspace.createInviteToken();
-      if (result) {
-        setInviteToken(result.token);
-        setInviteExpiresAt(result.expiresAt);
-        setTimeLeft(900);
-        setQrKey(k => k + 1);
-      }
+    if (result) {
+      setInviteToken(result.token);
+      setInviteExpiresAt(result.expiresAt);
+      setTimeLeft(900);
+      setQrKey(k => k + 1);
+    }
   }, [workspace]);
 
+  // Bug fix: was gated on sheetUrl — team management has nothing to do with Sheets
   useEffect(() => {
-    if (sheetUrl && workspace?.isOwner) generateInvite();
-  }, [sheetUrl, workspace?.isOwner]);
+    if (isConfigured && workspace?.isOwner) generateInvite();
+  }, [isConfigured, workspace?.isOwner]);
 
   // Countdown timer — auto-regenerate on expiry
+  // Bug fix: was gated on sheetUrl — removed that dependency
   useEffect(() => {
-    if (!sheetUrl || !workspace?.isOwner) return;
+    if (!isConfigured || !workspace?.isOwner) return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          generateInvite();
-          return 900;
-        }
+        if (prev <= 1) { generateInvite(); return 900; }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [sheetUrl, workspace?.isOwner, generateInvite]);
+  }, [isConfigured, workspace?.isOwner, generateInvite]);
 
   // Pipeline editing states
   const [editingPipelineId, setEditingPipelineId] = useState(null);
@@ -355,10 +362,10 @@ export default function SettingsView({
               )}
             </div>
 
-            {/* Sync & Invite Column */}
-            {isConfigured && sheetUrl && (
+            {/* Sync & Invite Column — gated on isConfigured only, NOT sheetUrl */}
+            {isConfigured && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                
+
                 {/* 1. Sync to Mobile Card */}
                 <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
                   <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
@@ -472,7 +479,8 @@ export default function SettingsView({
                             fontWeight: 700
                           }}>
                             <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
-                            <span>Single-use link · Expires in 5m</span>
+                            {/* Bug fix: was hardcoded '5m' but token actually lasts 15 minutes */}
+                            <span>Single-use link · Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
                           </div>
 
                           <div style={{
@@ -498,8 +506,48 @@ export default function SettingsView({
             )}
           </div>
 
-          {/* LOCAL-FIRST SYNC MANAGER */}
-          {sheetUrl && (
+          {/* GOOGLE SHEETS EXPORT / IMPORT (Firebase mode) */}
+          {isFirebaseMode && sheetUrl && (
+            <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                <RefreshCw size={16} style={{ color: 'var(--primary)' }} />
+                Google Sheets Backup
+              </h3>
+              <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: '0.5rem 0 0.75rem' }}>
+                Firestore is your live source of truth. Use these to back up to or restore from your Google Sheet:
+              </p>
+              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1, minWidth: '120px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: 'var(--text-xs)' }}
+                  onClick={exportToSheet}
+                  disabled={sheetExportStatus === 'exporting'}
+                >
+                  <Upload size={13} />
+                  <span>{sheetExportStatus === 'exporting' ? 'Exporting...' : sheetExportStatus === 'done' ? '✓ Exported!' : 'Export to Sheet'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '120px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: 'var(--text-xs)' }}
+                  onClick={() => {
+                    if (confirm('This will overwrite your Firestore data with sheet contents. Continue?')) {
+                      importFromSheet();
+                    }
+                  }}
+                  disabled={sheetExportStatus === 'exporting'}
+                >
+                  <Download size={13} />
+                  <span>Import from Sheet</span>
+                </button>
+              </div>
+              {lastSyncTime && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Last export: {lastSyncTime}</div>}
+            </div>
+          )}
+
+          {/* LOCAL-FIRST SYNC MANAGER (local/non-Firebase mode only) */}
+          {!isFirebaseMode && sheetUrl && (
             <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
               <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
                 <RefreshCw size={16} style={{ color: 'var(--primary)' }} />
@@ -972,8 +1020,8 @@ export default function SettingsView({
             </div>
           </div>
 
-          {/* TEAM MEMBERS PANEL */}
-          {isConfigured && sheetUrl && (
+          {/* TEAM MEMBERS PANEL — gated on isConfigured only, NOT sheetUrl */}
+          {isConfigured && (
             <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
                 <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
@@ -982,43 +1030,32 @@ export default function SettingsView({
                 </h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.65rem' }}>
+                {/* Empty / loading state */}
+                {!workspace?.members && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.75rem 0', textAlign: 'center' }}>
+                    Loading members…
+                  </div>
+                )}
+                {workspace?.members?.length === 0 && (
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.75rem 0', textAlign: 'center' }}>
+                    No teammates yet. Share an invite link to add people.
+                  </div>
+                )}
+
                 {(workspace?.members || []).map((member) => {
-                  const isMe = member.uid === user?.uid;
+                  const isMe      = member.uid === user?.uid;
+                  const isConfirm = removingMemberId === member.uid;
                   return (
-                    <div 
-                      key={member.uid} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        padding: '0.5rem 0.75rem',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid var(--border-light)',
-                        borderRadius: '8px',
-                        gap: '1rem'
-                      }}
+                    <div
+                      key={member.uid}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '8px', gap: '1rem' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                         {member.photoURL ? (
-                          <img 
-                            src={member.photoURL} 
-                            alt={member.displayName || member.email} 
-                            style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
-                          />
+                          <img src={member.photoURL} alt={member.displayName || member.email} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
                         ) : (
-                          <div style={{ 
-                            width: '28px', 
-                            height: '28px', 
-                            borderRadius: '50%', 
-                            background: 'var(--primary-glow)', 
-                            color: 'var(--primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: 'var(--text-xs)'
-                          }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
                             {(member.displayName || member.email || '?').charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -1027,48 +1064,57 @@ export default function SettingsView({
                             {member.displayName || member.email.split('@')[0]}
                             {isMe && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: '0.35rem' }}>(you)</span>}
                           </span>
-                          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {member.email}
-                          </span>
+                          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</span>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {/* Role badge */}
-                        <span 
-                          style={{ 
-                            fontSize: 'var(--text-2xs)', 
-                            padding: '0.15rem 0.45rem', 
-                            borderRadius: '6px',
-                            fontWeight: 700,
-                            background: member.role === 'owner' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                            color: member.role === 'owner' ? '#f59e0b' : '#3b82f6',
-                            border: member.role === 'owner' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
-                          }}
-                        >
+                        <span style={{ fontSize: 'var(--text-2xs)', padding: '0.15rem 0.45rem', borderRadius: '6px', fontWeight: 700, background: member.role === 'owner' ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', color: member.role === 'owner' ? '#f59e0b' : '#3b82f6', border: member.role === 'owner' ? '1px solid rgba(245,158,11,0.2)' : '1px solid rgba(59,130,246,0.2)' }}>
                           {member.role === 'owner' ? 'Owner' : 'Member'}
                         </span>
 
-                        {/* Owner actions: can remove other members */}
+                        {/* Owner: inline two-step confirm before removing (mobile-friendly) */}
                         {workspace?.isOwner && !isMe && (
-                          <button 
-                            type="button"
-                            className="outcome-btn" 
-                            style={{ padding: '0.3rem', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
-                            title="Remove from workspace"
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to remove ${member.displayName || member.email} from the workspace? They will be disconnected.`)) {
-                                workspace.removeMember(member.uid);
-                              }
-                            }}
-                          >
-                            <UserMinus size={13} />
-                          </button>
+                          isConfirm ? (
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              <button type="button" className="outcome-btn" style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-2xs)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                                onClick={async () => { await workspace.removeMember(member.uid); setRemovingMemberId(null); }}>
+                                Confirm remove
+                              </button>
+                              <button type="button" className="outcome-btn" style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-2xs)' }} onClick={() => setRemovingMemberId(null)}>Cancel</button>
+                            </div>
+                          ) : (
+                            <button type="button" className="outcome-btn" style={{ padding: '0.3rem', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                              title="Remove from workspace" onClick={() => setRemovingMemberId(member.uid)}>
+                              <UserMinus size={13} />
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Leave Workspace — visible to non-owners only */}
+                {isConfigured && !workspace?.isOwner && (
+                  <div style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-light)' }}>
+                    {leavingWorkspace ? (
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flex: 1 }}>Leave this workspace? You'll lose access to all shared data.</span>
+                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.3rem 0.6rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444' }}
+                          onClick={async () => { await workspace.leaveWorkspace(); setLeavingWorkspace(false); }}>
+                          Confirm Leave
+                        </button>
+                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.3rem 0.6rem' }} onClick={() => setLeavingWorkspace(false)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.4rem 0.75rem', borderColor: 'rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                        onClick={() => setLeavingWorkspace(true)}>
+                        <UserMinus size={13} /> Leave Workspace
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
