@@ -55,8 +55,7 @@ export default function SettingsView({
   const [copied, setCopied] = useState(false);
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
   const [showSheetsConfig, setShowSheetsConfig] = useState(!sheetUrl);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
-  const [expiresAt, setExpiresAt] = useState(() => Date.now() + 300000);
+  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
   const [qrKey, setQrKey] = useState(0);
   const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
@@ -69,12 +68,12 @@ export default function SettingsView({
   const generateInvite = useCallback(async () => {
     if (!workspace?.createInviteToken) return;
     const result = await workspace.createInviteToken();
-    if (result) {
-      setInviteToken(result.token);
-      setInviteExpiresAt(result.expiresAt);
-      setTimeLeft(300);
-      setQrKey(k => k + 1);
-    }
+      if (result) {
+        setInviteToken(result.token);
+        setInviteExpiresAt(result.expiresAt);
+        setTimeLeft(900);
+        setQrKey(k => k + 1);
+      }
   }, [workspace]);
 
   useEffect(() => {
@@ -88,7 +87,7 @@ export default function SettingsView({
       setTimeLeft(prev => {
         if (prev <= 1) {
           generateInvite();
-          return 300;
+          return 900;
         }
         return prev - 1;
       });
@@ -454,7 +453,7 @@ export default function SettingsView({
                                 '?invite=' + encodeURIComponent(inviteToken) +
                                 '&expiresAt=' + inviteExpiresAt;
                               navigator.clipboard.writeText(link);
-                              alert('Invite link copied! Send it to your teammate. Expires in 5 minutes.');
+                            alert('Invite link copied! Send it to your teammate. Expires in 15 minutes.');
                             }}
                           >
                             <Copy size={12} />

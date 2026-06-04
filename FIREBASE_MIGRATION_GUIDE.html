@@ -502,11 +502,11 @@
       <div class="card">
         <div class="card-title"><span class="badge phase2">Invite Flow</span> How the Single-Use Invite Token works:</div>
         <p>
-          Instead of saving sheet URLs directly in custom deep links (which exposes credentials), we created short-lived (5-minute) Firestore invite documents:
+          Instead of saving sheet URLs directly in custom deep links (which exposes credentials), we created short-lived (15-minute) Firestore invite documents:
         </p>
 <pre><code>// 1. Owner generates token
 const createInviteToken = async () => {
-  const expiresAt = Date.now() + 5 * 60 * 1000;
+  const expiresAt = Date.now() + 15 * 60 * 1000;
   const ref = await addDoc(collection(db, 'workspaces', workspaceId, 'invites'), {
     createdBy: user.uid,
     expiresAt,

@@ -321,7 +321,7 @@ export function useWorkspace(user) {
 
   const createInviteToken = async () => {
     if (!isConfigured || !workspaceId) return null;
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+    const expiresAt = Date.now() + 15 * 60 * 1000;
     const ref = await addDoc(collection(db, 'workspaces', workspaceId, 'invites'), {
       createdBy: user.uid,
       expiresAt,
@@ -340,13 +340,14 @@ export function useWorkspace(user) {
       const inviteSnap = await getDoc(inviteRef);
       if (!inviteSnap.exists()) return false;
       const invite = inviteSnap.data();
-      if (invite.usedBy || Date.now() > invite.expiresAt) return false;
+      const expiresAt = Number(invite.expiresAt) || 0;
+      const isExpired = expiresAt > 0 && Date.now() > expiresAt;
+      const isUsedByAnotherUser = Boolean(invite.usedBy) && invite.usedBy !== user.uid;
+      if (isUsedByAnotherUser || isExpired) return false;
 
       const memberRef = doc(db, 'workspaces', nextWorkspaceId, 'members', user.uid);
       const memberSnap = await getDoc(memberRef);
       const existingRole = memberSnap.exists() ? memberSnap.data().role : null;
-
-      await updateDoc(inviteRef, { usedBy: user.uid });
 
       await setDoc(memberRef, {
         email: user.email,
@@ -366,6 +367,10 @@ export function useWorkspace(user) {
           syncMode: 'auto',
         },
       }, { merge: true });
+
+      if (invite.usedBy !== user.uid) {
+        await updateDoc(inviteRef, { usedBy: user.uid });
+      }
 
       setWorkspaceId(nextWorkspaceId);
       setWsLoading(false);
