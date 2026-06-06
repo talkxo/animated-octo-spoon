@@ -360,6 +360,7 @@ export default function App() {
   // ── Invite error banner ───────────────────────────────────────────────────
   const [inviteError, setInviteError] = useState(null);
   const [ejectionBanner, setEjectionBanner] = useState(false);
+  const [isProcessingInvite, setIsProcessingInvite] = useState(false);
 
   useEffect(() => {
     if (workspace.ejected) setEjectionBanner(true);
@@ -511,9 +512,12 @@ export default function App() {
     if (!user) return;
     const pendingInvite = localStorage.getItem('crm_pending_invite');
     if (pendingInvite) {
+      setIsProcessingInvite(true);
       localStorage.removeItem('crm_pending_invite');
       workspace.acceptInviteToken(pendingInvite).then(ok => {
         if (!ok) setInviteError('This invite link has expired or was already used. Ask the workspace owner for a new one.');
+      }).finally(() => {
+        setIsProcessingInvite(false);
       });
     }
   }, [user?.uid]);
@@ -530,6 +534,13 @@ export default function App() {
   // ── Setup wizard ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) return;
+
+    // Do not show the wizard if we have a pending invite in localStorage, the URL, or if we are actively processing one
+    const hasPendingInvite = !!localStorage.getItem('crm_pending_invite') || 
+                             new URLSearchParams(window.location.search).has('invite') ||
+                             isProcessingInvite;
+    if (hasPendingInvite) return;
+
     if (isConfigured) {
       if (!workspace.userSettings) return;
       if (!sheetUrl && workspace.isOwner && !workspace.userSettings.hasSeenWizard) {
@@ -542,7 +553,7 @@ export default function App() {
         localStorage.setItem('crm_has_seen_wizard', 'true');
       }
     }
-  }, [sheetUrl, isLoggedIn, workspace.userSettings, workspace.isOwner]);
+  }, [sheetUrl, isLoggedIn, workspace.userSettings, workspace.isOwner, isProcessingInvite]);
 
   // ── Google Sheets: local-mode sync (unchanged) ────────────────────────────
   // In Firebase mode Sheets is export-only — the sync effects below only run
