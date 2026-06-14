@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { DEFAULT_WHATSAPP_TEMPLATES } from '../constants';
 
 const SettingsContext = createContext(null);
@@ -14,6 +14,7 @@ export function SettingsProvider({ workspace, user, children }) {
   const [currency, setCurrency] = useState('USD');
   const [syncMode, setSyncMode] = useState('auto');
   const [whatsappTemplates, setWhatsappTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES);
+  const hydrated = useRef(false);
 
   useEffect(() => {
     if (!workspace.userSettings) return;
@@ -21,6 +22,7 @@ export function SettingsProvider({ workspace, user, children }) {
     if (t) { setTheme(t); document.documentElement.setAttribute('data-theme', t); }
     if (c) setCurrency(c);
     if (sm) setSyncMode(sm);
+    hydrated.current = true;
   }, [workspace.userSettings]);
 
   useEffect(() => {
@@ -31,18 +33,21 @@ export function SettingsProvider({ workspace, user, children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (!hydrated.current) return;
     if (user && workspace.userSettings?.theme !== theme) {
       workspace.saveUserSettings({ theme });
     }
   }, [theme]);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     if (user && workspace.userSettings?.currency !== currency) {
       workspace.saveUserSettings({ currency });
     }
   }, [currency]);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     if (user && workspace.userSettings?.syncMode !== syncMode) {
       workspace.saveUserSettings({ syncMode });
     }

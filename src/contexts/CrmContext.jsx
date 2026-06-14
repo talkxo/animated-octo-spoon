@@ -22,14 +22,17 @@ export function CrmProvider({ user, children }) {
   // Active pipeline
   const [activePipelineId, setActivePipelineId] = useState('agency_pipeline');
   const debounceRef = useRef(null);
+  const pipelineHydrated = useRef(false);
 
   useEffect(() => {
     if (workspace.userSettings?.activePipelineId) {
       setActivePipelineId(workspace.userSettings.activePipelineId);
     }
+    if (workspace.userSettings) pipelineHydrated.current = true;
   }, [workspace.userSettings?.activePipelineId]);
 
   useEffect(() => {
+    if (!pipelineHydrated.current) return;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (user) workspace.saveUserSettings({ activePipelineId });
