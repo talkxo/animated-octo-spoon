@@ -14,40 +14,46 @@ export function SettingsProvider({ workspace, user, children }) {
   const [currency, setCurrency] = useState('USD');
   const [syncMode, setSyncMode] = useState('auto');
   const [whatsappTemplates, setWhatsappTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES);
-  const hydrated = useRef(false);
+  const userHydrated = useRef(false);
+  const wsHydrated = useRef(false);
 
+  // Hydrate user-level settings (theme, syncMode)
   useEffect(() => {
     if (!workspace.userSettings) return;
-    const { theme: t, currency: c, syncMode: sm } = workspace.userSettings;
+    const { theme: t, syncMode: sm } = workspace.userSettings;
     if (t) { setTheme(t); document.documentElement.setAttribute('data-theme', t); }
-    if (c) setCurrency(c);
     if (sm) setSyncMode(sm);
-    hydrated.current = true;
+    userHydrated.current = true;
   }, [workspace.userSettings]);
 
+  // Hydrate workspace-level settings (currency, whatsappTemplates)
   useEffect(() => {
-    if (workspace.wsSettings?.whatsappTemplates) {
-      setWhatsappTemplates(workspace.wsSettings.whatsappTemplates);
-    }
+    if (!workspace.wsSettings) return;
+    if (workspace.wsSettings.currency) setCurrency(workspace.wsSettings.currency);
+    if (workspace.wsSettings.whatsappTemplates) setWhatsappTemplates(workspace.wsSettings.whatsappTemplates);
+    wsHydrated.current = true;
   }, [workspace.wsSettings]);
 
+  // Save user-level: theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    if (!hydrated.current) return;
+    if (!userHydrated.current) return;
     if (user && workspace.userSettings?.theme !== theme) {
       workspace.saveUserSettings({ theme });
     }
   }, [theme]);
 
+  // Save workspace-level: currency
   useEffect(() => {
-    if (!hydrated.current) return;
-    if (user && workspace.userSettings?.currency !== currency) {
-      workspace.saveUserSettings({ currency });
+    if (!wsHydrated.current) return;
+    if (user && workspace.wsSettings?.currency !== currency) {
+      workspace.saveWsSettings({ currency });
     }
   }, [currency]);
 
+  // Save user-level: syncMode
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!userHydrated.current) return;
     if (user && workspace.userSettings?.syncMode !== syncMode) {
       workspace.saveUserSettings({ syncMode });
     }
