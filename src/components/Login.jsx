@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ArrowRight, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowRight, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { isConfigured } from '../firebase';
 
-// Google's official brand colours
 const GOOGLE_BLUE = '#4285F4';
 
 function GoogleIcon() {
@@ -18,18 +17,20 @@ function GoogleIcon() {
   );
 }
 
-export default function Login({ onLogin }) {
+export default function Login() {
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
-  
-  // Local auth fallback states
-  const [username, setUsername] = useState('');
+
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signUpWithEmail, signInWithEmail, resetPassword } = useAuth();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -46,11 +47,8 @@ export default function Login({ onLogin }) {
     setError('');
     setIsLoading(true);
     try {
-      const result = await signInWithGoogle(rememberMe);
-      const user = result.user;
-      onLogin(user.displayName || user.email, rememberMe, user);
+      await signInWithGoogle(rememberMe);
     } catch (err) {
-      console.error('Google sign-in error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Sign-in cancelled. Please try again.');
       } else if (err.code === 'auth/network-request-failed') {
@@ -62,23 +60,71 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const handleCredentialsSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setIsLoading(true);
 
-    const adminUser = import.meta.env.VITE_ADMIN_USERNAME || 'admin';
-    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'pluto2026';
-
-    if (username.trim() === adminUser && password === adminPass) {
-      onLogin(username.trim(), rememberMe, null);
-    } else {
-      setError('Invalid username or password.');
+    try {
+      if (mode === 'register') {
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters.');
+          setIsLoading(false);
+          return;
+        }
+        await signUpWithEmail(email, password, displayName, rememberMe);
+      } else if (mode === 'login') {
+        await signInWithEmail(email, password, rememberMe);
+      } else if (mode === 'reset') {
+        await resetPassword(email);
+        setSuccess('Password reset email sent! Check your inbox.');
+        setIsLoading(false);
+        return;
+      }
+    } catch (err) {
+      const messages = {
+        'auth/email-already-in-use': 'An account with this email already exists.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+        'auth/weak-password': 'Password must be at least 6 characters.',
+        'auth/user-not-found': 'No account found with this email.',
+        'auth/wrong-password': 'Incorrect password.',
+        'auth/invalid-credential': 'Invalid email or password.',
+        'auth/too-many-requests': 'Too many attempts. Please try again later.',
+        'auth/network-request-failed': 'Network error. Check your connection.',
+      };
+      setError(messages[err.code] || 'Authentication failed. Please try again.');
       setIsLoading(false);
     }
   };
 
-  /* ─── Intro loading planet animation (unchanged) ─────────────────────── */
+  if (!isConfigured) {
+    return (
+      <div className="login-page-container">
+        <div className="login-glass-card">
+          <div className="login-logo-section">
+            <h1 className="login-title">Firebase Required</h1>
+            <p className="login-subtitle">
+              Please configure Firebase in your <code>.env</code> file to use Pluto CRM.
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.05)',
+            border: '1px solid rgba(245, 158, 11, 0.2)',
+            borderRadius: '10px',
+            padding: '0.75rem',
+            fontSize: 'var(--text-xs)',
+            color: '#f59e0b',
+            lineHeight: '1.45'
+          }}>
+            Copy <code>.env.example</code> to <code>.env</code> and fill in your Firebase project keys:
+            VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, etc.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isIntroLoading) {
     return (
       <div className="login-intro-container">
@@ -93,11 +139,7 @@ export default function Login({ onLogin }) {
             </defs>
             <circle cx="16" cy="16" r="12" fill="url(#introPlutoPlanetGrad)" />
             <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                fill="#ffffff"
-                opacity="0.9"
-              />
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9" />
             </g>
             <circle cx="16" cy="16" r="12" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
           </svg>
@@ -106,12 +148,9 @@ export default function Login({ onLogin }) {
     );
   }
 
-  /* ─── Main login card (glassmorphism) ─────────────────────────────────── */
   return (
     <div className="login-page-container">
       <div className="login-glass-card">
-
-        {/* Logo Section */}
         <div className="login-logo-section">
           <div className="login-logo-icon">
             <svg viewBox="0 0 32 32" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -124,37 +163,19 @@ export default function Login({ onLogin }) {
               </defs>
               <circle cx="16" cy="16" r="12" fill="url(#loginPlutoPlanetGrad)" />
               <g transform="translate(13, 12.5) scale(0.35) rotate(-20 12 12)">
-                <path
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                  fill="#ffffff"
-                  opacity="0.9"
-                />
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#ffffff" opacity="0.9" />
               </g>
               <circle cx="16" cy="16" r="12" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
             </svg>
           </div>
-          <h1 className="login-title">Welcome to Pluto</h1>
-          <p className="login-subtitle">Sheets Sales CRM &amp; Deals Campaign Manager</p>
+          <h1 className="login-title">
+            {mode === 'reset' ? 'Reset Password' : 'Welcome to Pluto'}
+          </h1>
+          <p className="login-subtitle">
+            {mode === 'reset' ? "Enter your email to receive a reset link" : 'Sheets Sales CRM & Deals Campaign Manager'}
+          </p>
         </div>
 
-        {/* Firebase Config Guide Notice */}
-        {!isConfigured && (
-          <div style={{
-            background: 'rgba(245, 158, 11, 0.05)',
-            border: '1px solid rgba(245, 158, 11, 0.2)',
-            borderRadius: '10px',
-            padding: '0.75rem',
-            marginBottom: '1rem',
-            fontSize: 'var(--text-xs)',
-            color: '#f59e0b',
-            lineHeight: '1.45'
-          }}>
-            <strong>⚙️ Firebase Configuration Notice:</strong><br />
-            To enable team sharing, Google Auth, and real-time syncing, fill in the environment keys in your <code>.env</code> file. The app is currently running in local-offline sandbox mode.
-          </div>
-        )}
-
-        {/* Error Notice */}
         {error && (
           <div className="login-error-banner">
             <AlertCircle size={16} className="login-error-icon" />
@@ -162,11 +183,26 @@ export default function Login({ onLogin }) {
           </div>
         )}
 
-        {isConfigured ? (
-          /* Google Sign-In Mode */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+        {success && (
+          <div style={{
+            background: 'rgba(34, 197, 94, 0.08)',
+            border: '1px solid rgba(34, 197, 94, 0.25)',
+            borderRadius: '10px',
+            padding: '0.6rem 0.75rem',
+            marginBottom: '0.75rem',
+            fontSize: 'var(--text-xs)',
+            color: '#22c55e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            <span>{success}</span>
+          </div>
+        )}
+
+        {mode !== 'reset' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
             <button
-              id="google-signin-btn"
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isLoading}
@@ -188,83 +224,85 @@ export default function Login({ onLogin }) {
                 transition: 'all 0.2s ease',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
               }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.borderColor = GOOGLE_BLUE;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-light)';
-              }}
+              onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.borderColor = GOOGLE_BLUE; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; }}
             >
-              {isLoading ? (
-                <div className="loader-spinner-small" />
-              ) : (
-                <GoogleIcon />
-              )}
-              <span>{isLoading ? 'Signing in…' : 'Continue with Google'}</span>
-              {!isLoading && <ArrowRight size={16} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+              {isLoading ? <div className="loader-spinner-small" /> : <GoogleIcon />}
+              <span>{isLoading ? 'Signing in...' : 'Continue with Google'}</span>
             </button>
 
-            <label className="login-remember-label" style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                className="login-checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                disabled={isLoading}
-              />
-              <span className="login-checkbox-custom" />
-              Keep me signed in
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+              <span>or</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+            </div>
           </div>
-        ) : (
-          /* Fallback Credentials Login Mode */
-          <form onSubmit={handleCredentialsSubmit} className="login-form">
+        )}
+
+        <form onSubmit={handleEmailSubmit} className="login-form">
+          {mode === 'register' && (
             <div className="login-input-group">
               <div className="login-input-wrapper">
                 <User size={18} className="login-field-icon" />
                 <input
-                  id="username-field"
                   type="text"
-                  className={`login-input ${username ? 'has-content' : ''}`}
-                  placeholder="Username"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
+                  className={`login-input ${displayName ? 'has-content' : ''}`}
+                  placeholder="Full Name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   disabled={isLoading}
                 />
-                <label htmlFor="username-field" className="login-input-label">Username</label>
+                <label className="login-input-label">Full Name</label>
               </div>
             </div>
+          )}
 
+          <div className="login-input-group">
+            <div className="login-input-wrapper">
+              <Mail size={18} className="login-field-icon" />
+              <input
+                type="email"
+                className={`login-input ${email ? 'has-content' : ''}`}
+                placeholder="Email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                disabled={isLoading}
+              />
+              <label className="login-input-label">Email</label>
+            </div>
+          </div>
+
+          {mode !== 'reset' && (
             <div className="login-input-group">
               <div className="login-input-wrapper">
                 <Lock size={18} className="login-field-icon" />
                 <input
-                  id="password-field"
                   type={showPassword ? 'text' : 'password'}
                   className={`login-input ${password ? 'has-content' : ''}`}
                   placeholder="Password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                   disabled={isLoading}
                 />
-                <label htmlFor="password-field" className="login-input-label">Password</label>
+                <label className="login-input-label">Password</label>
                 <button
                   type="button"
                   className="login-password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
-                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
+          )}
 
-            <div className="login-remember-row">
+          {mode === 'login' && (
+            <div className="login-remember-row" style={{ justifyContent: 'space-between' }}>
               <label className="login-remember-label">
                 <input
                   type="checkbox"
@@ -274,34 +312,63 @@ export default function Login({ onLogin }) {
                   disabled={isLoading}
                 />
                 <span className="login-checkbox-custom"></span>
-                Keep me logged in
+                Keep me signed in
               </label>
+              <button
+                type="button"
+                onClick={() => { setMode('reset'); setError(''); setSuccess(''); }}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 'var(--text-xs)', cursor: 'pointer', padding: 0 }}
+              >
+                Forgot password?
+              </button>
             </div>
+          )}
 
-            <button
-              type="submit"
-              className="login-btn-submit"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="loader-spinner-small" />
-              ) : (
-                <>
-                  <span>Access Local Dashboard</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-        )}
+          <button type="submit" className="login-btn-submit" disabled={isLoading}>
+            {isLoading ? (
+              <div className="loader-spinner-small" />
+            ) : (
+              <>
+                <span>
+                  {mode === 'login' && 'Sign In'}
+                  {mode === 'register' && 'Create Account'}
+                  {mode === 'reset' && 'Send Reset Link'}
+                </span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </form>
 
-        {/* Footer */}
-        <div className="login-footer">
-          {isConfigured 
-            ? 'Secured via Google OAuth 2.0 · Your data stays in your Google Sheet'
-            : 'Running offline sandbox · Gated by local VITE_ADMIN credentials'}
+        <div style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+          {mode === 'login' && (
+            <span>
+              Don't have an account?{' '}
+              <button type="button" onClick={() => { setMode('register'); setError(''); setSuccess(''); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 600 }}>
+                Sign up
+              </button>
+            </span>
+          )}
+          {mode === 'register' && (
+            <span>
+              Already have an account?{' '}
+              <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess(''); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 600 }}>
+                Sign in
+              </button>
+            </span>
+          )}
+          {mode === 'reset' && (
+            <span>
+              <button type="button" onClick={() => { setMode('login'); setError(''); setSuccess(''); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontWeight: 600 }}>
+                Back to sign in
+              </button>
+            </span>
+          )}
         </div>
 
+        <div className="login-footer">
+          Secured via Firebase Auth
+        </div>
       </div>
     </div>
   );

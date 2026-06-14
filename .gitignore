@@ -127,3 +127,14 @@ Thumbs.db
 # Local build outputs
 dist/
 build/
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Graphify knowledge graph (generated)
+graphify-out/
+src/graphify-out/
+
+# Claude Code local config
+.claude/

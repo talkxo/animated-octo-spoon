@@ -40,7 +40,6 @@ const formatDateSafe = (dateStr) => {
 
 export default function SprintsLogView({
   sprints = [],
-  setSprints,
   deleteSprintFromSheet,
   currency,
   activeSprintId,
@@ -90,8 +89,6 @@ export default function SprintsLogView({
     if (e) e.stopPropagation();
     if (!confirm('Are you sure you want to delete this sprint log? This will remove it permanently.')) return;
     
-    const updatedSprints = sprints.filter(s => String(s.id) !== String(sprintId));
-    setSprints(updatedSprints);
     deleteSprintFromSheet(sprintId);
     
     if (String(activeSprintId) === String(sprintId)) {

@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Database, 
-  MessageSquare, 
-  Settings, 
-  Plus, 
-  Trash2, 
-  Copy, 
-  Check, 
+import {
+  Database,
+  MessageSquare,
+  Settings,
+  Plus,
+  Trash2,
+  Copy,
+  Check,
   HelpCircle,
   FileSpreadsheet,
-  Grid,
   RefreshCw,
   Sliders,
   Trash,
@@ -18,44 +17,32 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  Zap,
-  Target,
   Sun,
-  Moon
+  Moon,
+  Upload,
+  Download
 } from 'lucide-react';
-import { Users, UserMinus, UserCheck, Mail } from 'lucide-react';
+import { Users, UserMinus } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 import { isConfigured } from '../firebase';
+import { useSettings } from '../contexts/SettingsContext';
+import { useCrm } from '../contexts/CrmContext';
+import { useAuth } from '../hooks/useAuth';
 
 export default function SettingsView({
   sheetUrl,
   setSheetUrl,
   syncStatus,
   onSyncClick,
-  pipelines,
-  updatePipelines,
-  whatsappTemplates,
-  setWhatsappTemplates,
   lastSyncTime,
-  currency,
-  setCurrency,
   onOpenWizard,
-  syncMode,
-  setSyncMode,
-  syncQueue = [],
-  clearSyncQueue,
-  flushSyncQueue,
-  theme,
-  toggleTheme,
-  // Firebase workspace props
-  workspace,
-  user,
-  // Firebase mode flags
-  isFirebaseMode = false,
   exportToSheet,
   importFromSheet,
   sheetExportStatus = 'idle',
 }) {
+  const { theme, toggleTheme, currency, updateCurrency, syncMode, updateSyncMode, whatsappTemplates, updateWhatsappTemplates } = useSettings();
+  const { pipelines, updatePipelines, workspace } = useCrm();
+  const { user } = useAuth();
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
@@ -113,6 +100,12 @@ export default function SettingsView({
   const [tempTitle, setTempTitle] = useState('');
   const [tempText, setTempText] = useState('');
   const [isNewTemplate, setIsNewTemplate] = useState(false);
+
+  const startEditingTemplate = (temp) => {
+    setEditingTempId(temp.id);
+    setTempTitle(temp.title);
+    setTempText(temp.text);
+  };
 
   // Apps Script Guide copy handler
   const handleCopyScriptCode = () => {
@@ -249,15 +242,9 @@ export default function SettingsView({
     window.location.reload();
   };
 
-  // Save WhatsApp templates to Firestore workspace or localStorage
   const saveTemplates = useCallback((updated) => {
-    setWhatsappTemplates(updated);
-    if (isConfigured && workspace?.saveWsSettings) {
-      workspace.saveWsSettings({ whatsappTemplates: updated });
-    } else {
-      localStorage.setItem('crm_wa_templates', JSON.stringify(updated));
-    }
-  }, [workspace, setWhatsappTemplates, isConfigured]);
+    updateWhatsappTemplates(updated);
+  }, [updateWhatsappTemplates]);
 
   return (
     <div className="settings-container">
@@ -281,7 +268,7 @@ export default function SettingsView({
                 <select 
                   className="form-select"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  onChange={(e) => updateCurrency(e.target.value)}
                 >
                   <option value="USD">USD ($)</option>
                   <option value="INR">INR (₹)</option>
@@ -506,8 +493,8 @@ export default function SettingsView({
             )}
           </div>
 
-          {/* GOOGLE SHEETS EXPORT / IMPORT (Firebase mode) */}
-          {isFirebaseMode && sheetUrl && (
+          {/* GOOGLE SHEETS EXPORT / IMPORT */}
+          {sheetUrl && (
             <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
               <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
                 <RefreshCw size={16} style={{ color: 'var(--primary)' }} />
@@ -543,128 +530,6 @@ export default function SettingsView({
                 </button>
               </div>
               {lastSyncTime && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Last export: {lastSyncTime}</div>}
-            </div>
-          )}
-
-          {/* LOCAL-FIRST SYNC MANAGER (local/non-Firebase mode only) */}
-          {!isFirebaseMode && sheetUrl && (
-            <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                <RefreshCw size={16} style={{ color: 'var(--primary)' }} />
-                Sync & Queue Configuration
-              </h3>
-              <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                Pluto is designed local-first. All your edits are immediately written to your browser database and work completely offline. Select how changes sync to your Google Sheet:
-              </p>
-
-              <div className="settings-grid">
-                {/* Auto Sync Selection */}
-                <div 
-                  onClick={() => setSyncMode('auto')}
-                  className={`sync-mode-card ${syncMode === 'auto' ? 'sync-mode-card-active' : ''}`}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 'var(--text-title-3)', color: syncMode === 'auto' ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Zap size={14} style={{ color: 'var(--primary)' }} />
-                        Auto background sync
-                      </span>
-                      <input 
-                        type="radio" 
-                        name="syncMode" 
-                        checked={syncMode === 'auto'} 
-                        onChange={() => {}} 
-                        style={{ accentColor: 'var(--primary)' }}
-                      />
-                    </div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.35, margin: 0 }}>
-                      Changes are automatically pushed to your sheet. If you lose connection, edits are queued and retried when online.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Manual Sync Selection */}
-                <div 
-                  onClick={() => setSyncMode('manual')}
-                  className={`sync-mode-card ${syncMode === 'manual' ? 'sync-mode-card-active' : ''}`}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 800, fontSize: 'var(--text-title-3)', color: syncMode === 'manual' ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Target size={14} style={{ color: 'var(--primary)' }} />
-                        Manual batch sync
-                      </span>
-                      <input 
-                        type="radio" 
-                        name="syncMode" 
-                        checked={syncMode === 'manual'} 
-                        onChange={() => {}} 
-                        style={{ accentColor: 'var(--primary)' }}
-                      />
-                    </div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.35, margin: 0 }}>
-                      Buffer your modifications locally. Review, batch-verify, and push edits manually to Google Sheets when you are ready.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sync Queue Dashboard if there are pending items */}
-              {syncQueue.length > 0 && (
-                <div className="sync-queue-container">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div>
-                      <div style={{ fontSize: 'var(--text-body)', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 8px #f59e0b' }}></span>
-                        {syncQueue.length} PENDING LOCAL EDITS
-                      </div>
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                        Edits are buffered locally and have not been pushed to Google Sheets yet.
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        style={{ padding: '0.4rem 0.75rem', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: 'var(--text-xs)', height: '32px' }} 
-                        onClick={clearSyncQueue}
-                      >
-                        Discard Edits
-                      </button>
-                      <button 
-                        type="button" 
-                        className="btn btn-primary" 
-                        style={{ padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', height: '32px', fontSize: 'var(--text-xs)' }} 
-                        onClick={() => flushSyncQueue()}
-                      >
-                        <RefreshCw size={12} />
-                        <span>Push to Sheet</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Collapsible queue item preview */}
-                  <div className="sync-queue-list">
-                    {syncQueue.map((item, idx) => {
-                      let desc = '';
-                      if (item.action === 'saveLead') desc = `Update lead details for "${item.lead.name}"`;
-                      if (item.action === 'deleteLead') desc = `Delete lead ID "${item.id}"`;
-                      if (item.action === 'saveNote') desc = `Add timeline note for lead ID "${item.note.leadId}"`;
-                      if (item.action === 'savePipelines') desc = `Save campaign pipelines configuration`;
-                      if (item.action === 'saveCallingLists') desc = `Save call lists & queue state`;
-                      if (item.action === 'saveSettings') desc = `Save global preferences & WhatsApp templates`;
-                      
-                      return (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.01)', borderRadius: '4px' }}>
-                          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{idx + 1}. {item.action}</span>
-                          <span style={{ color: 'var(--text-muted)' }}>{desc}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

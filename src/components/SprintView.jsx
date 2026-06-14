@@ -66,9 +66,7 @@ export default function SprintView({
   deleteSprintFromSheet = () => {},
   syncCallingLists = () => {},
   sprints = [],
-  setSprints,
   callingLists = [],
-  setCallingLists,
   activeSprintId,
   saveActiveSprintIdToStorage
 }) {
@@ -109,14 +107,9 @@ export default function SprintView({
   const [expandedListIds, setExpandedListIds] = useState({});
   const [isOngoingQueueExpanded, setIsOngoingQueueExpanded] = useState(false);
 
-  // Sync state helpers
-  const saveSprintsToStorage = (updatedSprints) => {
-    setSprints(updatedSprints);
-  };
+  const saveSprintsToStorage = () => {};
 
   const saveCallingListsToStorage = (updatedLists) => {
-    setCallingLists(updatedLists);
-    // Sync all lists to Sheets so they're available on any device
     syncCallingLists(updatedLists);
   };
 
