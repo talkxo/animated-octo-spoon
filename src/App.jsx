@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useSheetSync } from './hooks/useSheetSync';
 import { isConfigured } from './firebase';
@@ -16,6 +16,8 @@ import {
   HelpCircle,
   LogOut,
   History,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import {
   KBarProvider,
@@ -171,6 +173,28 @@ function AppContent({ user, signOutUser }) {
   const [cosmicClicks, setCosmicClicks] = useState([]);
   const [stars, setStars] = useState([]);
   const [isSyncExpanded, setIsSyncExpanded] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('pluto_sidebar') === 'collapsed');
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('pluto_sidebar', next ? 'collapsed' : 'expanded');
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [toggleSidebar]);
 
   // ── Invite handling ─────────────────────────────────────────────────────
   const [inviteError, setInviteError] = useState(null);
@@ -304,6 +328,7 @@ function AppContent({ user, signOutUser }) {
     { id: 'settings', name: 'Go to Settings', shortcut: ['g', ','], perform: () => setActiveTab('settings'), section: 'Navigation', icon: <Settings size={16} /> },
     { id: 'theme', name: `Switch to ${settings.theme === 'dark' ? 'Light' : 'Dark'} Mode`, shortcut: ['t'], perform: settings.toggleTheme, section: 'Actions', icon: settings.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} /> },
     { id: 'new-lead', name: 'Add New Lead', shortcut: ['n'], perform: () => setIsNewLeadOpen(true), section: 'Actions' },
+    { id: 'sidebar', name: `${sidebarCollapsed ? 'Expand' : 'Collapse'} Sidebar`, shortcut: ['/'], perform: toggleSidebar, section: 'Actions', icon: sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} /> },
     { id: 'export', name: 'Export to Google Sheet', perform: sheetSync.exportToSheet, section: 'Actions' },
     { id: 'logout', name: 'Log Out', perform: handleLogout, section: 'Account', icon: <LogOut size={16} /> },
   ];
@@ -311,7 +336,7 @@ function AppContent({ user, signOutUser }) {
   return (
     <KBarProvider actions={kbarActions}>
       <PlutoCommandBar />
-      <div className="app-container" data-theme={settings.theme}>
+      <div className={`app-container ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} data-theme={settings.theme}>
 
         {/* Invite error banner */}
         {inviteError && (
@@ -381,18 +406,22 @@ function AppContent({ user, signOutUser }) {
         </header>
 
         {/* Sidebar nav */}
-        <nav>
-          <button className={`nav-item ${activeTab === 'funnel' ? 'active' : ''}`} onClick={() => setActiveTab('funnel')}>
+        <nav className={sidebarCollapsed ? 'collapsed' : ''}>
+          <button className={`nav-item ${activeTab === 'funnel' ? 'active' : ''}`} onClick={() => setActiveTab('funnel')} title="Funnels">
             <BarChart3 className="nav-icon" /><span className="nav-label">Funnels</span>
           </button>
-          <button className={`nav-item ${activeTab === 'sprint' ? 'active' : ''}`} onClick={() => setActiveTab('sprint')}>
+          <button className={`nav-item ${activeTab === 'sprint' ? 'active' : ''}`} onClick={() => setActiveTab('sprint')} title="Calling Sprint">
             <PhoneCall className="nav-icon" /><span className="nav-label">Calling Sprint</span>
           </button>
-          <button className={`nav-item ${activeTab === 'sprints-log' ? 'active' : ''}`} onClick={() => setActiveTab('sprints-log')}>
+          <button className={`nav-item ${activeTab === 'sprints-log' ? 'active' : ''}`} onClick={() => setActiveTab('sprints-log')} title="Logs">
             <History className="nav-icon" /><span className="nav-label">Logs</span>
           </button>
-          <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+          <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} title="Settings">
             <Settings className="nav-icon" /><span className="nav-label">Settings</span>
+          </button>
+          <button className="nav-item nav-collapse-toggle" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand sidebar (/)' : 'Collapse sidebar (/)'}>
+            {sidebarCollapsed ? <PanelLeftOpen className="nav-icon" /> : <PanelLeftClose className="nav-icon" />}
+            <span className="nav-label">{sidebarCollapsed ? 'Expand' : 'Collapse'}</span>
           </button>
         </nav>
 
