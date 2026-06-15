@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Sliders,
   Trash,
-  Smartphone,
   Shield,
   AlertTriangle,
   ChevronDown,
@@ -20,10 +19,10 @@ import {
   Sun,
   Moon,
   Upload,
-  Download
+  Download,
+  Link2,
 } from 'lucide-react';
 import { Users, UserMinus, UserPlus, Mail, X } from 'lucide-react';
-import QRCode from 'qrcode';
 import appsScriptCode from '../../google-apps-script.js?raw';
 import { isConfigured } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
@@ -47,25 +46,21 @@ export default function SettingsView({
   const [urlInput, setUrlInput] = useState(sheetUrl);
   const [copied, setCopied] = useState(false);
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
-  const [showSheetsConfig, setShowSheetsConfig] = useState(!sheetUrl);
-  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
+  const [showSheetsSetup, setShowSheetsSetup] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(900);
   const [qrKey, setQrKey] = useState(0);
   const [isDangerZoneExpanded, setIsDangerZoneExpanded] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
-  // Inline two-step confirm state for member removal
   const [removingMemberId, setRemovingMemberId] = useState(null);
   const [leavingWorkspace, setLeavingWorkspace] = useState(false);
+  const [showInviteLink, setShowInviteLink] = useState(false);
 
-  // Email invite state
   const [emailInput, setEmailInput] = useState('');
   const [emailAdding, setEmailAdding] = useState(false);
 
-  // Invite-token QR state
   const [inviteToken, setInviteToken] = useState(null);
   const [inviteExpiresAt, setInviteExpiresAt] = useState(null);
-  const [qrDataUrl, setQrDataUrl] = useState(null);
 
-  // Generate invite token — gated on isConfigured only (not sheetUrl)
   const generateInvite = useCallback(async () => {
     if (!workspace?.createInviteToken) return;
     const result = await workspace.createInviteToken();
@@ -77,22 +72,10 @@ export default function SettingsView({
     }
   }, [workspace]);
 
-  // Generate QR code client-side (no external API call)
-  useEffect(() => {
-    if (!inviteToken || !inviteExpiresAt) { setQrDataUrl(null); return; }
-    const url = window.location.origin + window.location.pathname +
-      '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt;
-    QRCode.toDataURL(url, { width: 160, margin: 1 })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(null));
-  }, [inviteToken, inviteExpiresAt]);
-
   useEffect(() => {
     if (isConfigured && workspace?.isOwner) generateInvite();
   }, [isConfigured, workspace?.isOwner]);
 
-  // Countdown timer — auto-regenerate on expiry
-  // Bug fix: was gated on sheetUrl — removed that dependency
   useEffect(() => {
     if (!isConfigured || !workspace?.isOwner) return;
     const timer = setInterval(() => {
@@ -104,13 +87,11 @@ export default function SettingsView({
     return () => clearInterval(timer);
   }, [isConfigured, workspace?.isOwner, generateInvite]);
 
-  // Pipeline editing states
   const [editingPipelineId, setEditingPipelineId] = useState(null);
   const [pipeName, setPipeName] = useState('');
   const [pipeStages, setPipeStages] = useState('');
   const [isNewPipeline, setIsNewPipeline] = useState(false);
-  
-  // WhatsApp editing states
+
   const [editingTempId, setEditingTempId] = useState(null);
   const [tempTitle, setTempTitle] = useState('');
   const [tempText, setTempText] = useState('');
@@ -122,7 +103,6 @@ export default function SettingsView({
     setTempText(temp.text);
   };
 
-  // Apps Script Guide copy handler
   const handleCopyScriptCode = () => {
     navigator.clipboard.writeText(appsScriptCode);
     setCopied(true);
@@ -139,15 +119,13 @@ export default function SettingsView({
     setSheetUrl('');
   };
 
-  // Add / Edit Pipeline
   const handleAddPipeline = () => {
     const newPipe = {
       id: `pipe-${Date.now()}`,
       name: 'New Custom Sales Funnel',
       stages: ['Lead', 'Contacted', 'Proposal Sent', 'Won', 'Lost']
     };
-    const updated = [...pipelines, newPipe];
-    updatePipelines(updated);
+    updatePipelines([...pipelines, newPipe]);
     startEditingPipeline(newPipe);
     setIsNewPipeline(true);
   };
@@ -159,94 +137,58 @@ export default function SettingsView({
   };
 
   const handleSavePipeline = (id) => {
-    const stagesList = pipeStages
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
+    const stagesList = pipeStages.split(',').map(s => s.trim()).filter(Boolean);
     if (!pipeName.trim() || stagesList.length < 2) {
       alert('Pipeline name is required and you must have at least 2 stages!');
       return;
     }
-
-    const updated = pipelines.map(p => {
-      if (p.id === id) {
-        return {
-          ...p,
-          name: pipeName,
-          stages: stagesList
-        };
-      }
-      return p;
-    });
-
-    updatePipelines(updated);
+    updatePipelines(pipelines.map(p => p.id === id ? { ...p, name: pipeName, stages: stagesList } : p));
     setEditingPipelineId(null);
     setIsNewPipeline(false);
   };
 
   const handleCancelPipeline = (id) => {
     if (isNewPipeline) {
-      const updated = pipelines.filter(p => p.id !== id);
-      updatePipelines(updated);
+      updatePipelines(pipelines.filter(p => p.id !== id));
       setIsNewPipeline(false);
     }
     setEditingPipelineId(null);
   };
 
   const handleDeletePipeline = (id) => {
-    if (pipelines.length <= 1) {
-      alert('You must keep at least one pipeline configuration!');
-      return;
-    }
-    if (confirm('Are you sure you want to delete this entire pipeline and all its stages?')) {
-      const updated = pipelines.filter(p => p.id !== id);
-      updatePipelines(updated);
+    if (pipelines.length <= 1) { alert('You must keep at least one pipeline!'); return; }
+    if (confirm('Delete this pipeline and all its stages?')) {
+      updatePipelines(pipelines.filter(p => p.id !== id));
     }
   };
 
+  const saveTemplates = useCallback((updated) => {
+    updateWhatsappTemplates(updated);
+  }, [updateWhatsappTemplates]);
+
   const handleDeleteTemplate = (id) => {
-    if (confirm('Delete this WhatsApp message template?')) {
-      const updated = whatsappTemplates.filter(t => t.id !== id);
-      saveTemplates(updated);
-    }
+    if (confirm('Delete this WhatsApp template?')) saveTemplates(whatsappTemplates.filter(t => t.id !== id));
   };
 
   const handleSaveTemplate = (id) => {
-    if (!tempTitle.trim() || !tempText.trim()) {
-      alert('Template title and text are required!');
-      return;
-    }
-    const updated = whatsappTemplates.map(t =>
-      t.id === id ? { ...t, title: tempTitle, text: tempText } : t
-    );
-    saveTemplates(updated);
+    if (!tempTitle.trim() || !tempText.trim()) { alert('Template title and text are required!'); return; }
+    saveTemplates(whatsappTemplates.map(t => t.id === id ? { ...t, title: tempTitle, text: tempText } : t));
     setEditingTempId(null);
     setIsNewTemplate(false);
   };
 
   const handleCancelTemplate = (id) => {
-    if (isNewTemplate) {
-      const updated = whatsappTemplates.filter(t => t.id !== id);
-      saveTemplates(updated);
-      setIsNewTemplate(false);
-    }
+    if (isNewTemplate) { saveTemplates(whatsappTemplates.filter(t => t.id !== id)); setIsNewTemplate(false); }
     setEditingTempId(null);
   };
 
   const handleAddTemplate = () => {
-    const newTemp = {
-      id: `temp-${Date.now()}`,
-      title: '👋 New Outreach Template',
-      text: 'Hey {{name}}! Hope you are doing great. Looking forward to our call!'
-    };
-    const updated = [...whatsappTemplates, newTemp];
-    saveTemplates(updated);
+    const newTemp = { id: `temp-${Date.now()}`, title: '👋 New Outreach Template', text: 'Hey {{name}}! Hope you are doing great. Looking forward to our call!' };
+    saveTemplates([...whatsappTemplates, newTemp]);
     startEditingTemplate(newTemp);
     setIsNewTemplate(true);
   };
 
-  // Clear / Reset — post-Firebase version disconnects from workspace
   const handleResetData = async () => {
     if (resetConfirmText !== 'RESET') return;
     localStorage.removeItem('crm_leads');
@@ -257,34 +199,29 @@ export default function SettingsView({
     window.location.reload();
   };
 
-  const saveTemplates = useCallback((updated) => {
-    updateWhatsappTemplates(updated);
-  }, [updateWhatsappTemplates]);
+  const cardHeadingStyle = { fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' };
+  const subsectionStyle = { borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' };
 
   return (
     <div className="settings-container">
-      
       <div className="settings-layout-grid">
-        
-        {/* LEFT COLUMN: Preferences, Sync & Sheets Connection */}
-        <div className="settings-layout-column">
-          
-          {/* Preferences & Sync to Mobile */}
-          <div className={`settings-pref-row ${isConfigured && sheetUrl ? 'connected' : ''}`}>
-            {/* Currency & Preferences */}
-            <div className="glass-card settings-card-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                <Settings size={16} style={{ color: 'var(--primary)' }} />
-                Local Preferences
-              </h3>
 
-              <div className="form-group">
-                <label className="form-label">Global Currency</label>
-                <select 
-                  className="form-select"
-                  value={currency}
-                  onChange={(e) => updateCurrency(e.target.value)}
-                >
+        {/* ════════════════════════════════════════════════════════════════
+            LEFT COLUMN — Workspace & Team
+            ════════════════════════════════════════════════════════════════ */}
+        <div className="settings-layout-column">
+
+          {/* ── 1. Workspace Preferences ──────────────────────────────── */}
+          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+            <h3 style={cardHeadingStyle}>
+              <Settings size={16} style={{ color: 'var(--primary)' }} />
+              Workspace
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', alignItems: 'start' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Currency</label>
+                <select className="form-select" value={currency} onChange={(e) => updateCurrency(e.target.value)}>
                   <option value="USD">USD ($)</option>
                   <option value="INR">INR (₹)</option>
                   <option value="EUR">EUR (€)</option>
@@ -296,725 +233,83 @@ export default function SettingsView({
                 </select>
               </div>
 
-              {/* Theme Toggle */}
-              <div className="form-group" style={{ marginTop: '0.85rem' }}>
-                <label className="form-label">Interface Theme</label>
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.5rem 0.75rem',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    color: 'var(--text-main)',
-                    transition: 'border-color 0.2s'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 'var(--text-body)', fontWeight: 600 }}>
-                    {theme === 'dark'
-                      ? <Moon size={15} style={{ color: 'var(--primary)' }} />
-                      : <Sun size={15} style={{ color: '#f59e0b' }} />
-                    }
-                    <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Theme</label>
+                <button type="button" onClick={toggleTheme}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-main)', transition: 'border-color 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--text-body)', fontWeight: 600 }}>
+                    {theme === 'dark' ? <Moon size={14} style={{ color: 'var(--primary)' }} /> : <Sun size={14} style={{ color: '#f59e0b' }} />}
+                    <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
                   </div>
-                  {/* Pill toggle */}
-                  <div style={{
-                    width: '40px',
-                    height: '22px',
-                    borderRadius: '11px',
-                    background: theme === 'dark' ? 'var(--primary)' : 'rgba(245,158,11,0.7)',
-                    position: 'relative',
-                    transition: 'background 0.25s',
-                    flexShrink: 0
-                  }}>
-                    <div style={{
-                      position: 'absolute',
-                      top: '3px',
-                      left: theme === 'dark' ? '20px' : '3px',
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      background: '#fff',
-                      transition: 'left 0.25s',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                    }} />
+                  <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: theme === 'dark' ? 'var(--primary)' : 'rgba(245,158,11,0.7)', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', top: '2.5px', left: theme === 'dark' ? '18px' : '2.5px', width: '15px', height: '15px', borderRadius: '50%', background: '#fff', transition: 'left 0.25s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
                   </div>
                 </button>
               </div>
-
-              {!sheetUrl && (
-                <div className="form-group" style={{ marginTop: '0.85rem' }}>
-                  <label className="form-label">Onboarding Guide</label>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    onClick={onOpenWizard}
-                    style={{ width: '100%', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
-                  >
-                    <HelpCircle size={15} style={{ color: 'var(--primary)' }} />
-                    <span>Launch DIY Setup Wizard</span>
-                  </button>
-                </div>
-              )}
             </div>
 
-            {/* Sync & Invite Column — gated on isConfigured only, NOT sheetUrl */}
-            {isConfigured && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
-                {/* 1. Sync to Mobile Card */}
-                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                    <Smartphone size={16} style={{ color: '#f59e0b' }} />
-                    Sync to Mobile
-                  </h3>
-                  <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                    Scan to open Pluto and sync this CRM workspace directly to your mobile phone or tablet browser:
-                  </p>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block', flexShrink: 0 }}>
-                      {qrDataUrl ? (
-                        <img
-                          key={qrKey}
-                          src={qrDataUrl}
-                          alt="Scan to open on mobile"
-                          style={{ width: '80px', height: '80px', display: 'block' }}
-                        />
-                      ) : (
-                        <div style={{ width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '11px', textAlign: 'center' }}>
-                          Generating…
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                        Requires you to sign in with your Google account. Scan this code using your mobile device's camera.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Add Teammates by Email */}
-                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                    <UserPlus size={16} style={{ color: 'var(--primary)' }} />
-                    Add Teammates by Email
-                  </h3>
-
-                  {workspace?.isOwner ? (
-                    <>
-                      <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                        Add your teammate's Google email. They'll auto-join when they sign in.
-                      </p>
-
-                      <form
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          if (!emailInput.trim() || emailAdding) return;
-                          setEmailAdding(true);
-                          await workspace.addAllowedEmail(emailInput);
-                          setEmailInput('');
-                          setEmailAdding(false);
-                        }}
-                        style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}
-                      >
-                        <input
-                          type="email"
-                          className="form-input"
-                          placeholder="teammate@gmail.com"
-                          value={emailInput}
-                          onChange={(e) => setEmailInput(e.target.value)}
-                          style={{ flex: 1, fontSize: 'var(--text-sm)', padding: '0.45rem 0.6rem' }}
-                          required
-                        />
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={emailAdding}
-                          style={{ padding: '0 0.8rem', fontSize: 'var(--text-xs)', height: '34px', display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}
-                        >
-                          <Plus size={13} />
-                          <span>{emailAdding ? 'Adding...' : 'Add'}</span>
-                        </button>
-                      </form>
-
-                      {workspace.allowedEmails?.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
-                          {workspace.allowedEmails.map((email) => {
-                            const alreadyJoined = workspace.members?.some(m => m.email?.toLowerCase() === email.toLowerCase());
-                            return (
-                              <div
-                                key={email}
-                                style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                  padding: '0.35rem 0.6rem', background: 'rgba(255,255,255,0.02)',
-                                  border: '1px solid var(--border-light)', borderRadius: '6px', gap: '0.5rem',
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-                                  <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {email}
-                                  </span>
-                                  {alreadyJoined && (
-                                    <span style={{ fontSize: 'var(--text-2xs)', color: '#10b981', fontWeight: 600, flexShrink: 0 }}>Joined</span>
-                                  )}
-                                  {!alreadyJoined && (
-                                    <span style={{ fontSize: 'var(--text-2xs)', color: '#f59e0b', fontWeight: 600, flexShrink: 0 }}>Pending</span>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => workspace.removeAllowedEmail(email)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
-                                  title="Remove"
-                                >
-                                  <X size={13} />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
-                      Only the workspace owner can add teammates.
-                    </p>
-                  )}
-                </div>
-
-                {/* 3. Workspace Invite Link (fallback) */}
-                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                    <Users size={16} style={{ color: 'var(--text-muted)' }} />
-                    Invite Link
-                  </h3>
-
-                  {workspace?.isOwner ? (
-                    <>
-                      <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                        Alternative: share a one-time invite link (expires in 15 min).
-                      </p>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.25rem' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="text"
-                            readOnly
-                            className="form-input"
-                            style={{
-                              flex: 1, fontSize: 'var(--text-2xs)', fontFamily: 'monospace',
-                              background: 'rgba(255,255,255,0.03)', padding: '0.45rem 0.6rem',
-                              color: 'var(--text-muted)', borderRadius: '6px',
-                              border: '1px solid var(--border-light)',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                            }}
-                            value={inviteToken ? (
-                              window.location.origin + window.location.pathname +
-                              '?invite=' + inviteToken + '&expiresAt=' + inviteExpiresAt
-                            ) : 'Generating invite link...'}
-                            onClick={(e) => e.target.select()}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            style={{ padding: '0 0.8rem', fontSize: 'var(--text-xs)', height: '32px', display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}
-                            onClick={() => {
-                              if (!inviteToken) return;
-                              const link = window.location.origin + window.location.pathname +
-                                '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt;
-                              navigator.clipboard.writeText(link);
-                              alert('Invite link copied! Send it to your teammate. Expires in 15 minutes.');
-                            }}
-                          >
-                            <Copy size={12} />
-                            <span>Copy</span>
-                          </button>
-                        </div>
-
-                        <div style={{ fontSize: 'var(--text-2xs)', color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
-                          <span>Single-use · Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
-                      You joined this workspace via invite. Only the workspace owner can generate invite links.
-                    </p>
-                  )}
-                </div>
-
-              </div>
+            {!sheetUrl && (
+              <button type="button" className="btn btn-secondary" onClick={onOpenWizard}
+                style={{ width: '100%', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontSize: 'var(--text-xs)' }}>
+                <HelpCircle size={14} style={{ color: 'var(--primary)' }} />
+                <span>Setup Wizard</span>
+              </button>
             )}
           </div>
 
-          {/* GOOGLE SHEETS EXPORT / IMPORT */}
-          {sheetUrl && (
-            <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                <RefreshCw size={16} style={{ color: 'var(--primary)' }} />
-                Google Sheets Backup
-              </h3>
-              <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: '0.5rem 0 0.75rem' }}>
-                Firestore is your live source of truth. Use these to back up to or restore from your Google Sheet:
-              </p>
-              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ flex: 1, minWidth: '120px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: 'var(--text-xs)' }}
-                  onClick={exportToSheet}
-                  disabled={sheetExportStatus === 'exporting'}
-                >
-                  <Upload size={13} />
-                  <span>{sheetExportStatus === 'exporting' ? 'Exporting...' : sheetExportStatus === 'done' ? '✓ Exported!' : 'Export to Sheet'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: '120px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: 'var(--text-xs)' }}
-                  onClick={() => {
-                    if (confirm('This will overwrite your Firestore data with sheet contents. Continue?')) {
-                      importFromSheet();
-                    }
-                  }}
-                  disabled={sheetExportStatus === 'exporting'}
-                >
-                  <Download size={13} />
-                  <span>Import from Sheet</span>
-                </button>
-              </div>
-              {lastSyncTime && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Last export: {lastSyncTime}</div>}
-            </div>
-          )}
-
-          {/* GOOGLE SHEETS BINDER PANEL */}
-          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-            <button
-              type="button"
-              onClick={() => setShowSheetsConfig(!showSheetsConfig)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-main)',
-                fontSize: 'var(--text-title-3)',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                cursor: 'pointer',
-                padding: 0,
-                width: '100%',
-                textAlign: 'left'
-              }}
-            >
-              <Database size={16} style={{ color: 'var(--primary)' }} />
-              <span>Google Sheets Database</span>
-              <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                {showSheetsConfig ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </span>
-            </button>
-
-            {showSheetsConfig && (
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
-                <form onSubmit={handleConnectSheet} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">Google Apps Script Web App Endpoint URL</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        type="url" 
-                        className="form-input" 
-                        placeholder="e.g. https://script.google.com/macros/s/.../exec"
-                        required
-                        style={{ flex: 1, fontSize: 'var(--text-sm)' }}
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                      />
-                      
-                      {sheetUrl ? (
-                        <button type="button" className="btn btn-secondary" onClick={handleDisconnectSheet}>
-                          Clear Url
-                        </button>
-                      ) : (
-                        <button type="submit" className="btn btn-primary" style={{ padding: '0 1.25rem' }}>
-                          Connect
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </form>
-
-                {sheetUrl && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
-                    <div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.15)', borderRadius: '10px', padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: 'var(--text-xs)' }}>
-                        <span style={{ color: '#10b981', fontWeight: 700 }}>✓ CONNECTED: </span>
-                        <span style={{ color: 'var(--text-muted)' }}>Sheet sync active.</span>
-                        {lastSyncTime && <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-dark)', marginTop: '0.15rem' }}>Last synced: {lastSyncTime}</div>}
-                      </div>
-                      <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', height: '32px' }} onClick={onSyncClick}>
-                        <RefreshCw size={12} />
-                        <span>Fetch Now</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* SHEETS BACKEND INSTALL TUTORIAL */}
-                <div className="settings-tutorial-box" style={{ marginTop: '0.75rem' }}>
-                  <div className="section-label" style={{ marginBottom: '0.5rem' }}>
-                    <FileSpreadsheet size={14} />
-                    <span>Setup Google Sheet in 3 minutes</span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    <div>1. Open a blank Google Sheet (create via <code style={{ background: 'rgba(255,255,255,0.05)', padding: '0.1rem 0.3rem', borderRadius: '3px', fontSize: 'var(--text-xs)' }}>sheets.new</code>).</div>
-                    <div>2. Click <strong>Extensions ➔ Apps Script</strong>.</div>
-                    <div>3. Delete default code and paste the Apps Script code.</div>
-                    <div>4. Save the project (Cmd+S).</div>
-                    <div>5. Click <strong>Deploy ➔ New deployment</strong>.</div>
-                    <div>6. Select <strong>Web app</strong> type.</div>
-                    <div>7. Set: <strong>Execute as:</strong> <code style={{ background: 'rgba(255,255,255,0.05)', padding: '0.1rem 0.3rem', borderRadius: '3px', fontSize: 'var(--text-xs)' }}>Me</code> and <strong>Who has access:</strong> <code style={{ background: 'rgba(255,255,255,0.05)', padding: '0.1rem 0.3rem', borderRadius: '3px', fontSize: 'var(--text-xs)' }}>Anyone</code>.</div>
-                    <div>8. Click <strong>Deploy</strong>, authorize permissions, and copy the <strong>Web App URL</strong>.</div>
-                  </div>
-
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ width: '100%', padding: '0.45rem', fontSize: 'var(--text-xs)', marginTop: '0.25rem' }}
-                    onClick={handleCopyScriptCode}
-                  >
-                    {copied ? <Check size={12} style={{ color: '#10b981' }} /> : <Copy size={12} />}
-                    <span>{copied ? 'Code copied!' : 'Copy Apps Script Code'}</span>
-                  </button>
-                </div>
-
-                {/* Security FAQ Section */}
-                <div style={{ marginTop: '0.85rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.85rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowSecurityFaq(!showSecurityFaq)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-main)',
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      cursor: 'pointer',
-                      padding: 0,
-                      width: '100%',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <Shield size={14} style={{ color: 'var(--primary)' }} />
-                    <span>🔒 Security & Privacy FAQ</span>
-                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                      {showSecurityFaq ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </span>
-                  </button>
-                  
-                  {showSecurityFaq && (
-                    <div style={{ 
-                      marginTop: '0.65rem', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '0.75rem', 
-                      fontSize: 'var(--text-xs)', 
-                      color: 'var(--text-muted)', 
-                      lineHeight: 1.45,
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-light)'
-                    }}>
-                      <div>
-                        <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
-                          Is the Google "unverified app" screen safe?
-                        </strong>
-                        Yes. Google displays this standard warning for any custom Apps Script project hosted under your own personal Google Account. Since the script code is 100% open source and runs entirely within your own Google account, it is completely secure to authorize.
-                      </div>
-                      
-                      <div>
-                        <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
-                          Why is access set to "Anyone"?
-                        </strong>
-                        This setting allows Pluto (running locally in your browser) to sync data directly to your Sheet without a middleman server. It eliminates the need for OAuth flows or third-party authentication services.
-                      </div>
-                      
-                      <div>
-                        <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
-                          Can anyone else access my data?
-                        </strong>
-                        Your Web App URL acts as a private API Key. As long as you do not share this URL, your data remains secure. Pluto saves this URL only in your browser's local storage; it is never transmitted to any third-party server. The URL contains a unique, randomly-generated script ID that's essentially impossible to guess.
-                      </div>
-                      
-                      <div>
-                        <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
-                          What files can the script access?
-                        </strong>
-                        The script is restricted to the specific spreadsheet file you created it in. It has no access to any other files in your Google Drive, your Gmail, Contacts, Calendar, or any other Google service.
-                      </div>
-                      
-                      <div>
-                        <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '0.15rem' }}>
-                          What data gets stored in my sheet?
-                        </strong>
-                        The Apps Script automatically creates 6 tables: Leads (your contacts), Notes (conversation history), Pipelines (sales funnel config), Sprints (calling progress), CallingLists (custom uploads), and Settings (app preferences). All data is stored as plain text/JSON in your sheet — you can view and edit everything directly.
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: Pipelines & Customizations */}
-        <div className="settings-layout-column">
-          
-          {/* SALES PIPELINES / FUNNELS EDITOR */}
-          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
-                <Sliders size={16} style={{ color: 'var(--primary)' }} />
-                Pipeline Campaigns & Stages
-              </h3>
-              
-              <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', height: '32px' }} onClick={handleAddPipeline}>
-                <Plus size={13} />
-                <span>Add Pipeline</span>
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {pipelines.map(pipe => (
-                <div 
-                  key={pipe.id} 
-                  className="pipeline-item-box"
-                >
-                  {editingPipelineId === pipe.id ? (
-                    // Editing layout
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Campaign Name</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          style={{ padding: '0.5rem', fontSize: 'var(--text-sm)' }}
-                          value={pipeName}
-                          onChange={(e) => setPipeName(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Pipeline Stages (comma-separated, in order)</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          style={{ padding: '0.5rem', fontSize: 'var(--text-sm)' }}
-                          value={pipeStages}
-                          onChange={(e) => setPipeStages(e.target.value)}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem', alignSelf: 'flex-end' }}>
-                        <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)' }} onClick={() => handleCancelPipeline(pipe.id)}>
-                          Cancel
-                        </button>
-                        <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)' }} onClick={() => handleSavePipeline(pipe.id)}>
-                          Save Funnel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    // View layout
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 'var(--text-title-3)', color: 'var(--text-main)' }}>{pipe.name}</div>
-                        
-                        {/* Stages horizontal pills */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.5rem' }}>
-                          {pipe.stages.map((stage, idx) => (
-                            <span key={idx} className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)', fontSize: 'var(--text-2xs)' }}>
-                              {stage}
-                              {idx < pipe.stages.length - 1 && <span style={{ color: 'var(--primary)', marginLeft: '0.35rem' }}>➔</span>}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <button className="outcome-btn" style={{ padding: '0.3rem 0.5rem', fontSize: 'var(--text-xs)' }} onClick={() => startEditingPipeline(pipe)}>
-                          Edit
-                        </button>
-                        <button className="outcome-btn" style={{ padding: '0.3rem', color: '#ef4444' }} onClick={() => handleDeletePipeline(pipe.id)}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* WHATSAPP TEMPLATES PANEL */}
-          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
-                <MessageSquare size={16} style={{ color: '#10b981' }} />
-                WhatsApp Outreach Slugs Templates
-              </h3>
-              
-              <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', height: '32px', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.2)' }} onClick={handleAddTemplate}>
-                <Plus size={13} />
-                <span>Add Template</span>
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {whatsappTemplates.map(temp => (
-                <div 
-                  key={temp.id} 
-                  className="whatsapp-temp-box"
-                >
-                  {editingTempId === temp.id ? (
-                    // Editing template
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Template Title / Emoji</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          style={{ padding: '0.5rem', fontSize: 'var(--text-sm)' }}
-                          value={tempTitle}
-                          onChange={(e) => setTempTitle(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Message Text (Support tags: {"{{name}}"}, {"{{company}}"}, {"{{value}}"})</label>
-                        <textarea 
-                          className="form-input" 
-                          rows={3}
-                          style={{ padding: '0.5rem', fontSize: 'var(--text-sm)', resize: 'none' }}
-                          value={tempText}
-                          onChange={(e) => setTempText(e.target.value)}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem', alignSelf: 'flex-end' }}>
-                        <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)' }} onClick={() => handleCancelTemplate(temp.id)}>
-                          Cancel
-                        </button>
-                        <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: 'var(--text-xs)', background: '#10b981' }} onClick={() => handleSaveTemplate(temp.id)}>
-                          Save Template
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    // View template
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 'var(--text-title-3)', color: '#10b981' }}>{temp.title}</div>
-                        <div style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', marginTop: '0.35rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
-                          {temp.text}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <button className="outcome-btn" style={{ padding: '0.3rem 0.5rem', fontSize: 'var(--text-xs)' }} onClick={() => startEditingTemplate(temp)}>
-                          Edit
-                        </button>
-                        <button className="outcome-btn" style={{ padding: '0.3rem', color: '#ef4444' }} onClick={() => handleDeleteTemplate(temp.id)}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* TEAM MEMBERS PANEL — gated on isConfigured only, NOT sheetUrl */}
+          {/* ── 2. Team Management (consolidated) ─────────────────────── */}
           {isConfigured && (
             <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
-                  <Users size={16} style={{ color: 'var(--primary)' }} />
-                  Team Members ({workspace?.members?.length || 0})
-                </h3>
-              </div>
+              <h3 style={cardHeadingStyle}>
+                <Users size={16} style={{ color: 'var(--primary)' }} />
+                Team ({workspace?.members?.length || 0})
+              </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.65rem' }}>
-                {/* Empty / loading state */}
+              {/* Members list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {!workspace?.members && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.75rem 0', textAlign: 'center' }}>
-                    Loading members…
-                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.5rem 0', textAlign: 'center' }}>Loading…</div>
                 )}
                 {workspace?.members?.length === 0 && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.75rem 0', textAlign: 'center' }}>
-                    No teammates yet. Share an invite link to add people.
-                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', padding: '0.5rem 0', textAlign: 'center' }}>No teammates yet.</div>
                 )}
 
                 {(workspace?.members || []).map((member) => {
-                  const isMe      = member.uid === user?.uid;
+                  const isMe = member.uid === user?.uid;
                   const isConfirm = removingMemberId === member.uid;
                   return (
-                    <div
-                      key={member.uid}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '8px', gap: '1rem' }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                    <div key={member.uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: '8px', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
                         {member.photoURL ? (
-                          <img src={member.photoURL} alt={member.displayName || member.email} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                          <img src={member.photoURL} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
+                          <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--text-2xs)', flexShrink: 0 }}>
                             {(member.displayName || member.email || '?').charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {member.displayName || member.email.split('@')[0]}
-                            {isMe && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: '0.35rem' }}>(you)</span>}
+                            {isMe && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 'var(--text-2xs)', marginLeft: '0.3rem' }}>(you)</span>}
                           </span>
                           <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</span>
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: 'var(--text-2xs)', padding: '0.15rem 0.45rem', borderRadius: '6px', fontWeight: 700, background: member.role === 'owner' ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', color: member.role === 'owner' ? '#f59e0b' : '#3b82f6', border: member.role === 'owner' ? '1px solid rgba(245,158,11,0.2)' : '1px solid rgba(59,130,246,0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: 'var(--text-2xs)', padding: '0.1rem 0.4rem', borderRadius: '5px', fontWeight: 700, background: member.role === 'owner' ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', color: member.role === 'owner' ? '#f59e0b' : '#3b82f6', border: member.role === 'owner' ? '1px solid rgba(245,158,11,0.2)' : '1px solid rgba(59,130,246,0.2)' }}>
                           {member.role === 'owner' ? 'Owner' : 'Member'}
                         </span>
-
-                        {/* Owner: inline two-step confirm before removing (mobile-friendly) */}
                         {workspace?.isOwner && !isMe && (
                           isConfirm ? (
-                            <div style={{ display: 'flex', gap: '0.35rem' }}>
-                              <button type="button" className="outcome-btn" style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-2xs)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
-                                onClick={async () => { await workspace.removeMember(member.uid); setRemovingMemberId(null); }}>
-                                Confirm remove
-                              </button>
-                              <button type="button" className="outcome-btn" style={{ padding: '0.25rem 0.5rem', fontSize: 'var(--text-2xs)' }} onClick={() => setRemovingMemberId(null)}>Cancel</button>
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              <button type="button" className="outcome-btn" style={{ padding: '0.2rem 0.4rem', fontSize: 'var(--text-2xs)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                                onClick={async () => { await workspace.removeMember(member.uid); setRemovingMemberId(null); }}>Remove</button>
+                              <button type="button" className="outcome-btn" style={{ padding: '0.2rem 0.4rem', fontSize: 'var(--text-2xs)' }} onClick={() => setRemovingMemberId(null)}>Cancel</button>
                             </div>
                           ) : (
-                            <button type="button" className="outcome-btn" style={{ padding: '0.3rem', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                              title="Remove from workspace" onClick={() => setRemovingMemberId(member.uid)}>
-                              <UserMinus size={13} />
+                            <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
+                              title="Remove" onClick={() => setRemovingMemberId(member.uid)}>
+                              <UserMinus size={12} />
                             </button>
                           )
                         )}
@@ -1023,122 +318,368 @@ export default function SettingsView({
                   );
                 })}
 
-                {/* Leave Workspace — visible to non-owners only */}
-                {isConfigured && !workspace?.isOwner && (
-                  <div style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-light)' }}>
+                {!workspace?.isOwner && (
+                  <div style={{ paddingTop: '0.35rem' }}>
                     {leavingWorkspace ? (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', flex: 1 }}>Leave this workspace? You'll lose access to all shared data.</span>
-                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.3rem 0.6rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444' }}
-                          onClick={async () => { await workspace.leaveWorkspace(); setLeavingWorkspace(false); }}>
-                          Confirm Leave
-                        </button>
-                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.3rem 0.6rem' }} onClick={() => setLeavingWorkspace(false)}>Cancel</button>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: 'var(--text-xs)' }}>
+                        <span style={{ color: 'var(--text-muted)', flex: 1 }}>Leave? You'll lose access.</span>
+                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-2xs)', padding: '0.25rem 0.5rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444' }}
+                          onClick={async () => { await workspace.leaveWorkspace(); setLeavingWorkspace(false); }}>Confirm</button>
+                        <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-2xs)', padding: '0.25rem 0.5rem' }} onClick={() => setLeavingWorkspace(false)}>Cancel</button>
                       </div>
                     ) : (
-                      <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-xs)', padding: '0.4rem 0.75rem', borderColor: 'rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-2xs)', padding: '0.3rem 0.6rem', borderColor: 'rgba(239,68,68,0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                         onClick={() => setLeavingWorkspace(true)}>
-                        <UserMinus size={13} /> Leave Workspace
+                        <UserMinus size={11} /> Leave Workspace
                       </button>
                     )}
                   </div>
                 )}
               </div>
+
+              {/* Add by email (owner only) */}
+              {workspace?.isOwner && (
+                <div style={subsectionStyle}>
+                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <UserPlus size={13} style={{ color: 'var(--primary)' }} />
+                    Add by Email
+                  </div>
+                  <p style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                    Enter a Google email — they'll auto-join when they sign in.
+                  </p>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!emailInput.trim() || emailAdding) return;
+                    setEmailAdding(true);
+                    await workspace.addAllowedEmail(emailInput);
+                    setEmailInput('');
+                    setEmailAdding(false);
+                  }} style={{ display: 'flex', gap: '0.4rem' }}>
+                    <input type="email" className="form-input" placeholder="name@gmail.com" value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)} style={{ flex: 1, fontSize: 'var(--text-xs)', padding: '0.4rem 0.55rem' }} required />
+                    <button type="submit" className="btn btn-primary" disabled={emailAdding}
+                      style={{ padding: '0 0.7rem', fontSize: 'var(--text-2xs)', height: '32px', display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
+                      <Plus size={12} />
+                      <span>{emailAdding ? '...' : 'Add'}</span>
+                    </button>
+                  </form>
+
+                  {workspace.allowedEmails?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {workspace.allowedEmails.map((email) => {
+                        const joined = workspace.members?.some(m => m.email?.toLowerCase() === email.toLowerCase());
+                        return (
+                          <div key={email} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                            padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid var(--border-light)', borderRadius: '20px', fontSize: 'var(--text-2xs)',
+                          }}>
+                            <Mail size={10} style={{ color: 'var(--text-muted)' }} />
+                            <span style={{ color: 'var(--text-main)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</span>
+                            <span style={{ color: joined ? '#10b981' : '#f59e0b', fontWeight: 600 }}>{joined ? 'Joined' : 'Pending'}</span>
+                            <button type="button" onClick={() => workspace.removeAllowedEmail(email)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', display: 'flex', color: 'var(--text-muted)', marginLeft: '0.1rem' }}>
+                              <X size={11} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Invite link & QR (owner, collapsible) */}
+              {workspace?.isOwner && (
+                <div style={subsectionStyle}>
+                  <button type="button" onClick={() => setShowInviteLink(!showInviteLink)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: 'var(--text-xs)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}>
+                    <Link2 size={13} style={{ color: 'var(--text-muted)' }} />
+                    <span>Invite Link & QR Code</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                      {showInviteLink ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </span>
+                  </button>
+
+                  {showInviteLink && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.15rem' }}>
+                      <p style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        Share this single-use link or scan the QR. Expires in 15 min.
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                        <div style={{ background: '#fff', padding: '5px', borderRadius: '6px', flexShrink: 0 }}>
+                          {inviteToken ? (
+                            <img key={qrKey}
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                                window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt
+                              )}`}
+                              alt="QR" style={{ width: '64px', height: '64px', display: 'block' }} />
+                          ) : (
+                            <div style={{ width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '10px' }}>...</div>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                            <input type="text" readOnly className="form-input"
+                              style={{ flex: 1, fontSize: '10px', fontFamily: 'monospace', background: 'rgba(255,255,255,0.03)', padding: '0.35rem 0.5rem', color: 'var(--text-muted)', borderRadius: '6px', border: '1px solid var(--border-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              value={inviteToken ? window.location.origin + window.location.pathname + '?invite=' + inviteToken + '&expiresAt=' + inviteExpiresAt : 'Generating...'}
+                              onClick={(e) => e.target.select()} />
+                            <button type="button" className="btn btn-secondary"
+                              style={{ padding: '0 0.6rem', fontSize: 'var(--text-2xs)', height: '28px', display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}
+                              onClick={() => {
+                                if (!inviteToken) return;
+                                navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt);
+                                alert('Invite link copied!');
+                              }}>
+                              <Copy size={10} /> Copy
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: '#ef4444' }} />
+                            Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!workspace?.isOwner && (
+                <p style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4, borderTop: '1px solid var(--border-light)', paddingTop: '0.6rem' }}>
+                  Only the workspace owner can invite teammates.
+                </p>
+              )}
             </div>
           )}
 
-        {/* 5. DANGER RESET SYSTEM ACTIONS */}
-        <div 
-          className="glass-card" 
-          style={{ 
-            borderColor: 'rgba(239, 68, 68, 0.2)', 
-            background: 'rgba(239, 68, 68, 0.02)', 
-            padding: '1rem', 
-            transition: 'all 0.3s ease'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', color: '#ef4444' }}>
-                <AlertTriangle size={16} />
-                Danger Zone
+          {/* ── 3. Danger Zone ────────────────────────────────────────── */}
+          <div className="glass-card" style={{ borderColor: 'rgba(239,68,68,0.15)', background: 'rgba(239,68,68,0.02)', padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0, color: '#ef4444', fontSize: 'var(--text-sm)' }}>
+                <AlertTriangle size={14} /> Danger Zone
               </h3>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>Reset local CRM cache. Your Google Sheet data is never deleted.</p>
+              <button className="btn btn-secondary" style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444', padding: '0.3rem 0.65rem', fontSize: 'var(--text-2xs)' }}
+                onClick={() => { setIsDangerZoneExpanded(!isDangerZoneExpanded); setResetConfirmText(''); }}>
+                {isDangerZoneExpanded ? 'Hide' : 'Expand'}
+              </button>
             </div>
-            
-            <button 
-              className="btn btn-secondary" 
-              style={{ 
-                borderColor: 'rgba(239, 68, 68, 0.3)', 
-                color: '#ef4444',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.35rem', 
-                padding: '0.4rem 0.8rem',
-                fontSize: 'var(--text-xs)'
-              }} 
-              onClick={() => {
-                setIsDangerZoneExpanded(!isDangerZoneExpanded);
-                setResetConfirmText('');
-              }}
-            >
-              {isDangerZoneExpanded ? 'Hide actions' : 'Reveal actions'}
-            </button>
+            {isDangerZoneExpanded && (
+              <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(239,68,68,0.1)' }}>
+                <p style={{ margin: '0 0 0.6rem', fontSize: 'var(--text-2xs)', color: '#f87171', lineHeight: 1.4 }}>
+                  Clears local browser cache. Firestore and Sheet data are preserved.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.65rem', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '180px' }}>
+                    <label className="form-label" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+                      Type <strong style={{ color: '#ef4444' }}>RESET</strong> to confirm:
+                    </label>
+                    <input type="text" className="form-input" placeholder="RESET"
+                      style={{ borderColor: resetConfirmText === 'RESET' ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.2)', fontSize: 'var(--text-xs)' }}
+                      value={resetConfirmText} onChange={(e) => setResetConfirmText(e.target.value)} />
+                  </div>
+                  <button className="btn btn-danger" disabled={resetConfirmText !== 'RESET'}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.45rem 1rem', opacity: resetConfirmText === 'RESET' ? 1 : 0.5, cursor: resetConfirmText === 'RESET' ? 'pointer' : 'not-allowed' }}
+                    onClick={handleResetData}>
+                    <Trash size={13} /> Reset
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ════════════════════════════════════════════════════════════════
+            RIGHT COLUMN — CRM & Data
+            ════════════════════════════════════════════════════════════════ */}
+        <div className="settings-layout-column">
+
+          {/* ── 4. Sales Pipelines ────────────────────────────────────── */}
+          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                <Sliders size={16} style={{ color: 'var(--primary)' }} />
+                Sales Pipelines
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: 'var(--text-2xs)', height: '28px' }} onClick={handleAddPipeline}>
+                <Plus size={12} /> Add
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {pipelines.map(pipe => (
+                <div key={pipe.id} className="pipeline-item-box">
+                  {editingPipelineId === pipe.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>Name</label>
+                        <input type="text" className="form-input" style={{ padding: '0.4rem', fontSize: 'var(--text-xs)' }} value={pipeName} onChange={(e) => setPipeName(e.target.value)} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>Stages (comma-separated)</label>
+                        <input type="text" className="form-input" style={{ padding: '0.4rem', fontSize: 'var(--text-xs)' }} value={pipeStages} onChange={(e) => setPipeStages(e.target.value)} />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignSelf: 'flex-end' }}>
+                        <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-2xs)' }} onClick={() => handleCancelPipeline(pipe.id)}>Cancel</button>
+                        <button className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-2xs)' }} onClick={() => handleSavePipeline(pipe.id)}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text-main)' }}>{pipe.name}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem' }}>
+                          {pipe.stages.map((stage, idx) => (
+                            <span key={idx} className="deal-tag" style={{ background: 'var(--primary-glow)', color: 'var(--text-main)', fontSize: 'var(--text-2xs)' }}>
+                              {stage}{idx < pipe.stages.length - 1 && <span style={{ color: 'var(--primary)', marginLeft: '0.3rem' }}>→</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <button className="outcome-btn" style={{ padding: '0.25rem 0.45rem', fontSize: 'var(--text-2xs)' }} onClick={() => startEditingPipeline(pipe)}>Edit</button>
+                        <button className="outcome-btn" style={{ padding: '0.25rem', color: '#ef4444' }} onClick={() => handleDeletePipeline(pipe.id)}><Trash2 size={12} /></button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {isDangerZoneExpanded && (
-            <div 
-              style={{ 
-                marginTop: '1rem', 
-                paddingTop: '1rem', 
-                borderTop: '1px solid rgba(239, 68, 68, 0.1)'
-              }}
-            >
-              <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem' }}>
-                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#f87171', lineHeight: '1.4' }}>
-                  <strong>WARNING:</strong> This clears your local browser cache (leads, notes, pipelines, templates). <strong>Your Google Sheet data is preserved</strong> and will re-sync on next load. You will remain signed in.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
-                <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '220px' }}>
-                  <label className="form-label" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                    To confirm, type <strong style={{ color: '#ef4444' }}>RESET</strong> below:
-                  </label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Type RESET to confirm"
-                    style={{ 
-                      borderColor: resetConfirmText === 'RESET' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.2)',
-                      fontSize: 'var(--text-sm)'
-                    }}
-                    value={resetConfirmText}
-                    onChange={(e) => setResetConfirmText(e.target.value)}
-                  />
+          {/* ── 5. WhatsApp Templates ─────────────────────────────────── */}
+          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+              <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                <MessageSquare size={16} style={{ color: '#10b981' }} />
+                WhatsApp Templates
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: 'var(--text-2xs)', height: '28px', color: '#10b981', borderColor: 'rgba(16,185,129,0.2)' }} onClick={handleAddTemplate}>
+                <Plus size={12} /> Add
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {whatsappTemplates.map(temp => (
+                <div key={temp.id} className="whatsapp-temp-box">
+                  {editingTempId === temp.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>Title</label>
+                        <input type="text" className="form-input" style={{ padding: '0.4rem', fontSize: 'var(--text-xs)' }} value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: 'var(--text-2xs)' }}>Message (tags: {"{{name}}"}, {"{{company}}"}, {"{{value}}"})</label>
+                        <textarea className="form-input" rows={3} style={{ padding: '0.4rem', fontSize: 'var(--text-xs)', resize: 'none' }} value={tempText} onChange={(e) => setTempText(e.target.value)} />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignSelf: 'flex-end' }}>
+                        <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-2xs)' }} onClick={() => handleCancelTemplate(temp.id)}>Cancel</button>
+                        <button className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: 'var(--text-2xs)', background: '#10b981' }} onClick={() => handleSaveTemplate(temp.id)}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: '#10b981' }}>{temp.title}</div>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: '0.25rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{temp.text}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <button className="outcome-btn" style={{ padding: '0.25rem 0.45rem', fontSize: 'var(--text-2xs)' }} onClick={() => startEditingTemplate(temp)}>Edit</button>
+                        <button className="outcome-btn" style={{ padding: '0.25rem', color: '#ef4444' }} onClick={() => handleDeleteTemplate(temp.id)}><Trash2 size={12} /></button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <button 
-                  className="btn btn-danger" 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.35rem', 
-                    padding: '0.5rem 1.25rem',
-                    opacity: resetConfirmText === 'RESET' ? 1 : 0.5,
-                    cursor: resetConfirmText === 'RESET' ? 'pointer' : 'not-allowed'
-                  }} 
-                  disabled={resetConfirmText !== 'RESET'}
-                  onClick={handleResetData}
-                >
-                  <Trash size={14} />
-                  <span>Reset Local Cache</span>
+          {/* ── 6. Google Sheets (consolidated) ───────────────────────── */}
+          <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+            <h3 style={cardHeadingStyle}>
+              <Database size={16} style={{ color: 'var(--primary)' }} />
+              Google Sheets
+              {sheetUrl && (
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-2xs)', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  Connected
+                </span>
+              )}
+            </h3>
+
+            <form onSubmit={handleConnectSheet} style={{ display: 'flex', gap: '0.4rem' }}>
+              <input type="url" className="form-input" placeholder="Apps Script Web App URL"
+                required style={{ flex: 1, fontSize: 'var(--text-xs)', padding: '0.4rem 0.55rem' }}
+                value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
+              {sheetUrl ? (
+                <button type="button" className="btn btn-secondary" style={{ fontSize: 'var(--text-2xs)', padding: '0 0.65rem', height: '32px' }} onClick={handleDisconnectSheet}>Disconnect</button>
+              ) : (
+                <button type="submit" className="btn btn-primary" style={{ fontSize: 'var(--text-2xs)', padding: '0 0.8rem', height: '32px' }}>Connect</button>
+              )}
+            </form>
+
+            {sheetUrl && (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-primary"
+                  style={{ flex: 1, minWidth: '110px', padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', fontSize: 'var(--text-2xs)' }}
+                  onClick={exportToSheet} disabled={sheetExportStatus === 'exporting'}>
+                  <Upload size={12} />
+                  {sheetExportStatus === 'exporting' ? 'Exporting...' : sheetExportStatus === 'done' ? 'Exported!' : 'Export to Sheet'}
+                </button>
+                <button type="button" className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: '110px', padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', fontSize: 'var(--text-2xs)' }}
+                  onClick={() => { if (confirm('Overwrite Firestore with sheet data?')) importFromSheet(); }}
+                  disabled={sheetExportStatus === 'exporting'}>
+                  <Download size={12} /> Import from Sheet
                 </button>
               </div>
+            )}
+            {sheetUrl && lastSyncTime && (
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Last sync: {lastSyncTime}</div>
+            )}
+
+            <div style={subsectionStyle}>
+              <button type="button" onClick={() => setShowSheetsSetup(!showSheetsSetup)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: 'var(--text-xs)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}>
+                <FileSpreadsheet size={13} style={{ color: 'var(--text-muted)' }} />
+                <span>Setup Guide</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                  {showSheetsSetup ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </span>
+              </button>
+
+              {showSheetsSetup && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.15rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    <div>1. Open a blank Google Sheet (<code style={{ background: 'rgba(255,255,255,0.05)', padding: '0.1rem 0.25rem', borderRadius: '3px', fontSize: '10px' }}>sheets.new</code>)</div>
+                    <div>2. <strong>Extensions → Apps Script</strong></div>
+                    <div>3. Delete default code, paste the script below</div>
+                    <div>4. Save (Cmd+S), then <strong>Deploy → New deployment</strong></div>
+                    <div>5. Type: <strong>Web app</strong>, Execute as: <strong>Me</strong>, Access: <strong>Anyone</strong></div>
+                    <div>6. Deploy, authorize, copy the <strong>Web App URL</strong></div>
+                  </div>
+                  <button className="btn btn-secondary" style={{ width: '100%', padding: '0.35rem', fontSize: 'var(--text-2xs)' }} onClick={handleCopyScriptCode}>
+                    {copied ? <Check size={11} style={{ color: '#10b981' }} /> : <Copy size={11} />}
+                    <span>{copied ? 'Copied!' : 'Copy Apps Script Code'}</span>
+                  </button>
+
+                  <button type="button" onClick={() => setShowSecurityFaq(!showSecurityFaq)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', padding: '0.25rem 0 0', width: '100%', textAlign: 'left' }}>
+                    <Shield size={11} /> Security & Privacy FAQ
+                    <span style={{ marginLeft: 'auto' }}>{showSecurityFaq ? <ChevronUp size={11} /> : <ChevronDown size={11} />}</span>
+                  </button>
+                  {showSecurityFaq && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', lineHeight: 1.4, background: 'rgba(255,255,255,0.01)', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                      <div><strong style={{ color: 'var(--text-main)' }}>Is the "unverified app" warning safe?</strong><br />Yes — Google shows this for any personal Apps Script. The code is open-source and runs in your own account.</div>
+                      <div><strong style={{ color: 'var(--text-main)' }}>Why "Anyone" access?</strong><br />Lets Pluto sync directly to your Sheet without a middleman server or OAuth.</div>
+                      <div><strong style={{ color: 'var(--text-main)' }}>Can anyone see my data?</strong><br />Your Web App URL is a private key. It's stored only in your browser, never sent to third parties.</div>
+                      <div><strong style={{ color: 'var(--text-main)' }}>What can the script access?</strong><br />Only the specific spreadsheet you created it in. No Drive, Gmail, or other Google services.</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
         </div>
-      </div>
       </div>
     </div>
   );
