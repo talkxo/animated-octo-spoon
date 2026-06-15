@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { DEFAULT_WHATSAPP_TEMPLATES } from '../constants';
 
 const SettingsContext = createContext(null);
@@ -14,62 +14,44 @@ export function SettingsProvider({ workspace, user, children }) {
   const [currency, setCurrency] = useState('USD');
   const [syncMode, setSyncMode] = useState('auto');
   const [whatsappTemplates, setWhatsappTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES);
-  const userHydrated = useRef(false);
-  const wsHydrated = useRef(false);
 
-  // Hydrate user-level settings (theme, syncMode)
+  // Hydrate from Firestore — read only, never write
   useEffect(() => {
     if (!workspace.userSettings) return;
     const { theme: t, syncMode: sm } = workspace.userSettings;
     if (t) { setTheme(t); document.documentElement.setAttribute('data-theme', t); }
     if (sm) setSyncMode(sm);
-    userHydrated.current = true;
   }, [workspace.userSettings]);
 
-  // Hydrate workspace-level settings (currency, whatsappTemplates)
   useEffect(() => {
     if (!workspace.wsSettings) return;
     if (workspace.wsSettings.currency) setCurrency(workspace.wsSettings.currency);
     if (workspace.wsSettings.whatsappTemplates) setWhatsappTemplates(workspace.wsSettings.whatsappTemplates);
-    wsHydrated.current = true;
   }, [workspace.wsSettings]);
 
-  // Save user-level: theme
+  // Keep DOM theme attribute in sync
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    if (!userHydrated.current) return;
-    if (user && workspace.userSettings?.theme !== theme) {
-      workspace.saveUserSettings({ theme });
-    }
   }, [theme]);
 
-  // Save workspace-level: currency
-  useEffect(() => {
-    if (!wsHydrated.current) return;
-    if (user && workspace.wsSettings?.currency !== currency) {
-      workspace.saveWsSettings({ currency });
-    }
-  }, [currency]);
-
-  // Save user-level: syncMode
-  useEffect(() => {
-    if (!userHydrated.current) return;
-    if (user && workspace.userSettings?.syncMode !== syncMode) {
-      workspace.saveUserSettings({ syncMode });
-    }
-  }, [syncMode]);
-
+  // All writes happen explicitly in the update callbacks — no save effects
   const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  }, []);
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      workspace.saveUserSettings({ theme: next });
+      return next;
+    });
+  }, [workspace]);
 
   const updateCurrency = useCallback((c) => {
     setCurrency(c);
-  }, []);
+    workspace.saveWsSettings({ currency: c });
+  }, [workspace]);
 
   const updateSyncMode = useCallback((sm) => {
     setSyncMode(sm);
-  }, []);
+    workspace.saveUserSettings({ syncMode: sm });
+  }, [workspace]);
 
   const updateWhatsappTemplates = useCallback(async (templates) => {
     setWhatsappTemplates(templates);

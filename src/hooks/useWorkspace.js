@@ -34,7 +34,7 @@ import { db, isConfigured } from '../firebase';
  *
  *   users/{uid}
  *     workspaceId: string | null
- *     settings: { theme, currency, syncMode, activePipelineId, hasSeenWizard }
+ *     settings: { theme, syncMode, activePipelineId, hasSeenWizard }
  */
 
 // Fields we track at per-field granularity for merge resolution
@@ -128,7 +128,10 @@ export function useWorkspace(user) {
             createdBy: user.uid,
             createdAt: serverTimestamp(),
             lastSyncAt: null,
-            settings: { whatsappTemplates: migrated.whatsappTemplates || [] },
+            settings: {
+              currency: migrated.currency || 'USD',
+              whatsappTemplates: migrated.whatsappTemplates || [],
+            },
           });
 
           await setDoc(
@@ -146,7 +149,6 @@ export function useWorkspace(user) {
             workspaceId: nextWorkspaceId,
             settings: {
               theme:       migrated.theme    || 'dark',
-              currency:    migrated.currency || 'USD',
               syncMode:    migrated.syncMode || 'auto',
             },
           });
@@ -520,12 +522,11 @@ export function useWorkspace(user) {
         joinedAt:    serverTimestamp(),
       });
 
-      // Writing workspaceId triggers the onSnapshot in bootstrap to resolve wsLoading
       await setDoc(
         doc(db, 'users', user.uid),
         {
           workspaceId: nextWorkspaceId,
-          settings: { theme: 'dark', currency: 'USD', syncMode: 'auto' },
+          settings: { theme: 'dark', syncMode: 'auto' },
         },
         { merge: true }
       );

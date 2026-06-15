@@ -239,8 +239,8 @@ function AppContent({ user, signOutUser }) {
     const pendingInvite = localStorage.getItem('crm_pending_invite');
     if (pendingInvite) {
       setIsProcessingInvite(true);
-      localStorage.removeItem('crm_pending_invite');
       workspace.acceptInviteToken(pendingInvite).then(ok => {
+        localStorage.removeItem('crm_pending_invite');
         if (!ok) setInviteError('This invite link has expired or was already used. Ask the workspace owner for a new one.');
       }).finally(() => setIsProcessingInvite(false));
     }

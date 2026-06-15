@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { DEFAULT_PIPELINES } from '../constants';
 
@@ -19,25 +19,19 @@ export function CrmProvider({ user, children }) {
   const sprints = workspace.sprints || [];
   const callingLists = workspace.callingLists || [];
 
-  // Active pipeline
-  const [activePipelineId, setActivePipelineId] = useState('agency_pipeline');
-  const debounceRef = useRef(null);
-  const pipelineHydrated = useRef(false);
+  // Active pipeline — hydrate from Firestore, save explicitly on change
+  const [activePipelineId, setActivePipelineIdLocal] = useState('agency_pipeline');
 
   useEffect(() => {
     if (workspace.userSettings?.activePipelineId) {
-      setActivePipelineId(workspace.userSettings.activePipelineId);
+      setActivePipelineIdLocal(workspace.userSettings.activePipelineId);
     }
-    if (workspace.userSettings) pipelineHydrated.current = true;
   }, [workspace.userSettings?.activePipelineId]);
 
-  useEffect(() => {
-    if (!pipelineHydrated.current) return;
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (user) workspace.saveUserSettings({ activePipelineId });
-    }, 1500);
-  }, [activePipelineId]);
+  const setActivePipelineId = useCallback((id) => {
+    setActivePipelineIdLocal(id);
+    if (user) workspace.saveUserSettings({ activePipelineId: id });
+  }, [user, workspace]);
 
   const activePipeline = pipelines.find(p => String(p.id) === String(activePipelineId)) || pipelines[0];
 
