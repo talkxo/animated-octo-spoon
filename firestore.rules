@@ -19,7 +19,10 @@ service cloud.firestore {
     // ── Workspace ─────────────────────────────────────────────────────────────
 
     match /workspaces/{workspaceId} {
-      allow read:   if isMember(workspaceId);
+      allow read:   if isMember(workspaceId)
+                    || (request.auth != null
+                        && 'allowedEmails' in resource.data
+                        && request.auth.token.email in resource.data.allowedEmails);
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid;
       allow update: if isMember(workspaceId);

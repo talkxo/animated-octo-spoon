@@ -22,7 +22,7 @@ import {
   Upload,
   Download
 } from 'lucide-react';
-import { Users, UserMinus } from 'lucide-react';
+import { Users, UserMinus, UserPlus, Mail, X } from 'lucide-react';
 import appsScriptCode from '../../google-apps-script.js?raw';
 import { isConfigured } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
@@ -54,6 +54,10 @@ export default function SettingsView({
   // Inline two-step confirm state for member removal
   const [removingMemberId, setRemovingMemberId] = useState(null);
   const [leavingWorkspace, setLeavingWorkspace] = useState(false);
+
+  // Email invite state
+  const [emailInput, setEmailInput] = useState('');
+  const [emailAdding, setEmailAdding] = useState(false);
 
   // Invite-token QR state
   const [inviteToken, setInviteToken] = useState(null);
@@ -389,102 +393,154 @@ export default function SettingsView({
                   </div>
                 </div>
 
-                {/* 2. Workspace Invite Link Card */}
+                {/* 2. Add Teammates by Email */}
                 <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
                   <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                    <Users size={16} style={{ color: 'var(--primary)' }} />
-                    Workspace Invite Link
+                    <UserPlus size={16} style={{ color: 'var(--primary)' }} />
+                    Add Teammates by Email
                   </h3>
-                  
+
                   {workspace?.isOwner ? (
                     <>
                       <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                        Copy and share this invite link to add teammates to your collaborative workspace:
+                        Add your teammate's Google email. They'll auto-join when they sign in.
                       </p>
-                      
+
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!emailInput.trim() || emailAdding) return;
+                          setEmailAdding(true);
+                          await workspace.addAllowedEmail(emailInput);
+                          setEmailInput('');
+                          setEmailAdding(false);
+                        }}
+                        style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}
+                      >
+                        <input
+                          type="email"
+                          className="form-input"
+                          placeholder="teammate@gmail.com"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          style={{ flex: 1, fontSize: 'var(--text-sm)', padding: '0.45rem 0.6rem' }}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={emailAdding}
+                          style={{ padding: '0 0.8rem', fontSize: 'var(--text-xs)', height: '34px', display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}
+                        >
+                          <Plus size={13} />
+                          <span>{emailAdding ? 'Adding...' : 'Add'}</span>
+                        </button>
+                      </form>
+
+                      {workspace.allowedEmails?.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem' }}>
+                          {workspace.allowedEmails.map((email) => {
+                            const alreadyJoined = workspace.members?.some(m => m.email?.toLowerCase() === email.toLowerCase());
+                            return (
+                              <div
+                                key={email}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                  padding: '0.35rem 0.6rem', background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid var(--border-light)', borderRadius: '6px', gap: '0.5rem',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                                  <Mail size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {email}
+                                  </span>
+                                  {alreadyJoined && (
+                                    <span style={{ fontSize: 'var(--text-2xs)', color: '#10b981', fontWeight: 600, flexShrink: 0 }}>Joined</span>
+                                  )}
+                                  {!alreadyJoined && (
+                                    <span style={{ fontSize: 'var(--text-2xs)', color: '#f59e0b', fontWeight: 600, flexShrink: 0 }}>Pending</span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => workspace.removeAllowedEmail(email)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
+                                  title="Remove"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
+                      Only the workspace owner can add teammates.
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Workspace Invite Link (fallback) */}
+                <div className="glass-card settings-card-body" style={{ padding: '1rem' }}>
+                  <h3 style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+                    <Users size={16} style={{ color: 'var(--text-muted)' }} />
+                    Invite Link
+                  </h3>
+
+                  {workspace?.isOwner ? (
+                    <>
+                      <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
+                        Alternative: share a one-time invite link (expires in 15 min).
+                      </p>
+
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.25rem' }}>
-                        {/* URL Box and Copy Button */}
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <input
                             type="text"
                             readOnly
                             className="form-input"
                             style={{
-                              flex: 1,
-                              fontSize: 'var(--text-2xs)',
-                              fontFamily: 'monospace',
-                              background: 'rgba(255,255,255,0.03)',
-                              padding: '0.45rem 0.6rem',
-                              color: 'var(--text-muted)',
-                              borderRadius: '6px',
+                              flex: 1, fontSize: 'var(--text-2xs)', fontFamily: 'monospace',
+                              background: 'rgba(255,255,255,0.03)', padding: '0.45rem 0.6rem',
+                              color: 'var(--text-muted)', borderRadius: '6px',
                               border: '1px solid var(--border-light)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                             }}
                             value={inviteToken ? (
                               window.location.origin + window.location.pathname +
-                              '?invite=' + inviteToken +
-                              '&expiresAt=' + inviteExpiresAt
+                              '?invite=' + inviteToken + '&expiresAt=' + inviteExpiresAt
                             ) : 'Generating invite link...'}
                             onClick={(e) => e.target.select()}
                           />
                           <button
                             type="button"
-                            className="btn btn-primary"
-                            style={{
-                              padding: '0 0.8rem',
-                              fontSize: 'var(--text-xs)',
-                              height: '32px',
-                              display: 'flex',
-                              gap: '0.3rem',
-                              alignItems: 'center',
-                              flexShrink: 0
-                            }}
+                            className="btn btn-secondary"
+                            style={{ padding: '0 0.8rem', fontSize: 'var(--text-xs)', height: '32px', display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}
                             onClick={() => {
                               if (!inviteToken) return;
                               const link = window.location.origin + window.location.pathname +
-                                '?invite=' + encodeURIComponent(inviteToken) +
-                                '&expiresAt=' + inviteExpiresAt;
+                                '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt;
                               navigator.clipboard.writeText(link);
-                            alert('Invite link copied! Send it to your teammate. Expires in 15 minutes.');
+                              alert('Invite link copied! Send it to your teammate. Expires in 15 minutes.');
                             }}
                           >
                             <Copy size={12} />
-                            <span>Copy Link</span>
+                            <span>Copy</span>
                           </button>
                         </div>
 
-                        {/* Expiry metadata and countdown */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.15rem' }}>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: 'var(--text-2xs)',
-                            color: '#f87171',
-                            fontWeight: 700
-                          }}>
-                            <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
-                            {/* Bug fix: was hardcoded '5m' but token actually lasts 15 minutes */}
-                            <span>Single-use link · Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
-                          </div>
-
-                          <div style={{
-                            display: 'flex', alignItems: 'center', gap: '0.35rem',
-                            fontSize: 'var(--text-2xs)', color: '#fbbf24',
-                            background: 'rgba(251,191,36,0.04)', padding: '0.25rem 0.45rem',
-                            borderRadius: '6px', border: '1px solid rgba(251,191,36,0.15)'
-                          }}>
-                            <RefreshCw size={10} style={{ animation: 'spin 10s linear infinite' }} />
-                            <span>Refreshes in <strong>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</strong></span>
-                          </div>
+                        <div style={{ fontSize: 'var(--text-2xs)', color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
+                          <span>Single-use · Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
                         </div>
                       </div>
                     </>
                   ) : (
                     <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
-                      You joined this workspace via invite. Only the workspace owner can generate new invite links.
+                      You joined this workspace via invite. Only the workspace owner can generate invite links.
                     </p>
                   )}
                 </div>

@@ -10,6 +10,10 @@ import {
   deleteDoc,
   getDocs,
   serverTimestamp,
+  query,
+  where,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db, isConfigured } from '../firebase';
 
@@ -50,6 +54,7 @@ export function useWorkspace(user) {
   const [userSettings, setUserSettings]   = useState(null);
   const [wsSettings, setWsSettings]       = useState(null);
   const [members, setMembers]             = useState([]);
+  const [allowedEmails, setAllowedEmails] = useState([]);
   const [isOwner, setIsOwner]             = useState(false);
   const [wsLoading, setWsLoading]         = useState(isConfigured);
   const [ejected, setEjected]             = useState(false);
@@ -118,7 +123,41 @@ export function useWorkspace(user) {
             return;
           }
 
-          // No pending invite and no workspace — create a fresh one
+          // Check if user's email is pre-approved in any workspace
+          if (user.email) {
+            const emailQuery = query(
+              collection(db, 'workspaces'),
+              where('allowedEmails', 'array-contains', user.email)
+            );
+            const wsMatches = await getDocs(emailQuery);
+            if (!wsMatches.empty) {
+              const targetWs = wsMatches.docs[0];
+              const targetWsId = targetWs.id;
+
+              await setDoc(
+                doc(db, 'workspaces', targetWsId, 'members', user.uid),
+                {
+                  email: user.email,
+                  displayName: user.displayName,
+                  photoURL: user.photoURL,
+                  role: 'member',
+                  joinedAt: serverTimestamp(),
+                }
+              );
+
+              await setDoc(userRef, {
+                workspaceId: targetWsId,
+                settings: { theme: 'dark', syncMode: 'auto' },
+              }, { merge: true });
+
+              userSnap = await getDoc(userRef);
+            }
+          }
+
+          if (userSnap.exists() && userSnap.data().workspaceId) {
+            // Auto-joined via email — fall through to normal listener setup
+          } else {
+          // No pending invite, no email match — create a fresh workspace
           const migrated       = readLegacyLocalState();
           const wsRef          = doc(collection(db, 'workspaces'));
           const nextWorkspaceId = wsRef.id;
@@ -128,6 +167,7 @@ export function useWorkspace(user) {
             createdBy: user.uid,
             createdAt: serverTimestamp(),
             lastSyncAt: null,
+            allowedEmails: [],
             settings: {
               currency: migrated.currency || 'USD',
               whatsappTemplates: migrated.whatsappTemplates || [],
@@ -155,6 +195,7 @@ export function useWorkspace(user) {
 
           clearLegacyLocalState(migrated.cleanupKeys);
           userSnap = await getDoc(userRef);
+          }
         }
 
         if (cancelled) return;
@@ -203,6 +244,7 @@ export function useWorkspace(user) {
       setSheetUrlState('');
       setWsSettings(null);
       setMembers([]);
+      setAllowedEmails([]);
       setIsOwner(false);
       return;
     }
@@ -225,6 +267,7 @@ export function useWorkspace(user) {
             const data = snap.data();
             setSheetUrlState(data.sheetUrl || '');
             setWsSettings(data.settings || {});
+            setAllowedEmails(data.allowedEmails || []);
           }
           docLoaded = true;
           checkAllLoaded();
@@ -343,6 +386,22 @@ export function useWorkspace(user) {
   const saveWsSettings = async (patch) => {
     if (!isConfigured || !workspaceId) return;
     await setDoc(doc(db, 'workspaces', workspaceId), { settings: patch }, { merge: true });
+  };
+
+  const addAllowedEmail = async (email) => {
+    if (!isConfigured || !workspaceId || !isOwner) return;
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return;
+    await updateDoc(doc(db, 'workspaces', workspaceId), {
+      allowedEmails: arrayUnion(normalized),
+    });
+  };
+
+  const removeAllowedEmail = async (email) => {
+    if (!isConfigured || !workspaceId || !isOwner) return;
+    await updateDoc(doc(db, 'workspaces', workspaceId), {
+      allowedEmails: arrayRemove(email),
+    });
   };
 
   // ── CRM write helpers ────────────────────────────────────────────────────────
@@ -645,6 +704,9 @@ export function useWorkspace(user) {
     deleteCallingList,
 
     // Team management
+    allowedEmails,
+    addAllowedEmail,
+    removeAllowedEmail,
     createInviteToken,
     acceptInviteToken,
     removeMember,
