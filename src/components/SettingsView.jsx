@@ -23,6 +23,7 @@ import {
   Download
 } from 'lucide-react';
 import { Users, UserMinus, UserPlus, Mail, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import appsScriptCode from '../../google-apps-script.js?raw';
 import { isConfigured } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
@@ -62,6 +63,7 @@ export default function SettingsView({
   // Invite-token QR state
   const [inviteToken, setInviteToken] = useState(null);
   const [inviteExpiresAt, setInviteExpiresAt] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
 
   // Generate invite token — gated on isConfigured only (not sheetUrl)
   const generateInvite = useCallback(async () => {
@@ -75,7 +77,16 @@ export default function SettingsView({
     }
   }, [workspace]);
 
-  // Bug fix: was gated on sheetUrl — team management has nothing to do with Sheets
+  // Generate QR code client-side (no external API call)
+  useEffect(() => {
+    if (!inviteToken || !inviteExpiresAt) { setQrDataUrl(null); return; }
+    const url = window.location.origin + window.location.pathname +
+      '?invite=' + encodeURIComponent(inviteToken) + '&expiresAt=' + inviteExpiresAt;
+    QRCode.toDataURL(url, { width: 160, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [inviteToken, inviteExpiresAt]);
+
   useEffect(() => {
     if (isConfigured && workspace?.isOwner) generateInvite();
   }, [isConfigured, workspace?.isOwner]);
@@ -368,14 +379,10 @@ export default function SettingsView({
                   </p>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.25rem' }}>
                     <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', display: 'inline-block', flexShrink: 0 }}>
-                      {inviteToken ? (
+                      {qrDataUrl ? (
                         <img
                           key={qrKey}
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                            window.location.origin + window.location.pathname +
-                            '?invite=' + encodeURIComponent(inviteToken) +
-                            '&expiresAt=' + inviteExpiresAt
-                          )}`}
+                          src={qrDataUrl}
                           alt="Scan to open on mobile"
                           style={{ width: '80px', height: '80px', display: 'block' }}
                         />

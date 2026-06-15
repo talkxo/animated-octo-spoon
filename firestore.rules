@@ -4,13 +4,11 @@ service cloud.firestore {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    // True if the requesting user belongs to the given workspace
     function isMember(workspaceId) {
       return request.auth != null
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.workspaceId == workspaceId;
     }
 
-    // True if the requesting user is the owner of the given workspace
     function isOwner(workspaceId) {
       return request.auth != null
         && get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.createdBy == request.auth.uid;
@@ -25,51 +23,59 @@ service cloud.firestore {
                         && request.auth.token.email in resource.data.allowedEmails);
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isMember(workspaceId);
+      // Members can update, but only owners can change createdBy or allowedEmails
+      allow update: if isMember(workspaceId)
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['createdBy', 'allowedEmails'])
+                        || isOwner(workspaceId));
       allow delete: if isOwner(workspaceId);
 
       // Members sub-collection
       match /members/{memberId} {
         allow read:  if isMember(workspaceId);
-        // Owners can write any member; users can write their own doc (joining via invite)
-        allow write: if request.auth != null
-                     && (isOwner(workspaceId) || request.auth.uid == memberId);
+        // Owners can write any member doc (set roles, remove, etc.)
+        allow write: if isOwner(workspaceId);
+        // Non-owners can only create their own doc with role='member'
+        allow create: if request.auth != null
+                      && request.auth.uid == memberId
+                      && request.resource.data.role == 'member';
+        // Non-owners can update their own doc but cannot change role
+        allow update: if request.auth != null
+                      && request.auth.uid == memberId
+                      && request.resource.data.role == resource.data.role;
       }
 
-      // Invites — owner-only create (tightened from previous any-member rule)
+      // Invites — owner creates; joining user can only set usedBy to self
       match /invites/{inviteId} {
         allow create: if isOwner(workspaceId);
-        allow read:   if request.auth != null;   // needed for invite validation during join
-        allow update: if request.auth != null;   // needed to mark usedBy during join
+        allow read:   if request.auth != null;
+        allow update: if request.auth != null
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy'])
+                      && request.resource.data.usedBy == request.auth.uid;
         allow delete: if isOwner(workspaceId);
       }
 
-      // ── CRM data collections (new) ─────────────────────────────────────────
+      // ── CRM data collections ───────────────────────────────────────────────
 
-      // Leads — all members can read and write
       match /leads/{leadId} {
         allow read, write: if isMember(workspaceId);
       }
 
-      // Notes — append-only enforced at rules level; members can read and create
       match /notes/{noteId} {
         allow read:   if isMember(workspaceId);
         allow create: if isMember(workspaceId);
-        allow update, delete: if false; // Notes are permanent records
+        allow update, delete: if false;
       }
 
-      // Pipelines — only owners can change pipeline structure
       match /pipelines/{pipelineId} {
-        allow read:         if isMember(workspaceId);
-        allow write:        if isOwner(workspaceId);
+        allow read:  if isMember(workspaceId);
+        allow write: if isOwner(workspaceId);
       }
 
-      // Sprints — all members can manage sprints
       match /sprints/{sprintId} {
         allow read, write: if isMember(workspaceId);
       }
 
-      // Calling lists — all members can manage
       match /callingLists/{listId} {
         allow read, write: if isMember(workspaceId);
       }
@@ -78,17 +84,15 @@ service cloud.firestore {
     // ── Users ─────────────────────────────────────────────────────────────────
 
     match /users/{userId} {
-      // Normal path: each user owns their own doc
       allow read, write: if request.auth != null
                          && request.auth.uid == userId;
 
-      // Ejection path: workspace owners can clear workspaceId on a removed member.
-      // Only allows writing the two ejection fields — nothing else.
+      // Ejection: workspace owner can clear workspaceId on a removed member
       allow update: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['workspaceId', 'ejectedAt'])
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['workspaceId', 'ejectedAt'])
                     && isOwner(resource.data.workspaceId);
 
-      // Sync queue — private to each user (legacy, kept for backwards compat)
       match /syncQueue/{docId} {
         allow read, write: if request.auth != null
                            && request.auth.uid == userId;
